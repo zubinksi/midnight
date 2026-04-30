@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { LivelinePoint } from '@/lib/hyperliquid'
 
 interface Props {
@@ -12,31 +12,25 @@ interface Props {
 }
 
 export default function LivelineChart({ data, value, color, onScrub }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef<number>(0)
-  const scrubRef = useRef<number | null>(null)
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 260 })
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => {
-      const e = entries[0]
-      setContainerSize({ w: e.contentRect.width, h: e.contentRect.height || 260 })
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  const canvasRef   = useRef<HTMLCanvasElement>(null)
+  const rafRef      = useRef<number>(0)
+  const scrubRef    = useRef<number | null>(null)
+  const sizeRef     = useRef({ w: 0, h: 260 })
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const { w, h } = containerSize
+
+    // Read size from the canvas's bounding rect — avoids stale closure issues
+    const rect  = canvas.getBoundingClientRect()
+    const w     = rect.width  || sizeRef.current.w
+    const h     = rect.height || sizeRef.current.h
     if (w === 0) return
 
+    sizeRef.current = { w, h }
+
     const dpr = window.devicePixelRatio || 1
-    canvas.width = w * dpr
+    canvas.width  = w * dpr
     canvas.height = h * dpr
 
     const ctx = canvas.getContext('2d')
@@ -44,50 +38,34 @@ export default function LivelineChart({ data, value, color, onScrub }: Props) {
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, w, h)
 
-    if (data.length < 2) return
+    const pts = data.length >= 2 ? data : buildFallback(value, w)
+    if (pts.length < 2) return
 
-    const padT = 12
-    const padB = 28
-    const padL = 0
-    const padR = 0
+    const padT = 12, padB = 28, padL = 0, padR = 0
     const chartW = w - padL - padR
     const chartH = h - padT - padB
 
-    const values = data.map(p => p.value)
-    const liveVal = value
-    const allVals = [...values, liveVal]
-    const min = Math.min(...allVals)
-    const max = Math.max(...allVals)
-    const range = max - min || 1
+    const allVals = [...pts.map(p => p.value), value]
+    const min     = Math.min(...allVals)
+    const max     = Math.max(...allVals)
+    const range   = max - min || (value * 0.001) || 1
 
-    const toX = (i: number) => padL + (i / (data.length - 1)) * chartW
+    const toX = (i: number) => padL + (i / (pts.length - 1)) * chartW
     const toY = (v: number) => padT + chartH - ((v - min) / range) * chartH
 
-    // Build line path
-    ctx.beginPath()
-    data.forEach((p, i) => {
-      const x = toX(i)
-      const y = toY(p.value)
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-    })
-    // Extend to live value
-    const liveX = toX(data.length - 1)
-    const liveY = toY(liveVal)
+    const liveX = toX(pts.length - 1)
+    const liveY = toY(value)
 
     // Gradient fill
     const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH)
     grad.addColorStop(0, color + '28')
     grad.addColorStop(1, color + '00')
 
-    // Fill path
     ctx.save()
     ctx.beginPath()
-    data.forEach((p, i) => {
-      const x = toX(i)
-      const y = toY(p.value)
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
+    pts.forEach((p, i) => {
+      const x = toX(i), y = toY(p.value)
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
     })
     ctx.lineTo(liveX, liveY)
     ctx.lineTo(liveX, padT + chartH)
@@ -97,33 +75,31 @@ export default function LivelineChart({ data, value, color, onScrub }: Props) {
     ctx.fill()
     ctx.restore()
 
-    // Draw line
+    // Line
     ctx.save()
     ctx.beginPath()
-    data.forEach((p, i) => {
-      const x = toX(i)
-      const y = toY(p.value)
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
+    pts.forEach((p, i) => {
+      const x = toX(i), y = toY(p.value)
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
     })
     ctx.lineTo(liveX, liveY)
-    ctx.strokeStyle = color
-    ctx.lineWidth = 1.5
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
+    ctx.strokeStyle    = color
+    ctx.lineWidth      = 1.5
+    ctx.lineJoin       = 'round'
+    ctx.lineCap        = 'round'
     ctx.stroke()
     ctx.restore()
 
-    // Scrub crosshair
+    // Scrub crosshair or live dot
     const scrubIdx = scrubRef.current
-    if (scrubIdx !== null && scrubIdx >= 0 && scrubIdx < data.length) {
+    if (scrubIdx !== null && scrubIdx >= 0 && scrubIdx < pts.length) {
       const sx = toX(scrubIdx)
-      const sy = toY(data[scrubIdx].value)
+      const sy = toY(pts[scrubIdx].value)
 
       ctx.save()
       ctx.setLineDash([4, 4])
       ctx.strokeStyle = '#46443D'
-      ctx.lineWidth = 1
+      ctx.lineWidth   = 1
       ctx.beginPath()
       ctx.moveTo(sx, padT)
       ctx.lineTo(sx, padT + chartH)
@@ -135,46 +111,58 @@ export default function LivelineChart({ data, value, color, onScrub }: Props) {
       ctx.fillStyle = color
       ctx.fill()
     } else {
-      // Live dot + glow at right edge
-      ctx.save()
-      const radialGrad = ctx.createRadialGradient(liveX, liveY, 0, liveX, liveY, 12)
-      radialGrad.addColorStop(0, color + '40')
-      radialGrad.addColorStop(1, color + '00')
+      // Radial glow
+      const glow = ctx.createRadialGradient(liveX, liveY, 0, liveX, liveY, 12)
+      glow.addColorStop(0, color + '40')
+      glow.addColorStop(1, color + '00')
       ctx.beginPath()
       ctx.arc(liveX, liveY, 12, 0, Math.PI * 2)
-      ctx.fillStyle = radialGrad
+      ctx.fillStyle = glow
       ctx.fill()
-      ctx.restore()
 
       ctx.beginPath()
       ctx.arc(liveX, liveY, 3.5, 0, Math.PI * 2)
       ctx.fillStyle = color
       ctx.fill()
     }
-  }, [data, value, color, containerSize])
+  }, [data, value, color])
 
+  // Redraw whenever data/value/color change
   useEffect(() => {
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(draw)
   }, [draw])
 
-  const getIdxFromX = useCallback((clientX: number) => {
+  // Also redraw on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(draw)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [draw])
+
+  const getIdxFromClientX = useCallback((clientX: number) => {
     const canvas = canvasRef.current
-    if (!canvas || data.length < 2) return null
+    const pts    = data.length >= 2 ? data : null
+    if (!canvas || !pts) return null
     const rect = canvas.getBoundingClientRect()
-    const x = clientX - rect.left
-    const idx = Math.round((x / rect.width) * (data.length - 1))
-    return Math.max(0, Math.min(data.length - 1, idx))
+    const x    = clientX - rect.left
+    const idx  = Math.round((x / rect.width) * (pts.length - 1))
+    return Math.max(0, Math.min(pts.length - 1, idx))
   }, [data])
 
   const handleMove = useCallback((clientX: number) => {
-    const idx = getIdxFromX(clientX)
+    const idx = getIdxFromClientX(clientX)
     if (idx === null) return
+    const pts = data.length >= 2 ? data : null
+    if (!pts) return
     scrubRef.current = idx
-    onScrub?.(data[idx]?.value ?? null)
+    onScrub?.(pts[idx]?.value ?? null)
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(draw)
-  }, [getIdxFromX, data, onScrub, draw])
+  }, [getIdxFromClientX, data, onScrub, draw])
 
   const handleEnd = useCallback(() => {
     scrubRef.current = null
@@ -184,7 +172,7 @@ export default function LivelineChart({ data, value, color, onScrub }: Props) {
   }, [onScrub, draw])
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: 260, position: 'relative', touchAction: 'none' }}>
+    <div style={{ width: '100%', height: 260, position: 'relative', touchAction: 'none' }}>
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
@@ -195,4 +183,13 @@ export default function LivelineChart({ data, value, color, onScrub }: Props) {
       />
     </div>
   )
+}
+
+// Generates a flat placeholder line so the chart always has something to draw.
+function buildFallback(price: number, _w: number): LivelinePoint[] {
+  const now = Math.floor(Date.now() / 1000)
+  return Array.from({ length: 30 }, (_, i) => ({
+    time: now - (29 - i) * 60,
+    value: price,
+  }))
 }

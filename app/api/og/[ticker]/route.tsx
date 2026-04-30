@@ -102,7 +102,7 @@ export async function GET(
 
         {/* Bottom: branding */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.01em' }}>neue.market</span>
+          <span style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.01em' }}>neue.markets</span>
           <span style={{ fontSize: 13, color: '#46443D', letterSpacing: '0.08em' }}>POWERED BY HYPERLIQUID</span>
         </div>
       </div>

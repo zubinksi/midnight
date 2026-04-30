@@ -26,13 +26,13 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const url = (typeof window !== 'undefined' ? window.location.origin : 'https://neue.market') + `/chart/${ticker}`
+  const url = (typeof window !== 'undefined' ? window.location.origin : 'https://neue.markets') + `/chart/${ticker}`
 
   const shareLink = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `${ticker} — neue.market`,
+          title: `${ticker} — neue.markets`,
           text: `${assetName}: ${priceStr} (${pctStr})`,
           url,
         })
@@ -105,7 +105,7 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ ...S.label, color: changeColor }}>{pctStr}</div>
-              <div style={{ ...S.label, marginTop: 4 }}>NEUE.MARKET</div>
+              <div style={{ ...S.label, marginTop: 4 }}>NEUE.MARKETS</div>
             </div>
           </div>
           <div style={{ marginTop: 12, opacity: 0.6 }}>

@@ -58,9 +58,12 @@ export default function Home() {
 
   const historyRef = useRef<Record<string, number[]>>({})
   for (const a of assets) {
+    // Seed with prevDayPx so we always have ≥2 points on first paint
+    if (!historyRef.current[a.ticker]) {
+      historyRef.current[a.ticker] = a.prevDayPx > 0 ? [a.prevDayPx] : []
+    }
     const p = prices[a.ticker]
     if (p == null) continue
-    if (!historyRef.current[a.ticker]) historyRef.current[a.ticker] = []
     const arr = historyRef.current[a.ticker]
     if (arr.length === 0 || arr[arr.length - 1] !== p) {
       arr.push(p)
@@ -96,7 +99,7 @@ export default function Home() {
         {/* Header */}
         <div style={{ padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-            <span style={S.label}>NEUE.MARKET</span>
+            <span style={S.label}>NEUE.MARKETS</span>
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>

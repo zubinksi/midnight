@@ -9,10 +9,10 @@ export async function generateMetadata({
   const upperTicker = ticker.toUpperCase()
 
   return {
-    title: `${upperTicker} — neue.market`,
+    title: `${upperTicker} — neue.markets`,
     description: `Live ${upperTicker} price on Hyperliquid. Track markets 24/7.`,
     openGraph: {
-      title: `${upperTicker} — neue.market`,
+      title: `${upperTicker} — neue.markets`,
       description: `Live ${upperTicker} price on Hyperliquid. Track markets 24/7.`,
       images: [`/api/og/${upperTicker}`],
     },

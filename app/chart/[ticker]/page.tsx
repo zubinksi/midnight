@@ -122,7 +122,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ padding: '0 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-            LIVE · POWERED BY HYPERLIQUID
+            LIVE · POWERED BY HYPERLIQUID AND TRADE.XYZ
           </span>
         </div>
 

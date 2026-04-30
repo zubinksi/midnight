@@ -1,0 +1,49 @@
+const NAMES: Record<string, string> = {
+  // US Equities
+  AAPL:     'Apple Inc.',
+  AMZN:     'Amazon.com',
+  AMD:      'AMD',
+  COIN:     'Coinbase',
+  CRCL:     'Circle Internet',
+  GOOGL:    'Alphabet Inc.',
+  HOOD:     'Robinhood',
+  INTC:     'Intel',
+  META:     'Meta Platforms',
+  MSFT:     'Microsoft',
+  MSTR:     'Strategy',
+  MU:       'Micron Technology',
+  NFLX:     'Netflix',
+  NVDA:     'NVIDIA',
+  ORCL:     'Oracle',
+  PLTR:     'Palantir',
+  RIVN:     'Rivian',
+  SNDK:     'SanDisk',
+  TSLA:     'Tesla',
+  // Korean Equities
+  SMSN:     'Samsung Electronics',
+  SKHX:     'SK Hynix',
+  HYUNDAI:  'Hyundai Motor',
+  EWY:      'iShares South Korea',
+  // Indices
+  XYZ100:   'XYZ U.S. 100',
+  SP500:    'S&P 500',
+  JP225:    'Nikkei 225',
+  KR200:    'KOSPI 200',
+  // Commodities
+  GOLD:     'Gold',
+  SILVER:   'Silver',
+  PLATINUM: 'Platinum',
+  PALLADIUM:'Palladium',
+  COPPER:   'Copper',
+  WTIOIL:   'WTI Crude Oil',
+  BRENTOIL: 'Brent Crude Oil',
+  NATGAS:   'Natural Gas',
+  URNM:     'Uranium',
+  // FX
+  JPY:      'Japanese Yen',
+  EUR:      'Euro',
+}
+
+export function getAssetName(ticker: string): string {
+  return NAMES[ticker.toUpperCase()] ?? ticker
+}

@@ -7,6 +7,7 @@ import Sparkline from './Sparkline'
 
 interface Props {
   ticker: string
+  assetName: string
   price: number
   diff: number
   pct: number
@@ -16,10 +17,8 @@ interface Props {
   onClose: () => void
 }
 
-type CopyState = 'idle' | 'link' | 'embed'
-
-export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkValues, changeColor, onClose }: Props) {
-  const [copyState, setCopyState] = useState<CopyState>('idle')
+export default function ShareSheet({ ticker, assetName, price, diff, pct, decimals, sparkValues, changeColor, onClose }: Props) {
+  const [embedCopied, setEmbedCopied] = useState(false)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -27,23 +26,37 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const copy = async (type: 'link' | 'embed') => {
-    const url = `https://midnight.app/chart/${ticker}`
-    const text = type === 'link'
-      ? url
-      : `<iframe src="${url}/embed" width="400" height="200" frameborder="0"></iframe>`
+  const url = `https://neue.market/chart/${ticker}`
+
+  const shareLink = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${ticker} — neue.market`,
+          text: `${assetName}: ${priceStr} (${pctStr})`,
+          url,
+        })
+      } catch { /* user cancelled */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+      } catch {}
+    }
+  }
+
+  const copyEmbed = async () => {
+    const text = `<iframe src="${url}/embed" width="400" height="200" frameborder="0"></iframe>`
     try {
       await navigator.clipboard.writeText(text)
-      setCopyState(type)
-      setTimeout(() => setCopyState('idle'), 1800)
-    } catch { /* clipboard not available */ }
+      setEmbedCopied(true)
+      setTimeout(() => setEmbedCopied(false), 1800)
+    } catch {}
   }
 
   const { pctStr } = formatChange(diff, pct, decimals)
   const priceStr   = formatPrice(price, decimals)
 
   return (
-    /* Backdrop — covers the full viewport */
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{
@@ -58,7 +71,6 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
         justifyContent: 'center',
       }}
     >
-      {/* Sheet — full-width on mobile, capped at 430px on wider screens */}
       <div
         className="slide-up"
         onClick={e => e.stopPropagation()}
@@ -86,13 +98,14 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={S.label}>{ticker}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em', marginTop: 2 }}>{assetName}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginTop: 6 }}>
                 {priceStr}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ ...S.label, color: changeColor }}>{pctStr}</div>
-              <div style={{ ...S.label, marginTop: 4 }}>MIDNIGHT.APP</div>
+              <div style={{ ...S.label, marginTop: 4 }}>NEUE.MARKET</div>
             </div>
           </div>
           <div style={{ marginTop: 12, opacity: 0.6 }}>
@@ -100,33 +113,53 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
           </div>
         </div>
 
-        {/* Action rows */}
-        {(['link', 'embed'] as const).map(type => (
-          <button
-            key={type}
-            onClick={() => copy(type)}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-              background: 'none',
-              border: 'none',
-              borderBottom: '1px solid #1C1C1A',
-              padding: '16px 0',
-              cursor: 'pointer',
-              color: '#F0EDE6',
-              fontFamily: 'Menlo,Monaco,monospace',
-              fontSize: 13,
-              textAlign: 'left',
-            }}
-          >
-            <span>{type === 'link' ? 'Copy Link' : 'Copy Embed'}</span>
-            <span style={{ color: copyState === type ? '#26ab83' : '#46443D', transition: 'color 0.2s' }}>
-              {copyState === type ? 'COPIED' : '↗'}
-            </span>
-          </button>
-        ))}
+        {/* Share Link */}
+        <button
+          onClick={shareLink}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            borderBottom: '1px solid #1C1C1A',
+            padding: '16px 0',
+            cursor: 'pointer',
+            color: '#F0EDE6',
+            fontFamily: 'Menlo,Monaco,monospace',
+            fontSize: 13,
+            textAlign: 'left',
+          }}
+        >
+          <span>Share Link</span>
+          <span style={{ color: '#46443D' }}>↗</span>
+        </button>
+
+        {/* Copy Embed */}
+        <button
+          onClick={copyEmbed}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            borderBottom: '1px solid #1C1C1A',
+            padding: '16px 0',
+            cursor: 'pointer',
+            color: '#F0EDE6',
+            fontFamily: 'Menlo,Monaco,monospace',
+            fontSize: 13,
+            textAlign: 'left',
+          }}
+        >
+          <span>Copy Embed</span>
+          <span style={{ color: embedCopied ? '#26ab83' : '#46443D', transition: 'color 0.2s' }}>
+            {embedCopied ? 'COPIED' : '↗'}
+          </span>
+        </button>
 
         {/* Dismiss */}
         <button

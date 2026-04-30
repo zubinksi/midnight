@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Midnight — After Hours. 24/7.',
-  description: 'Real-time stock, index, and commodity prices on Hyperliquid. The only venue with 24/7 markets.',
-  metadataBase: new URL('https://midnight.app'),
+  title: 'neue.market — Track Markets. 24/7.',
+  description: 'Real-time stock, index, commodity, and FX prices on Hyperliquid. The only venue with 24/7 markets.',
+  metadataBase: new URL('https://neue.market'),
   openGraph: {
-    title: 'Midnight — After Hours. 24/7.',
-    description: 'Real-time stock, index, and commodity prices on Hyperliquid.',
-    siteName: 'Midnight',
+    title: 'neue.market — Track Markets. 24/7.',
+    description: 'Real-time stock, index, commodity, and FX prices on Hyperliquid.',
+    siteName: 'neue.market',
   },
   twitter: {
     card: 'summary_large_image',

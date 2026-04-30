@@ -6,6 +6,7 @@ import { useAssets, useLivePrices } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
+import { getAssetName } from '@/lib/assetNames'
 import Sparkline from '@/components/Sparkline'
 
 type FilterKey = 'all' | AssetCategory
@@ -15,20 +16,20 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'stock',     label: 'STOCKS' },
   { key: 'index',     label: 'INDICES' },
   { key: 'commodity', label: 'COMMODITIES' },
+  { key: 'fx',        label: 'FX' },
 ]
 
 export default function Home() {
   const router = useRouter()
   const { assets, loading, error } = useAssets()
-  const [clock, setClock]         = useState(formatDate())
-  const [search, setSearch]           = useState('')
+  const [clock, setClock]               = useState(formatDate())
+  const [search, setSearch]             = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [favorites, setFavorites]     = useState<Set<string>>(new Set())
+  const [favorites, setFavorites]       = useState<Set<string>>(new Set())
 
-  // Hydrate favorites from localStorage after mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('midnight-favorites')
+      const stored = localStorage.getItem('neue-favorites')
       if (stored) setFavorites(new Set(JSON.parse(stored) as string[]))
     } catch {}
   }, [])
@@ -38,7 +39,7 @@ export default function Home() {
       const next = new Set(prev)
       if (next.has(ticker)) next.delete(ticker)
       else next.add(ticker)
-      try { localStorage.setItem('midnight-favorites', JSON.stringify([...next])) } catch {}
+      try { localStorage.setItem('neue-favorites', JSON.stringify([...next])) } catch {}
       return next
     })
   }
@@ -72,13 +73,15 @@ export default function Home() {
     return () => clearInterval(t)
   }, [])
 
-  // Category + search filter, favorites sorted to top
   const displayAssets = useMemo(() => {
     let filtered = categoryFilter === 'all'
       ? assets
       : assets.filter(a => a.category === categoryFilter)
     const q = search.trim().toLowerCase()
-    if (q) filtered = filtered.filter(a => a.ticker.toLowerCase().includes(q))
+    if (q) filtered = filtered.filter(a =>
+      a.ticker.toLowerCase().includes(q) ||
+      getAssetName(a.ticker).toLowerCase().includes(q)
+    )
     return [...filtered].sort((a, b) => {
       const af = favorites.has(a.ticker) ? 0 : 1
       const bf = favorites.has(b.ticker) ? 0 : 1
@@ -93,12 +96,12 @@ export default function Home() {
         {/* Header */}
         <div style={{ padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-            <span style={S.label}>MIDNIGHT</span>
+            <span style={S.label}>NEUE.MARKET</span>
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
-            <div style={S.hero}>24/7 Markets.</div>
-            <div style={{ ...S.hero, color: '#46443D' }}></div>
+            <div style={S.hero}>Track Markets.</div>
+            <div style={{ ...S.hero, color: '#46443D' }}>24/7.</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
@@ -137,8 +140,9 @@ export default function Home() {
               </button>
             )}
           </div>
+
           {/* Category filter */}
-          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 4, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, flexWrap: 'wrap' }}>
             {FILTERS.map(f => {
               const active = categoryFilter === f.key
               return (
@@ -191,12 +195,13 @@ export default function Home() {
                 const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
                 const hasOpen  = asset.prevDayPx > 0
                 const starred  = favorites.has(asset.ticker)
+                const name     = getAssetName(asset.ticker)
 
                 return (
                   <div
                     key={asset.coin}
                     onClick={() => router.push(`/chart/${asset.ticker}`)}
-                    style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 10 }}
+                    style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 10 }}
                   >
                     {/* Star */}
                     <button
@@ -206,14 +211,18 @@ export default function Home() {
                       {starred ? '★' : '☆'}
                     </button>
 
-                    <div style={{ width: 56, flexShrink: 0 }}>
+                    {/* Ticker + name */}
+                    <div style={{ width: 80, flexShrink: 0 }}>
                       <div style={S.ticker}>{asset.ticker}</div>
+                      <div style={S.name}>{name}</div>
                     </div>
 
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                      <Sparkline values={hist} width={88} height={28} color={color} />
+                    {/* Sparkline fills middle */}
+                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+                      <Sparkline values={hist} height={32} color={color} responsive />
                     </div>
 
+                    {/* Price + change */}
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={S.price}>{priceStr}</div>
                       {hasOpen && (
@@ -246,11 +255,14 @@ function LoadingRows() {
   return (
     <div style={{ padding: '0 24px' }}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', gap: 10, opacity: 1 - i * 0.1 }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #1C1C1A', gap: 10, opacity: 1 - i * 0.1 }}>
           <div style={{ width: 14, height: 14, background: '#1C1C1A', borderRadius: 2, flexShrink: 0 }} />
-          <div style={{ width: 56, height: 14, background: '#1C1C1A', borderRadius: 3 }} />
-          <div style={{ flex: 1, height: 28, background: '#1C1C1A', borderRadius: 3 }} />
-          <div style={{ width: 60, height: 14, background: '#1C1C1A', borderRadius: 3 }} />
+          <div style={{ width: 80, flexShrink: 0 }}>
+            <div style={{ width: 56, height: 13, background: '#1C1C1A', borderRadius: 3, marginBottom: 5 }} />
+            <div style={{ width: 72, height: 10, background: '#1C1C1A', borderRadius: 3 }} />
+          </div>
+          <div style={{ flex: 1, height: 32, background: '#1C1C1A', borderRadius: 3 }} />
+          <div style={{ width: 64, height: 13, background: '#1C1C1A', borderRadius: 3 }} />
         </div>
       ))}
     </div>
@@ -270,6 +282,7 @@ function ErrorState({ message }: { message: string }) {
 const S = {
   label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
   hero:   { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
-  ticker: { fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
-  price:  { fontSize: 15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,
+  ticker: { fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
+  name:   { fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as React.CSSProperties,
+  price:  { fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,
 }

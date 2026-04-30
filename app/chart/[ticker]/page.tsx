@@ -4,6 +4,7 @@ import { useState, useCallback, use, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
+import { getAssetName } from '@/lib/assetNames'
 import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
@@ -55,13 +56,10 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const livePrice = useAssetPrice(coin, 800)
   const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
 
-  // Current real-time price (not affected by scrubbing)
   const currentPrice  = livePrice ?? assetInfo?.price ?? 0
-  // Display price follows scrub position when user is hovering the chart
   const displayPrice  = scrubPrice ?? currentPrice
   const decimals      = priceDecimals(displayPrice)
 
-  // Header change reflects the selected timeframe window
   const windowOpen    = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
   const windowDiff    = displayPrice - windowOpen
   const windowPct     = windowOpen !== 0 ? (windowDiff / windowOpen) * 100 : 0
@@ -71,6 +69,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
   const sparkValues   = data.length > 0 ? data.map(p => p.value) : [currentPrice]
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
+  const assetName     = getAssetName(upperTicker)
 
   const handleWindowChange = useCallback((secs: number) => {
     const tf = SECS_TO_TIMEFRAME[secs]
@@ -90,7 +89,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
           <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
-            {upperTicker} · HYPERLIQUID
+            {upperTicker} · {assetName}
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
@@ -132,6 +131,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
       {showShare && (
         <ShareSheet
           ticker={upperTicker}
+          assetName={assetName}
           price={currentPrice}
           diff={windowDiff}
           pct={windowPct}
@@ -149,7 +149,6 @@ function StatsGrid({ assetInfo, currentPrice }: {
   assetInfo: AssetInfo | null
   currentPrice: number
 }) {
-  // 24hr change is always relative to prevDayPx regardless of selected chart window
   const prevDayPx   = assetInfo?.prevDayPx ?? 0
   const diff24h     = prevDayPx > 0 ? currentPrice - prevDayPx : 0
   const pct24h      = prevDayPx > 0 ? (diff24h / prevDayPx) * 100 : 0
@@ -164,30 +163,14 @@ function StatsGrid({ assetInfo, currentPrice }: {
   const fundingColor = funding >= 0 ? '#26ab83' : '#E84332'
 
   const stats = [
-    {
-      label: '24H CHANGE',
-      value: prevDayPx > 0 ? `${diffStr} (${pctStr})` : '—',
-      color: color24h,
-    },
-    {
-      label: '24H VOLUME',
-      value: volume24h > 0 ? formatVolume(volume24h) : '—',
-      color: '#F0EDE6',
-    },
-    {
-      label: 'OPEN INT',
-      value: openInterest > 0 ? formatVolume(openInterest) : '—',
-      color: '#F0EDE6',
-    },
-    {
-      label: 'FUNDING',
-      value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—',
-      color: fundingColor,
-    },
+    { label: '24H CHANGE', value: prevDayPx > 0 ? `${diffStr} (${pctStr})` : '—', color: color24h },
+    { label: '24H VOLUME', value: volume24h > 0 ? formatVolume(volume24h) : '—', color: '#F0EDE6' },
+    { label: 'OPEN INT',   value: openInterest > 0 ? formatVolume(openInterest) : '—', color: '#F0EDE6' },
+    { label: 'FUNDING',    value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: fundingColor },
   ]
 
   return (
-    <div style={{ borderTop: '1px solid #1C1C1A', padding: '28px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
+    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '40px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
       {stats.map(({ label, value, color }) => (
         <div key={label}>
           <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
@@ -200,5 +183,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 
 const S = {
   backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
-  shareBtn: { background: 'none', border: '1px solid #1C1C1A', borderRadius: 20, padding: '6px 14px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  shareBtn: { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

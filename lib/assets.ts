@@ -1,4 +1,4 @@
-export type AssetCategory = 'stock' | 'index' | 'commodity'
+export type AssetCategory = 'stock' | 'index' | 'commodity' | 'fx'
 
 export interface AssetInfo {
   ticker: string        // display name, e.g. "NVDA"
@@ -23,9 +23,12 @@ const COMMODITIES = new Set([
   'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS', 'URNM',
 ])
 
+const FX = new Set(['JPY', 'EUR'])
+
 export function getAssetCategory(ticker: string): AssetCategory {
-  if (INDICES.has(ticker))    return 'index'
+  if (INDICES.has(ticker))     return 'index'
   if (COMMODITIES.has(ticker)) return 'commodity'
+  if (FX.has(ticker))          return 'fx'
   return 'stock'
 }
 

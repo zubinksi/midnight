@@ -74,18 +74,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
         {/* Chart */}
         <div style={{ marginTop: 28 }}>
-          {loading ? (
-            <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>LOADING…</span>
-            </div>
-          ) : (
-            <LivelineChart
-              data={data}
-              value={livePrice ?? assetInfo?.price ?? 0}
-              color={changeColor}
-              onScrub={handleScrub}
-            />
-          )}
+          <LivelineChart
+            data={data}
+            value={livePrice ?? assetInfo?.price ?? 0}
+            color={changeColor}
+            loading={loading}
+            onScrub={handleScrub}
+          />
         </div>
 
         {/* Timeframe tabs */}

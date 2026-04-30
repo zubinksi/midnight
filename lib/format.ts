@@ -1,19 +1,23 @@
-import { ASSET_MAP } from './assets'
+import { priceDecimals } from './assets'
 
-export function formatPrice(ticker: string, price: number): string {
-  const asset = ASSET_MAP.get(ticker)
-  const decimals = asset?.decimals ?? 2
+export function formatPrice(price: number, decimals?: number): string {
+  const d = decimals ?? priceDecimals(price)
   return price.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: d,
+    maximumFractionDigits: d,
   })
 }
 
-export function formatChange(diff: number, pct: number, decimals = 2): { diffStr: string; pctStr: string } {
+export function formatChange(diff: number, pct: number, decimals?: number): {
+  diffStr: string
+  pctStr: string
+} {
+  const d   = decimals ?? 2
   const sign = diff >= 0 ? '+' : ''
-  const diffStr = `${sign}$${Math.abs(diff).toFixed(decimals)}`
-  const pctStr = `${sign}${pct.toFixed(2)}%`
-  return { diffStr, pctStr }
+  return {
+    diffStr: `${sign}$${Math.abs(diff).toFixed(d)}`,
+    pctStr:  `${sign}${pct.toFixed(2)}%`,
+  }
 }
 
 export function formatVolume(v: number): string {
@@ -25,13 +29,13 @@ export function formatVolume(v: number): string {
 
 export function formatDate(): string {
   const now = new Date()
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+  const days   = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                   'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  const day = days[now.getDay()]
+  const day   = days[now.getDay()]
   const month = months[now.getMonth()]
-  const date = now.getDate()
-  const h = String(now.getHours()).padStart(2, '0')
-  const m = String(now.getMinutes()).padStart(2, '0')
+  const date  = now.getDate()
+  const h     = String(now.getHours()).padStart(2, '0')
+  const m     = String(now.getMinutes()).padStart(2, '0')
   return `${day}, ${month} ${date}  ${h}:${m}`
 }

@@ -1,19 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ASSETS } from './assets'
+import type { AssetInfo } from './assets'
 
-// All Hyperliquid calls go through our proxy to avoid CORS issues and allow
-// server-side inspection.
 const HL_PROXY = '/api/hl'
 
 export interface LivelinePoint {
-  time: number  // unix seconds
+  time: number   // unix seconds
   value: number
-}
-
-export interface PriceMap {
-  [ticker: string]: number
 }
 
 export type Timeframe = '1H' | '4H' | '1D' | '7D' | '1M'
@@ -41,9 +35,9 @@ async function hlPost<T>(body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
-async function fetchAllMids(): Promise<PriceMap> {
+async function fetchAllMids(): Promise<Record<string, number>> {
   const raw = await hlPost<Record<string, string>>({ type: 'allMids' })
-  const map: PriceMap = {}
+  const map: Record<string, number> = {}
   for (const [k, v] of Object.entries(raw)) {
     const n = parseFloat(v)
     if (!isNaN(n)) map[k] = n
@@ -53,7 +47,7 @@ async function fetchAllMids(): Promise<PriceMap> {
 
 export async function fetchCandles(ticker: string, timeframe: Timeframe): Promise<LivelinePoint[]> {
   const { interval, windowMs } = TIMEFRAME_CONFIG[timeframe]
-  const endTime = Date.now()
+  const endTime   = Date.now()
   const startTime = endTime - windowMs
 
   const candles = await hlPost<Array<{ t: number; c: string }>>({
@@ -63,64 +57,100 @@ export async function fetchCandles(ticker: string, timeframe: Timeframe): Promis
 
   if (!Array.isArray(candles)) return []
   return candles
-    .filter(c => c && c.t != null && c.c != null)
+    .filter(c => c?.t != null && c?.c != null)
     .map(c => ({ time: Math.floor(c.t / 1000), value: parseFloat(c.c) }))
     .filter(p => !isNaN(p.value))
 }
 
-// Fetches a single candle to get the 24-hr open price for a ticker.
-export async function fetch24hOpen(ticker: string): Promise<number | null> {
-  const pts = await fetchCandles(ticker, '1D')
-  return pts.length > 0 ? pts[0].value : null
-}
-
 // ─── hooks ────────────────────────────────────────────────────────────────────
 
-export function useAllPrices(pollMs = 800): PriceMap {
-  const [prices, setPrices] = useState<PriceMap>(() => {
-    const seed: PriceMap = {}
-    for (const a of ASSETS) seed[a.ticker] = a.seedPrice
-    return seed
-  })
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+// Fetches the live tradfi asset list (sorted by 24h volume) from our assets API.
+export function useAssets(): { assets: AssetInfo[]; loading: boolean; error: string | null } {
+  const [assets, setAssets]   = useState<AssetInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/assets')
+      .then(r => {
+        if (!r.ok) throw new Error(`/api/assets ${r.status}`)
+        return r.json() as Promise<AssetInfo[]>
+      })
+      .then(data => {
+        if (cancelled) return
+        setAssets(data)
+        setError(null)
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.error('[useAssets]', err)
+        setError('Failed to load assets')
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  return { assets, loading, error }
+}
+
+// Polls allMids for the given tickers every pollMs milliseconds.
+// Merges live prices into the seeded map from the initial asset list.
+export function useLivePrices(
+  tickers: string[],
+  seedPrices: Record<string, number>,
+  pollMs = 800,
+): Record<string, number> {
+  const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
+  const timerRef            = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tickerSet           = useRef(new Set(tickers))
+
+  // Keep the ticker set in sync if the list changes
+  useEffect(() => {
+    tickerSet.current = new Set(tickers)
+  }, [tickers])
+
+  // Merge new seed prices when the asset list loads
+  useEffect(() => {
+    setPrices(prev => ({ ...seedPrices, ...prev }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(seedPrices)])
 
   const poll = useCallback(async () => {
     try {
       const map = await fetchAllMids()
-      if (Object.keys(map).length > 0) {
-        setPrices(prev => {
-          const next = { ...prev }
-          for (const a of ASSETS) {
-            if (map[a.ticker] !== undefined) next[a.ticker] = map[a.ticker]
-          }
-          return next
-        })
-      }
+      setPrices(prev => {
+        const next = { ...prev }
+        for (const ticker of tickerSet.current) {
+          if (map[ticker] !== undefined) next[ticker] = map[ticker]
+        }
+        return next
+      })
     } catch {
-      // keep previous prices on failure — silent
+      // keep previous prices on failure
     }
     timerRef.current = setTimeout(poll, pollMs)
   }, [pollMs])
 
   useEffect(() => {
+    if (tickers.length === 0) return
     poll()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [poll])
+  }, [poll, tickers.length])
 
   return prices
 }
 
+// Single-asset price poll (used on the chart detail page).
 export function useAssetPrice(ticker: string, pollMs = 800): number | null {
   const [price, setPrice] = useState<number | null>(null)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const poll = useCallback(async () => {
     try {
       const map = await fetchAllMids()
       if (map[ticker] !== undefined) setPrice(map[ticker])
-    } catch {
-      // keep previous
-    }
+    } catch { /* keep previous */ }
     timerRef.current = setTimeout(poll, pollMs)
   }, [ticker, pollMs])
 
@@ -137,7 +167,7 @@ export function usePriceHistory(ticker: string, timeframe: Timeframe): {
   loading: boolean
   openPrice: number | null
 } {
-  const [data, setData] = useState<LivelinePoint[]>([])
+  const [data, setData]       = useState<LivelinePoint[]>([])
   const [loading, setLoading] = useState(true)
   const [openPrice, setOpenPrice] = useState<number | null>(null)
 
@@ -145,48 +175,15 @@ export function usePriceHistory(ticker: string, timeframe: Timeframe): {
     let cancelled = false
     setLoading(true)
     fetchCandles(ticker, timeframe)
-      .then(points => {
+      .then(pts => {
         if (cancelled) return
-        setData(points)
-        setOpenPrice(points.length > 0 ? points[0].value : null)
+        setData(pts)
+        setOpenPrice(pts.length > 0 ? pts[0].value : null)
       })
-      .catch(() => {
-        if (cancelled) return
-        setData([])
-        setOpenPrice(null)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .catch(() => { if (!cancelled) { setData([]); setOpenPrice(null) } })
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [ticker, timeframe])
 
   return { data, loading, openPrice }
-}
-
-// Returns 24h open prices for all assets (keyed by ticker).
-export function useDay24hOpens(): Record<string, number> {
-  const [opens, setOpens] = useState<Record<string, number>>({})
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.allSettled(
-      ASSETS.map(async a => {
-        const open = await fetch24hOpen(a.ticker)
-        return { ticker: a.ticker, open }
-      })
-    ).then(results => {
-      if (cancelled) return
-      const map: Record<string, number> = {}
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.open !== null) {
-          map[r.value.ticker] = r.value.open
-        }
-      }
-      setOpens(map)
-    })
-    return () => { cancelled = true }
-  }, [])
-
-  return opens
 }

@@ -10,7 +10,27 @@ import Sparkline from '@/components/Sparkline'
 export default function Home() {
   const router = useRouter()
   const { assets, loading, error } = useAssets()
-  const [clock, setClock] = useState(formatDate())
+  const [clock, setClock]         = useState(formatDate())
+  const [search, setSearch]       = useState('')
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+
+  // Hydrate favorites from localStorage after mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('midnight-favorites')
+      if (stored) setFavorites(new Set(JSON.parse(stored) as string[]))
+    } catch {}
+  }, [])
+
+  const toggleFavorite = (ticker: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(ticker)) next.delete(ticker)
+      else next.add(ticker)
+      try { localStorage.setItem('midnight-favorites', JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }
 
   const { tickers, seedPrices } = useMemo(() => {
     const tickers: string[]                  = []
@@ -24,7 +44,6 @@ export default function Home() {
 
   const prices = useLivePrices(tickers, seedPrices, 800)
 
-  // Rolling sparkline history per ticker
   const historyRef = useRef<Record<string, number[]>>({})
   for (const a of assets) {
     const p = prices[a.ticker]
@@ -42,6 +61,19 @@ export default function Home() {
     return () => clearInterval(t)
   }, [])
 
+  // Favorites first, then alphabetically; filter by search query
+  const displayAssets = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? assets.filter(a => a.ticker.toLowerCase().includes(q))
+      : assets
+    return [...filtered].sort((a, b) => {
+      const af = favorites.has(a.ticker) ? 0 : 1
+      const bf = favorites.has(b.ticker) ? 0 : 1
+      return af - bf
+    })
+  }, [assets, favorites, search])
+
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
@@ -53,14 +85,45 @@ export default function Home() {
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
-            <div style={S.hero}>After Hours.</div>
-            <div style={{ ...S.hero, color: '#46443D' }}>24/7.</div>
+            <div style={S.hero}>Watch Markets Move.</div>
+            <div style={{ ...S.hero, color: '#46443D' }}>Nights. Weekends. 24/7.</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
             <span style={S.label}>
               LIVE · HYPERLIQUID · {loading ? '…' : `${assets.length} MARKETS`}
             </span>
+          </div>
+
+          {/* Search */}
+          <div style={{ position: 'relative', marginBottom: 4 }}>
+            <input
+              type="text"
+              placeholder="SEARCH MARKETS"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid #1C1C1A',
+                padding: '10px 0',
+                color: '#F0EDE6',
+                fontFamily: 'Menlo,Monaco,monospace',
+                fontSize: 12,
+                letterSpacing: '0.08em',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, padding: '4px 0' }}
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -72,51 +135,66 @@ export default function Home() {
           <ErrorState message={error} />
         ) : (
           <div style={{ padding: '0 24px' }}>
-            {assets.map(asset => {
-              const price    = prices[asset.ticker] ?? asset.price
-              const open     = asset.prevDayPx || price
-              const diff     = price - open
-              const pct      = open !== 0 ? (diff / open) * 100 : 0
-              const up       = diff >= 0
-              const color    = up ? '#26ab83' : '#E84332'
-              const hist     = historyRef.current[asset.ticker] ?? [price]
-              const decimals = priceDecimals(price)
-              const priceStr = formatPrice(price, decimals)
-              const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
-              const hasOpen  = asset.prevDayPx > 0
+            {displayAssets.length === 0 && search ? (
+              <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
+              </div>
+            ) : (
+              displayAssets.map(asset => {
+                const price    = prices[asset.ticker] ?? asset.price
+                const open     = asset.prevDayPx || price
+                const diff     = price - open
+                const pct      = open !== 0 ? (diff / open) * 100 : 0
+                const up       = diff >= 0
+                const color    = up ? '#26ab83' : '#E84332'
+                const hist     = historyRef.current[asset.ticker] ?? [price]
+                const decimals = priceDecimals(price)
+                const priceStr = formatPrice(price, decimals)
+                const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
+                const hasOpen  = asset.prevDayPx > 0
+                const starred  = favorites.has(asset.ticker)
 
-              return (
-                <div
-                  key={asset.coin}
-                  onClick={() => router.push(`/chart/${asset.ticker}`)}
-                  style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 12 }}
-                >
-                  <div style={{ width: 60, flexShrink: 0 }}>
-                    <div style={S.ticker}>{asset.ticker}</div>
-                  </div>
+                return (
+                  <div
+                    key={asset.coin}
+                    onClick={() => router.push(`/chart/${asset.ticker}`)}
+                    style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 10 }}
+                  >
+                    {/* Star */}
+                    <button
+                      onClick={e => { e.stopPropagation(); toggleFavorite(asset.ticker) }}
+                      style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', fontSize: 14, color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1 }}
+                    >
+                      {starred ? '★' : '☆'}
+                    </button>
 
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                    <Sparkline values={hist} width={88} height={28} color={color} />
-                  </div>
+                    <div style={{ width: 56, flexShrink: 0 }}>
+                      <div style={S.ticker}>{asset.ticker}</div>
+                    </div>
 
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={S.price}>{priceStr}</div>
-                    {hasOpen && (
-                      <div style={{ marginTop: 3 }}>
-                        <span style={{
-                          display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-                          fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-                          fontVariantNumeric: 'tabular-nums', color,
-                          background: up ? '#26ab8322' : '#E8433218',
-                        }}>
-                          {pctStr}
-                        </span>
-                      </div>
-                    )}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                      <Sparkline values={hist} width={88} height={28} color={color} />
+                    </div>
+
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={S.price}>{priceStr}</div>
+                      {hasOpen && (
+                        <div style={{ marginTop: 3 }}>
+                          <span style={{
+                            display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+                            fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+                            fontVariantNumeric: 'tabular-nums', color,
+                            background: up ? '#26ab8322' : '#E8433218',
+                          }}>
+                            {pctStr}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         )}
 
@@ -130,8 +208,9 @@ function LoadingRows() {
   return (
     <div style={{ padding: '0 24px' }}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', gap: 12, opacity: 1 - i * 0.1 }}>
-          <div style={{ width: 60, height: 14, background: '#1C1C1A', borderRadius: 3 }} />
+        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', gap: 10, opacity: 1 - i * 0.1 }}>
+          <div style={{ width: 14, height: 14, background: '#1C1C1A', borderRadius: 2, flexShrink: 0 }} />
+          <div style={{ width: 56, height: 14, background: '#1C1C1A', borderRadius: 3 }} />
           <div style={{ flex: 1, height: 28, background: '#1C1C1A', borderRadius: 3 }} />
           <div style={{ width: 60, height: 14, background: '#1C1C1A', borderRadius: 3 }} />
         </div>

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
 import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
-import type { LivelinePoint } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
@@ -56,16 +55,22 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const livePrice = useAssetPrice(coin, 800)
   const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
 
-  const displayPrice = scrubPrice ?? livePrice ?? assetInfo?.price ?? 0
-  const decimals     = priceDecimals(displayPrice)
-  const open         = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
-  const diff         = displayPrice - open
-  const pct          = open !== 0 ? (diff / open) * 100 : 0
-  const up           = diff >= 0
-  const changeColor  = up ? '#26ab83' : '#E84332'
-  const { diffStr, pctStr } = formatChange(diff, pct, decimals)
-  const sparkValues  = data.length > 0 ? data.map(p => p.value) : [displayPrice]
-  const handleScrub  = useCallback((p: number | null) => setScrubPrice(p), [])
+  // Current real-time price (not affected by scrubbing)
+  const currentPrice  = livePrice ?? assetInfo?.price ?? 0
+  // Display price follows scrub position when user is hovering the chart
+  const displayPrice  = scrubPrice ?? currentPrice
+  const decimals      = priceDecimals(displayPrice)
+
+  // Header change reflects the selected timeframe window
+  const windowOpen    = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
+  const windowDiff    = displayPrice - windowOpen
+  const windowPct     = windowOpen !== 0 ? (windowDiff / windowOpen) * 100 : 0
+  const windowUp      = windowDiff >= 0
+  const changeColor   = windowUp ? '#26ab83' : '#E84332'
+  const { diffStr, pctStr } = formatChange(windowDiff, windowPct, decimals)
+
+  const sparkValues   = data.length > 0 ? data.map(p => p.value) : [currentPrice]
+  const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
 
   const handleWindowChange = useCallback((secs: number) => {
     const tf = SECS_TO_TIMEFRAME[secs]
@@ -96,7 +101,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           </div>
         </div>
 
-        {/* Chart — Liveline renders its own window picker */}
+        {/* Chart */}
         <div style={{ marginTop: 28 }}>
           <LivelineChart
             data={data}
@@ -111,7 +116,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Stats */}
-        <StatsGrid assetInfo={assetInfo} diff={diff} pct={pct} up={up} changeColor={changeColor} data={data} />
+        <StatsGrid assetInfo={assetInfo} currentPrice={currentPrice} />
 
         {/* Attribution */}
         <div style={{ padding: '0 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -127,9 +132,9 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
       {showShare && (
         <ShareSheet
           ticker={upperTicker}
-          price={livePrice ?? assetInfo?.price ?? 0}
-          diff={diff}
-          pct={pct}
+          price={currentPrice}
+          diff={windowDiff}
+          pct={windowPct}
           decimals={decimals}
           sparkValues={sparkValues}
           changeColor={changeColor}
@@ -140,26 +145,49 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   )
 }
 
-function StatsGrid({ assetInfo, diff, pct, up, changeColor, data }: {
+function StatsGrid({ assetInfo, currentPrice }: {
   assetInfo: AssetInfo | null
-  diff: number; pct: number; up: boolean; changeColor: string
-  data: LivelinePoint[]
+  currentPrice: number
 }) {
-  const decimals = priceDecimals(Math.abs(diff) || 1)
-  const { diffStr, pctStr } = formatChange(diff, pct, decimals)
+  // 24hr change is always relative to prevDayPx regardless of selected chart window
+  const prevDayPx   = assetInfo?.prevDayPx ?? 0
+  const diff24h     = prevDayPx > 0 ? currentPrice - prevDayPx : 0
+  const pct24h      = prevDayPx > 0 ? (diff24h / prevDayPx) * 100 : 0
+  const up24h       = diff24h >= 0
+  const color24h    = up24h ? '#26ab83' : '#E84332'
+  const decimals    = priceDecimals(currentPrice || 1)
+  const { diffStr, pctStr } = formatChange(diff24h, pct24h, decimals)
+
   const volume24h    = assetInfo?.volume24h    ?? 0
   const openInterest = assetInfo?.openInterest ?? 0
   const funding      = assetInfo?.funding      ?? 0
+  const fundingColor = funding >= 0 ? '#26ab83' : '#E84332'
 
   const stats = [
-    { label: '24H CHANGE',  value: `${diffStr} (${pctStr})`,                                    color: changeColor },
-    { label: '24H VOLUME',  value: volume24h    > 0 ? formatVolume(volume24h)    : '—',          color: '#F0EDE6' },
-    { label: 'OPEN INT',    value: openInterest > 0 ? formatVolume(openInterest) : '—',          color: '#F0EDE6' },
-    { label: 'FUNDING',     value: funding !== 0 ? `${up ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: changeColor },
+    {
+      label: '24H CHANGE',
+      value: prevDayPx > 0 ? `${diffStr} (${pctStr})` : '—',
+      color: color24h,
+    },
+    {
+      label: '24H VOLUME',
+      value: volume24h > 0 ? formatVolume(volume24h) : '—',
+      color: '#F0EDE6',
+    },
+    {
+      label: 'OPEN INT',
+      value: openInterest > 0 ? formatVolume(openInterest) : '—',
+      color: '#F0EDE6',
+    },
+    {
+      label: 'FUNDING',
+      value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—',
+      color: fundingColor,
+    },
   ]
 
   return (
-    <div style={{ padding: '28px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
+    <div style={{ borderTop: '1px solid #1C1C1A', padding: '28px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
       {stats.map(({ label, value, color }) => (
         <div key={label}>
           <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>

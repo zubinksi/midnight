@@ -15,12 +15,12 @@ export interface AssetInfo {
 // Static category mapping — trade.xyz does not expose this via API.
 // Sources: docs.trade.xyz/asset-directory/{equities,equity-indices,commodities,korea}
 const INDICES = new Set([
-  'XYZ100', 'SP500',
+  'XYZ100', 'SP500', 'JP225', 'KR200',
 ])
 
 const COMMODITIES = new Set([
   'GOLD', 'SILVER', 'PLATINUM', 'PALLADIUM',
-  'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS',
+  'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS', 'URNM',
 ])
 
 export function getAssetCategory(ticker: string): AssetCategory {

@@ -10,19 +10,40 @@ import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
 
-const TIMEFRAMES: Timeframe[] = ['1H', '4H', '1D', '7D', '1M']
+const WINDOWS = [
+  { label: '1H', secs: 3600 },
+  { label: '4H', secs: 14400 },
+  { label: '1D', secs: 86400 },
+  { label: '7D', secs: 604800 },
+  { label: '1M', secs: 2592000 },
+]
+
+const SECS_TO_TIMEFRAME: Record<number, Timeframe> = {
+  3600:    '1H',
+  14400:   '4H',
+  86400:   '1D',
+  604800:  '7D',
+  2592000: '1M',
+}
+
+const TIMEFRAME_TO_SECS: Record<Timeframe, number> = {
+  '1H': 3600,
+  '4H': 14400,
+  '1D': 86400,
+  '7D': 604800,
+  '1M': 2592000,
+}
 
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = use(params)
   const upperTicker = ticker.toUpperCase()
   const router = useRouter()
 
-  const [assetInfo, setAssetInfo]    = useState<AssetInfo | null>(null)
-  const [timeframe, setTimeframe]    = useState<Timeframe>('1D')
-  const [scrubPrice, setScrubPrice]  = useState<number | null>(null)
-  const [showShare, setShowShare]    = useState(false)
+  const [assetInfo, setAssetInfo]   = useState<AssetInfo | null>(null)
+  const [timeframe, setTimeframe]   = useState<Timeframe>('1D')
+  const [scrubPrice, setScrubPrice] = useState<number | null>(null)
+  const [showShare, setShowShare]   = useState(false)
 
-  // Load asset metadata to get the full coin ID (e.g. "xyz:NVDA")
   useEffect(() => {
     fetch('/api/assets')
       .then(r => r.json() as Promise<AssetInfo[]>)
@@ -30,7 +51,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
       .catch(() => null)
   }, [upperTicker])
 
-  // Use coin ID for all Hyperliquid API calls; fall back to bare ticker while loading
   const coin = assetInfo?.coin ?? `xyz:${upperTicker}`
 
   const livePrice = useAssetPrice(coin, 800)
@@ -46,6 +66,11 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const { diffStr, pctStr } = formatChange(diff, pct, decimals)
   const sparkValues  = data.length > 0 ? data.map(p => p.value) : [displayPrice]
   const handleScrub  = useCallback((p: number | null) => setScrubPrice(p), [])
+
+  const handleWindowChange = useCallback((secs: number) => {
+    const tf = SECS_TO_TIMEFRAME[secs]
+    if (tf) setTimeframe(tf)
+  }, [])
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -68,37 +93,21 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
             <span style={{ color: changeColor }}>{diffStr}</span>
             <span style={{ color: changeColor }}>{pctStr}</span>
-            <span style={{ color: '#46443D' }}>{timeframe}</span>
           </div>
         </div>
 
-        {/* Chart */}
+        {/* Chart — Liveline renders its own window picker */}
         <div style={{ marginTop: 28 }}>
           <LivelineChart
             data={data}
-            value={livePrice ?? assetInfo?.price ?? 0}
+            value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
             color={changeColor}
             loading={loading}
+            window={TIMEFRAME_TO_SECS[timeframe]}
+            windows={WINDOWS}
+            onWindowChange={handleWindowChange}
             onScrub={handleScrub}
           />
-        </div>
-
-        {/* Timeframe tabs */}
-        <div style={{ display: 'flex', padding: '4px 24px', borderBottom: '1px solid #1C1C1A' }}>
-          {TIMEFRAMES.map(tf => {
-            const active = timeframe === tf
-            return (
-              <button key={tf} onClick={() => setTimeframe(tf)} style={{
-                padding: '12px 16px', fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-                letterSpacing: '0.07em', color: active ? '#F0EDE6' : '#46443D',
-                background: 'none', border: 'none',
-                borderBottom: active ? `1.5px solid ${changeColor}` : '1.5px solid transparent',
-                cursor: 'pointer', transition: 'color 0.15s, border-color 0.15s', flexShrink: 0,
-              }}>
-                {tf}
-              </button>
-            )
-          })}
         </div>
 
         {/* Stats */}

@@ -33,7 +33,6 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
       try {
         await navigator.share({
           title: `${ticker} — neue.markets`,
-          text: `${assetName}: ${priceStr} (${pctStr})`,
           url,
         })
       } catch { /* user cancelled */ }

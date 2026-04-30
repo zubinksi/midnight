@@ -23,7 +23,10 @@ const NAMES: Record<string, string> = {
   SMSN:     'Samsung Electronics',
   SKHX:     'SK Hynix',
   HYUNDAI:  'Hyundai Motor',
-  EWY:      'iShares South Korea',
+  // ETF Indices
+  EWY:      'iShares MSCI South Korea',
+  EWJ:      'iShares MSCI Japan',
+  USAR:     'iShares US Aggregate Bond',
   // Indices
   XYZ100:   'XYZ U.S. 100',
   SP500:    'S&P 500',

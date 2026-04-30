@@ -209,7 +209,22 @@ export default function Home() {
                     {/* Star */}
                     <button
                       onClick={e => { e.stopPropagation(); toggleFavorite(asset.ticker) }}
-                      style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', fontSize: 14, color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1 }}
+                      style={{
+                        background: starred ? 'none' : '#1C1C1A',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: 28,
+                        height: 28,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        color: starred ? '#F0C84A' : '#46443D',
+                        flexShrink: 0,
+                        lineHeight: 1,
+                      }}
                     >
                       {starred ? '★' : '☆'}
                     </button>

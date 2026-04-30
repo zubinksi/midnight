@@ -17,48 +17,35 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const upperTicker = ticker.toUpperCase()
   const router = useRouter()
 
-  const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null)
-  const [timeframe, setTimeframe] = useState<Timeframe>('1D')
+  const [assetInfo, setAssetInfo]    = useState<AssetInfo | null>(null)
+  const [timeframe, setTimeframe]    = useState<Timeframe>('1D')
   const [scrubPrice, setScrubPrice]  = useState<number | null>(null)
-  const [showShare, setShowShare] = useState(false)
+  const [showShare, setShowShare]    = useState(false)
 
-  // Load asset metadata once
+  // Load asset metadata to get the full coin ID (e.g. "xyz:NVDA")
   useEffect(() => {
     fetch('/api/assets')
       .then(r => r.json() as Promise<AssetInfo[]>)
-      .then(list => {
-        const found = list.find(a => a.ticker === upperTicker)
-        if (found) setAssetInfo(found)
-      })
+      .then(list => setAssetInfo(list.find(a => a.ticker === upperTicker) ?? null))
       .catch(() => null)
   }, [upperTicker])
 
-  const livePrice = useAssetPrice(upperTicker, 800)
-  const { data, loading, openPrice } = usePriceHistory(upperTicker, timeframe)
+  // Use coin ID for all Hyperliquid API calls; fall back to bare ticker while loading
+  const coin = assetInfo?.coin ?? `xyz:${upperTicker}`
+
+  const livePrice = useAssetPrice(coin, 800)
+  const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
 
   const displayPrice = scrubPrice ?? livePrice ?? assetInfo?.price ?? 0
-  const decimals = priceDecimals(displayPrice)
-
-  // Use candle open for selected timeframe; fall back to prevDayPx from asset info
-  const open = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
-  const diff = displayPrice - open
-  const pct  = open !== 0 ? (diff / open) * 100 : 0
-  const up   = diff >= 0
-  const changeColor = up ? '#26ab83' : '#E84332'
+  const decimals     = priceDecimals(displayPrice)
+  const open         = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
+  const diff         = displayPrice - open
+  const pct          = open !== 0 ? (diff / open) * 100 : 0
+  const up           = diff >= 0
+  const changeColor  = up ? '#26ab83' : '#E84332'
   const { diffStr, pctStr } = formatChange(diff, pct, decimals)
-  const sparkValues = data.length > 0 ? data.map(p => p.value) : [displayPrice]
-
-  const handleScrub = useCallback((p: number | null) => setScrubPrice(p), [])
-
-  if (!assetInfo && livePrice === null) {
-    return (
-      <div style={{ background: '#080807', minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>
-          LOADING…
-        </span>
-      </div>
-    )
-  }
+  const sparkValues  = data.length > 0 ? data.map(p => p.value) : [displayPrice]
+  const handleScrub  = useCallback((p: number | null) => setScrubPrice(p), [])
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -76,7 +63,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             {upperTicker} · HYPERLIQUID
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
-            {formatPrice(displayPrice, decimals)}
+            {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
             <span style={{ color: changeColor }}>{diffStr}</span>
@@ -119,7 +106,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           })}
         </div>
 
-        {/* Stats grid */}
+        {/* Stats */}
         <StatsGrid assetInfo={assetInfo} diff={diff} pct={pct} up={up} changeColor={changeColor} data={data} />
 
         {/* Attribution */}
@@ -154,18 +141,17 @@ function StatsGrid({ assetInfo, diff, pct, up, changeColor, data }: {
   diff: number; pct: number; up: boolean; changeColor: string
   data: LivelinePoint[]
 }) {
-  const decimals = priceDecimals(Math.abs(diff) > 0 ? Math.abs(diff) : 1)
+  const decimals = priceDecimals(Math.abs(diff) || 1)
   const { diffStr, pctStr } = formatChange(diff, pct, decimals)
-
-  const volume24h    = assetInfo?.volume24h ?? 0
+  const volume24h    = assetInfo?.volume24h    ?? 0
   const openInterest = assetInfo?.openInterest ?? 0
-  const funding      = assetInfo?.funding ?? 0
+  const funding      = assetInfo?.funding      ?? 0
 
   const stats = [
-    { label: '24H CHANGE',  value: `${diffStr} (${pctStr})`, color: changeColor },
-    { label: '24H VOLUME',  value: volume24h    > 0 ? formatVolume(volume24h)    : '—', color: '#F0EDE6' },
-    { label: 'OPEN INT',    value: openInterest > 0 ? formatVolume(openInterest) : '—', color: '#F0EDE6' },
-    { label: 'FUNDING',     value: funding !== 0  ? `${up ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: changeColor },
+    { label: '24H CHANGE',  value: `${diffStr} (${pctStr})`,                                    color: changeColor },
+    { label: '24H VOLUME',  value: volume24h    > 0 ? formatVolume(volume24h)    : '—',          color: '#F0EDE6' },
+    { label: 'OPEN INT',    value: openInterest > 0 ? formatVolume(openInterest) : '—',          color: '#F0EDE6' },
+    { label: 'FUNDING',     value: funding !== 0 ? `${up ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: changeColor },
   ]
 
   return (
@@ -181,15 +167,6 @@ function StatsGrid({ assetInfo, diff, pct, up, changeColor, data }: {
 }
 
 const S = {
-  backBtn: {
-    background: 'none', border: 'none', color: '#46443D',
-    fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
-    letterSpacing: '0.06em', cursor: 'pointer', padding: 0,
-  } as React.CSSProperties,
-  shareBtn: {
-    background: 'none', border: '1px solid #1C1C1A', borderRadius: 20,
-    padding: '6px 14px', color: '#46443D',
-    fontFamily: 'Menlo,Monaco,monospace', fontSize: 11,
-    letterSpacing: '0.06em', cursor: 'pointer',
-  } as React.CSSProperties,
+  backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
+  shareBtn: { background: 'none', border: '1px solid #1C1C1A', borderRadius: 20, padding: '6px 14px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

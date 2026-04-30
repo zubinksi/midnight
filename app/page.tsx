@@ -3,24 +3,29 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useLivePrices } from '@/lib/hyperliquid'
-import { formatPrice, formatChange, formatDate } from '@/lib/format'
+import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import Sparkline from '@/components/Sparkline'
 
 export default function Home() {
-  const router         = useRouter()
+  const router = useRouter()
   const { assets, loading, error } = useAssets()
-  const [clock, setClock]          = useState(formatDate())
+  const [clock, setClock] = useState(formatDate())
 
-  // Seed prices from the initial asset list fetch (mark prices from HL)
-  const seedPrices = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const a of assets) m[a.ticker] = a.price
-    return m
+  // Build coin→ticker map and seed price map from asset list
+  const { coins, coinToTicker, seedPrices } = useMemo(() => {
+    const coins: string[]                  = []
+    const coinToTicker: Record<string, string> = {}
+    const seedPrices: Record<string, number>   = {}
+    for (const a of assets) {
+      coins.push(a.coin)
+      coinToTicker[a.coin] = a.ticker
+      seedPrices[a.ticker] = a.price
+    }
+    return { coins, coinToTicker, seedPrices }
   }, [assets])
 
-  const tickers    = useMemo(() => assets.map(a => a.ticker), [assets])
-  const prices     = useLivePrices(tickers, seedPrices, 800)
+  const prices = useLivePrices(coins, seedPrices, coinToTicker, 800)
 
   // Rolling sparkline history per ticker
   const historyRef = useRef<Record<string, number[]>>({})
@@ -56,14 +61,14 @@ export default function Home() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-            <span style={S.label}>LIVE · HYPERLIQUID · {loading ? '…' : `${assets.length} MARKETS`}</span>
+            <span style={S.label}>
+              LIVE · HYPERLIQUID · {loading ? '…' : `${assets.length} MARKETS`}
+            </span>
           </div>
         </div>
 
-        {/* Divider */}
         <div style={{ borderTop: '1px solid #1C1C1A' }} />
 
-        {/* Content */}
         {loading ? (
           <LoadingRows />
         ) : error ? (
@@ -80,38 +85,31 @@ export default function Home() {
               const hist     = historyRef.current[asset.ticker] ?? [price]
               const decimals = priceDecimals(price)
               const priceStr = formatPrice(price, decimals)
-              const { pctStr } = formatChange(diff, pct, decimals)
+              const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
               const hasOpen  = asset.prevDayPx > 0
 
               return (
                 <div
-                  key={asset.ticker}
+                  key={asset.coin}
                   onClick={() => router.push(`/chart/${asset.ticker}`)}
                   style={{ display: 'flex', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 12 }}
                 >
-                  {/* Ticker + name */}
                   <div style={{ width: 60, flexShrink: 0 }}>
                     <div style={S.ticker}>{asset.ticker}</div>
                   </div>
 
-                  {/* Sparkline */}
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                     <Sparkline values={hist} width={88} height={28} color={color} />
                   </div>
 
-                  {/* Price + change */}
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={S.price}>{priceStr}</div>
                     {hasOpen && (
                       <div style={{ marginTop: 3 }}>
                         <span style={{
-                          display: 'inline-block',
-                          padding: '2px 7px',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontFamily: 'Menlo,Monaco,monospace',
-                          fontVariantNumeric: 'tabular-nums',
-                          color,
+                          display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+                          fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+                          fontVariantNumeric: 'tabular-nums', color,
                           background: up ? '#26ab8322' : '#E8433218',
                         }}>
                           {pctStr}
@@ -156,19 +154,8 @@ function ErrorState({ message }: { message: string }) {
 }
 
 const S = {
-  label: {
-    fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace',
-  } as React.CSSProperties,
-  hero: {
-    fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1,
-    color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
-  } as React.CSSProperties,
-  ticker: {
-    fontSize: 15, fontWeight: 700, color: '#F0EDE6',
-    fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2,
-  } as React.CSSProperties,
-  price: {
-    fontSize: 15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
-    fontVariantNumeric: 'tabular-nums', lineHeight: 1.2,
-  } as React.CSSProperties,
+  label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
+  hero:   { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
+  ticker: { fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
+  price:  { fontSize: 15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,
 }

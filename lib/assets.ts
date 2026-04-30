@@ -1,21 +1,20 @@
-// Asset types — the live list is fetched from /api/assets at runtime.
-// Categories are not yet known for all assets; that's handled separately.
-
 export type AssetCategory = 'stock' | 'index' | 'commodity'
 
 export interface AssetInfo {
-  ticker: string
+  ticker: string        // display name, e.g. "NVDA"
+  coin: string          // Hyperliquid coin ID, e.g. "xyz:NVDA" — use for all API calls
   volume24h: number
-  price: number       // mark price at fetch time
-  prevDayPx: number   // UTC-midnight open, for 24hr change
+  price: number         // mark price at last fetch
+  prevDayPx: number     // UTC-midnight open, for 24hr change
   openInterest: number
   funding: number
   szDecimals: number
   category?: AssetCategory
 }
 
-// Infer display decimals from price magnitude.
+// Infer display decimal places from price magnitude.
 export function priceDecimals(price: number): number {
+  if (price >= 10000) return 2
   if (price >= 1000)  return 2
   if (price >= 100)   return 2
   if (price >= 10)    return 2

@@ -11,7 +11,7 @@ export default function EmbedPage({ params }: { params: Promise<{ ticker: string
   const { ticker }  = use(params)
   const upperTicker = ticker.toUpperCase()
 
-  const [assetInfo, setAssetInfo]  = useState<AssetInfo | null>(null)
+  const [assetInfo, setAssetInfo]   = useState<AssetInfo | null>(null)
   const [scrubPrice, setScrubPrice] = useState<number | null>(null)
   const handleScrub = useCallback((p: number | null) => setScrubPrice(p), [])
 
@@ -22,8 +22,10 @@ export default function EmbedPage({ params }: { params: Promise<{ ticker: string
       .catch(() => null)
   }, [upperTicker])
 
-  const livePrice = useAssetPrice(upperTicker, 800)
-  const { data }  = usePriceHistory(upperTicker, '1D')
+  const coin = assetInfo?.coin ?? `xyz:${upperTicker}`
+
+  const livePrice = useAssetPrice(coin, 800)
+  const { data }  = usePriceHistory(coin, '1D')
 
   const displayPrice = scrubPrice ?? livePrice ?? assetInfo?.price ?? 0
   const open         = data.length > 0 ? data[0].value : (assetInfo?.prevDayPx ?? displayPrice)
@@ -40,7 +42,7 @@ export default function EmbedPage({ params }: { params: Promise<{ ticker: string
         <div>
           <div style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em', marginBottom: 4 }}>{upperTicker}</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontVariantNumeric: 'tabular-nums' }}>
-            {formatPrice(displayPrice, decimals)}
+            {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>

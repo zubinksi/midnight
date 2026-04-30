@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatPrice, formatChange } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import Sparkline from './Sparkline'
@@ -43,37 +43,56 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
   const priceStr   = formatPrice(price, decimals)
 
   return (
+    /* Backdrop — covers the full viewport */
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000000BB', backdropFilter: 'blur(6px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        background: '#000000BB',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      }}
     >
+      {/* Sheet — full-width on mobile, capped at 430px on wider screens */}
       <div
         className="slide-up"
+        onClick={e => e.stopPropagation()}
         style={{
-          position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-          width: '100%', maxWidth: 430, background: '#0F0F0E',
-          borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px 48px',
+          width: '100%',
+          maxWidth: 430,
+          background: '#0F0F0E',
+          borderTop: '1px solid #1C1C1A',
+          borderRadius: '20px 20px 0 0',
+          padding: '28px 24px',
+          paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
         }}
       >
         {/* Handle */}
         <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 28px' }} />
 
         {/* Preview card */}
-        <div style={{ background: '#080807', border: '1px solid #1C1C1A', borderRadius: 12, padding: '16px 20px', marginBottom: 24 }}>
+        <div style={{
+          background: '#080807',
+          border: '1px solid #1C1C1A',
+          borderRadius: 12,
+          padding: '16px 20px',
+          marginBottom: 24,
+        }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginBottom: 4 }}>
-                {ticker}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={S.label}>{ticker}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
                 {priceStr}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>
-                {pctStr}
-              </div>
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>MIDNIGHT.APP</div>
+              <div style={{ ...S.label, color: changeColor }}>{pctStr}</div>
+              <div style={{ ...S.label, marginTop: 4 }}>MIDNIGHT.APP</div>
             </div>
           </div>
           <div style={{ marginTop: 12, opacity: 0.6 }}>
@@ -87,10 +106,19 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
             key={type}
             onClick={() => copy(type)}
             style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              width: '100%', background: 'none', border: 'none',
-              borderBottom: '1px solid #1C1C1A', padding: '16px 0',
-              cursor: 'pointer', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 13,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              borderBottom: '1px solid #1C1C1A',
+              padding: '16px 0',
+              cursor: 'pointer',
+              color: '#F0EDE6',
+              fontFamily: 'Menlo,Monaco,monospace',
+              fontSize: 13,
+              textAlign: 'left',
             }}
           >
             <span>{type === 'link' ? 'Copy Link' : 'Copy Embed'}</span>
@@ -104,9 +132,17 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
         <button
           onClick={onClose}
           style={{
-            marginTop: 20, width: '100%', background: 'none', border: '1px solid #1C1C1A',
-            borderRadius: 10, padding: 14, color: '#46443D',
-            fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em',
+            marginTop: 20,
+            width: '100%',
+            background: 'none',
+            border: '1px solid #1C1C1A',
+            borderRadius: 10,
+            padding: 14,
+            color: '#46443D',
+            fontFamily: 'Menlo,Monaco,monospace',
+            fontSize: 12,
+            cursor: 'pointer',
+            letterSpacing: '0.06em',
           }}
         >
           DISMISS
@@ -114,4 +150,13 @@ export default function ShareSheet({ ticker, price, diff, pct, decimals, sparkVa
       </div>
     </div>
   )
+}
+
+const S = {
+  label: {
+    fontSize: 11,
+    color: '#46443D',
+    fontFamily: 'Menlo,Monaco,monospace',
+    letterSpacing: '0.08em',
+  } as React.CSSProperties,
 }

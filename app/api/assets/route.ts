@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { getAssetCategory } from '@/lib/assets'
+import type { AssetInfo } from '@/lib/assets'
 
 const HL_API = 'https://api.hyperliquid.xyz/info'
 
@@ -17,17 +19,6 @@ interface HLAssetCtx {
   markPx: string
   midPx: string | null
   funding: string
-}
-
-export interface AssetInfo {
-  ticker: string      // display name, e.g. "NVDA"
-  coin: string        // full HL coin ID for API calls, e.g. "xyz:NVDA"
-  volume24h: number
-  price: number
-  prevDayPx: number
-  openInterest: number
-  funding: number
-  szDecimals: number
 }
 
 export async function GET() {
@@ -67,7 +58,17 @@ export async function GET() {
 
       if (price === 0) continue
 
-      assets.push({ ticker, coin, volume24h, price, prevDayPx, openInterest, funding, szDecimals: meta.szDecimals })
+      assets.push({
+        ticker,
+        coin,
+        volume24h,
+        price,
+        prevDayPx,
+        openInterest,
+        funding,
+        szDecimals: meta.szDecimals,
+        category: getAssetCategory(ticker),
+      })
     }
 
     assets.sort((a, b) => b.volume24h - a.volume24h)

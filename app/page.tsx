@@ -5,14 +5,25 @@ import { useRouter } from 'next/navigation'
 import { useAssets, useLivePrices } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
+import type { AssetCategory } from '@/lib/assets'
 import Sparkline from '@/components/Sparkline'
+
+type FilterKey = 'all' | AssetCategory
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all',       label: 'ALL' },
+  { key: 'stock',     label: 'STOCKS' },
+  { key: 'index',     label: 'INDICES' },
+  { key: 'commodity', label: 'COMMODITIES' },
+]
 
 export default function Home() {
   const router = useRouter()
   const { assets, loading, error } = useAssets()
   const [clock, setClock]         = useState(formatDate())
-  const [search, setSearch]       = useState('')
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [search, setSearch]           = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
+  const [favorites, setFavorites]     = useState<Set<string>>(new Set())
 
   // Hydrate favorites from localStorage after mount
   useEffect(() => {
@@ -61,18 +72,19 @@ export default function Home() {
     return () => clearInterval(t)
   }, [])
 
-  // Favorites first, then alphabetically; filter by search query
+  // Category + search filter, favorites sorted to top
   const displayAssets = useMemo(() => {
+    let filtered = categoryFilter === 'all'
+      ? assets
+      : assets.filter(a => a.category === categoryFilter)
     const q = search.trim().toLowerCase()
-    const filtered = q
-      ? assets.filter(a => a.ticker.toLowerCase().includes(q))
-      : assets
+    if (q) filtered = filtered.filter(a => a.ticker.toLowerCase().includes(q))
     return [...filtered].sort((a, b) => {
       const af = favorites.has(a.ticker) ? 0 : 1
       const bf = favorites.has(b.ticker) ? 0 : 1
       return af - bf
     })
-  }, [assets, favorites, search])
+  }, [assets, categoryFilter, favorites, search])
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -124,6 +136,32 @@ export default function Home() {
                 ✕
               </button>
             )}
+          </div>
+          {/* Category filter */}
+          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 4, flexWrap: 'wrap' }}>
+            {FILTERS.map(f => {
+              const active = categoryFilter === f.key
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setCategoryFilter(f.key)}
+                  style={{
+                    background: active ? '#1C1C1A' : 'none',
+                    border: '1px solid #1C1C1A',
+                    borderRadius: 20,
+                    padding: '5px 12px',
+                    fontSize: 10,
+                    fontFamily: 'Menlo,Monaco,monospace',
+                    letterSpacing: '0.08em',
+                    color: active ? '#F0EDE6' : '#46443D',
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, background 0.15s',
+                  }}
+                >
+                  {f.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

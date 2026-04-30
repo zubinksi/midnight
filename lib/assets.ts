@@ -9,16 +9,32 @@ export interface AssetInfo {
   openInterest: number
   funding: number
   szDecimals: number
-  category?: AssetCategory
+  category: AssetCategory
+}
+
+// Static category mapping — trade.xyz does not expose this via API.
+// Sources: docs.trade.xyz/asset-directory/{equities,equity-indices,commodities,korea}
+const INDICES = new Set([
+  'XYZ100', 'SP500',
+])
+
+const COMMODITIES = new Set([
+  'GOLD', 'SILVER', 'PLATINUM', 'PALLADIUM',
+  'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS',
+])
+
+export function getAssetCategory(ticker: string): AssetCategory {
+  if (INDICES.has(ticker))    return 'index'
+  if (COMMODITIES.has(ticker)) return 'commodity'
+  return 'stock'
 }
 
 // Infer display decimal places from price magnitude.
 export function priceDecimals(price: number): number {
-  if (price >= 10000) return 2
-  if (price >= 1000)  return 2
-  if (price >= 100)   return 2
-  if (price >= 10)    return 2
-  if (price >= 1)     return 3
-  if (price >= 0.1)   return 4
+  if (price >= 1000) return 2
+  if (price >= 100)  return 2
+  if (price >= 10)   return 2
+  if (price >= 1)    return 3
+  if (price >= 0.1)  return 4
   return 5
 }

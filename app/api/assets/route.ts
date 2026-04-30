@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 const HL_API = 'https://api.hyperliquid.xyz/info'
 
 interface HLMeta {
-  name: string        // e.g. "xyz:NVDA", "BTC", "ETH"
+  name: string
   szDecimals: number
   maxLeverage: number
   onlyIsolated: boolean
@@ -13,7 +13,7 @@ interface HLMeta {
 interface HLAssetCtx {
   dayNtlVlm: string
   openInterest: string
-  prevDayPx: string   // price at start of UTC day — use for 24hr change
+  prevDayPx: string
   markPx: string
   midPx: string | null
   funding: string
@@ -21,7 +21,7 @@ interface HLAssetCtx {
 
 export interface AssetInfo {
   ticker: string      // display name, e.g. "NVDA"
-  coin: string        // Hyperliquid coin ID, e.g. "xyz:NVDA" — use for all API calls
+  coin: string        // full HL coin ID for API calls, e.g. "xyz:NVDA"
   volume24h: number
   price: number
   prevDayPx: number
@@ -35,12 +35,13 @@ export async function GET() {
     const res = await fetch(HL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
+      // dex: "xyz" scopes the request to the xyz DEX (HIP-3 real-world assets)
+      body: JSON.stringify({ type: 'metaAndAssetCtxs', dex: 'xyz' }),
       next: { revalidate: 0 },
     })
     if (!res.ok) throw new Error(`upstream ${res.status}`)
 
-    // Response shape: [{ universe: HLMeta[] }, HLAssetCtx[]]
+    // Response: [{ universe: HLMeta[] }, HLAssetCtx[]]
     const raw: [{ universe: HLMeta[] }, HLAssetCtx[]] = await res.json()
     const metas = raw[0]?.universe ?? []
     const ctxs  = raw[1] ?? []
@@ -53,11 +54,10 @@ export async function GET() {
       if (!meta || !ctx) continue
       if (meta.isDelisted) continue
 
-      // xyz DEX assets have names prefixed with "xyz:" (e.g. "xyz:NVDA")
-      if (!meta.name.startsWith('xyz:')) continue
-
-      const ticker = meta.name.slice(4)   // strip "xyz:" for display
-      const coin   = meta.name            // keep full ID for API calls
+      // When queried with dex: "xyz", names are the bare ticker (e.g. "NVDA").
+      // The full coin ID for all API calls is "xyz:{name}".
+      const ticker = meta.name.startsWith('xyz:') ? meta.name.slice(4) : meta.name
+      const coin   = meta.name.startsWith('xyz:') ? meta.name : `xyz:${meta.name}`
 
       const price        = parseFloat(ctx.markPx ?? ctx.midPx ?? '0') || 0
       const prevDayPx    = parseFloat(ctx.prevDayPx)    || 0
@@ -70,12 +70,9 @@ export async function GET() {
       assets.push({ ticker, coin, volume24h, price, prevDayPx, openInterest, funding, szDecimals: meta.szDecimals })
     }
 
-    // Sort by 24h notional volume, highest first
     assets.sort((a, b) => b.volume24h - a.volume24h)
 
-    return NextResponse.json(assets, {
-      headers: { 'Cache-Control': 'no-store' },
-    })
+    return NextResponse.json(assets, { headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
     console.error('[/api/assets]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

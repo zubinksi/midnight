@@ -12,20 +12,17 @@ export default function Home() {
   const { assets, loading, error } = useAssets()
   const [clock, setClock] = useState(formatDate())
 
-  // Build coin→ticker map and seed price map from asset list
-  const { coins, coinToTicker, seedPrices } = useMemo(() => {
-    const coins: string[]                  = []
-    const coinToTicker: Record<string, string> = {}
-    const seedPrices: Record<string, number>   = {}
+  const { tickers, seedPrices } = useMemo(() => {
+    const tickers: string[]                  = []
+    const seedPrices: Record<string, number> = {}
     for (const a of assets) {
-      coins.push(a.coin)
-      coinToTicker[a.coin] = a.ticker
+      tickers.push(a.ticker)
       seedPrices[a.ticker] = a.price
     }
-    return { coins, coinToTicker, seedPrices }
+    return { tickers, seedPrices }
   }, [assets])
 
-  const prices = useLivePrices(coins, seedPrices, coinToTicker, 800)
+  const prices = useLivePrices(tickers, seedPrices, 800)
 
   // Rolling sparkline history per ticker
   const historyRef = useRef<Record<string, number[]>>({})

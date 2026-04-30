@@ -30,6 +30,15 @@ async function hlPost<T>(body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
+// allMids with dex:"xyz" returns { mids: { "NVDA": "112.4", ... } }
+// Keys are bare tickers (no xyz: prefix) when scoped to the xyz DEX.
+async function fetchXyzMids(): Promise<Record<string, string>> {
+  const raw = await hlPost<{ mids?: Record<string, string> } | Record<string, string>>(
+    { type: 'allMids', dex: 'xyz' }
+  )
+  return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
+}
+
 // Fetch candles using the full Hyperliquid coin ID (e.g. "xyz:NVDA").
 export async function fetchCandles(coin: string, timeframe: Timeframe): Promise<LivelinePoint[]> {
   const { interval, windowMs } = TIMEFRAME_CONFIG[timeframe]
@@ -68,23 +77,19 @@ export function useAssets(): { assets: AssetInfo[]; loading: boolean; error: str
   return { assets, loading, error }
 }
 
-// Polls allMids every pollMs ms. allMids keys are full coin IDs like "xyz:NVDA".
-// coinToTicker maps coin → display ticker so we can key the returned map by ticker.
+// Polls xyz DEX allMids every pollMs ms.
+// With dex:"xyz", response keys are bare tickers ("NVDA"), not coin IDs.
 export function useLivePrices(
-  coins: string[],
-  seedPrices: Record<string, number>,  // keyed by ticker (display name)
-  coinToTicker: Record<string, string>,
+  tickers: string[],
+  seedPrices: Record<string, number>,
   pollMs = 800,
 ): Record<string, number> {
   const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
-  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const coinsRef   = useRef(coins)
-  const mapRef     = useRef(coinToTicker)
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tickerSet   = useRef(new Set(tickers))
 
-  useEffect(() => { coinsRef.current = coins }, [coins])
-  useEffect(() => { mapRef.current   = coinToTicker }, [coinToTicker])
+  useEffect(() => { tickerSet.current = new Set(tickers) }, [tickers])
 
-  // Merge seed prices when asset list loads
   useEffect(() => {
     setPrices(prev => ({ ...seedPrices, ...prev }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,16 +97,13 @@ export function useLivePrices(
 
   const poll = useCallback(async () => {
     try {
-      const raw = await hlPost<Record<string, string>>({ type: 'allMids' })
+      const mids = await fetchXyzMids()
       setPrices(prev => {
         const next = { ...prev }
-        for (const coin of coinsRef.current) {
-          const v = raw[coin]
-          if (v !== undefined) {
-            const ticker = mapRef.current[coin] ?? coin
-            const n = parseFloat(v)
-            if (!isNaN(n)) next[ticker] = n
-          }
+        for (const [ticker, v] of Object.entries(mids)) {
+          if (!tickerSet.current.has(ticker)) continue
+          const n = parseFloat(v)
+          if (!isNaN(n)) next[ticker] = n
         }
         return next
       })
@@ -110,31 +112,32 @@ export function useLivePrices(
   }, [pollMs])
 
   useEffect(() => {
-    if (coins.length === 0) return
+    if (tickers.length === 0) return
     poll()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [poll, coins.length])
+  }, [poll, tickers.length])
 
   return prices
 }
 
 // Single-asset price poll for the chart detail page.
-// coin = full Hyperliquid identifier, e.g. "xyz:NVDA"
+// coin = full Hyperliquid identifier e.g. "xyz:NVDA"; ticker key in mids is "NVDA".
 export function useAssetPrice(coin: string, pollMs = 800): number | null {
   const [price, setPrice] = useState<number | null>(null)
   const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ticker            = coin.startsWith('xyz:') ? coin.slice(4) : coin
 
   const poll = useCallback(async () => {
     try {
-      const raw = await hlPost<Record<string, string>>({ type: 'allMids' })
-      const v = raw[coin]
+      const mids = await fetchXyzMids()
+      const v = mids[ticker]
       if (v !== undefined) {
         const n = parseFloat(v)
         if (!isNaN(n)) setPrice(n)
       }
     } catch { /* keep previous */ }
     timerRef.current = setTimeout(poll, pollMs)
-  }, [coin, pollMs])
+  }, [ticker, pollMs])
 
   useEffect(() => {
     poll()

@@ -26,7 +26,7 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const url = `https://neue.market/chart/${ticker}`
+  const url = (typeof window !== 'undefined' ? window.location.origin : 'https://neue.market') + `/chart/${ticker}`
 
   const shareLink = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {

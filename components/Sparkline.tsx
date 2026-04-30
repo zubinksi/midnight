@@ -29,7 +29,11 @@ export default function Sparkline({ values, width = 88, height = 28, color, stro
     return 'M' + pts.join('L')
   }, [values, w, height])
 
-  if (!path) return <svg width={responsive ? '100%' : width} height={height} />
+  const svgStyle = responsive
+    ? { display: 'block', width: '100%' }
+    : { display: 'block' }
+
+  if (!path) return <svg width={responsive ? '100%' : width} height={height} style={svgStyle} />
 
   return (
     <svg
@@ -38,7 +42,7 @@ export default function Sparkline({ values, width = 88, height = 28, color, stro
       viewBox={`0 0 ${w} ${height}`}
       preserveAspectRatio={responsive ? 'none' : 'xMidYMid meet'}
       fill="none"
-      style={{ display: 'block' }}
+      style={svgStyle}
     >
       <path d={path} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>

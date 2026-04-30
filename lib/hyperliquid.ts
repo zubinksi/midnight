@@ -10,14 +10,14 @@ export interface LivelinePoint {
   value: number
 }
 
-export type Timeframe = '1H' | '4H' | '1D' | '7D' | '1M'
+export type Timeframe = '1D' | '7D' | '1M' | '3M' | '6M'
 
 const TIMEFRAME_CONFIG: Record<Timeframe, { interval: string; windowMs: number }> = {
-  '1H': { interval: '1m',  windowMs: 60 * 60 * 1000 },
-  '4H': { interval: '5m',  windowMs: 4 * 60 * 60 * 1000 },
-  '1D': { interval: '15m', windowMs: 24 * 60 * 60 * 1000 },
-  '7D': { interval: '1h',  windowMs: 7 * 24 * 60 * 60 * 1000 },
+  '1D': { interval: '15m', windowMs:  1 * 24 * 60 * 60 * 1000 },
+  '7D': { interval: '1h',  windowMs:  7 * 24 * 60 * 60 * 1000 },
   '1M': { interval: '4h',  windowMs: 30 * 24 * 60 * 60 * 1000 },
+  '3M': { interval: '1d',  windowMs: 90 * 24 * 60 * 60 * 1000 },
+  '6M': { interval: '1d',  windowMs: 180 * 24 * 60 * 60 * 1000 },
 }
 
 async function hlPost<T>(body: unknown): Promise<T> {

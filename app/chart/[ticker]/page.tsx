@@ -11,27 +11,27 @@ import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
 
 const WINDOWS = [
-  { label: '1H', secs: 3600 },
-  { label: '4H', secs: 14400 },
-  { label: '1D', secs: 86400 },
-  { label: '7D', secs: 604800 },
-  { label: '1M', secs: 2592000 },
+  { label: '1D',  secs: 86400 },
+  { label: '7D',  secs: 604800 },
+  { label: '1M',  secs: 2592000 },
+  { label: '3M',  secs: 7776000 },
+  { label: '6M',  secs: 15552000 },
 ]
 
 const SECS_TO_TIMEFRAME: Record<number, Timeframe> = {
-  3600:    '1H',
-  14400:   '4H',
-  86400:   '1D',
-  604800:  '7D',
-  2592000: '1M',
+  86400:    '1D',
+  604800:   '7D',
+  2592000:  '1M',
+  7776000:  '3M',
+  15552000: '6M',
 }
 
 const TIMEFRAME_TO_SECS: Record<Timeframe, number> = {
-  '1H': 3600,
-  '4H': 14400,
   '1D': 86400,
   '7D': 604800,
   '1M': 2592000,
+  '3M': 7776000,
+  '6M': 15552000,
 }
 
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {

@@ -218,7 +218,7 @@ export default function Home() {
                     </div>
 
                     {/* Sparkline fills middle */}
-                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                       <Sparkline values={hist} height={32} color={color} responsive />
                     </div>
 

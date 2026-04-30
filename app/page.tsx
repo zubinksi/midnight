@@ -97,8 +97,8 @@ export default function Home() {
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
-            <div style={S.hero}>Watch Markets Move.</div>
-            <div style={{ ...S.hero, color: '#46443D' }}>Nights. Weekends. 24/7.</div>
+            <div style={S.hero}>24/7 Markets.</div>
+            <div style={{ ...S.hero, color: '#46443D' }}></div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />

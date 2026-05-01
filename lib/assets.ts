@@ -1,4 +1,4 @@
-export type AssetCategory = 'stock' | 'index' | 'commodity' | 'fx'
+export type AssetCategory = 'stock' | 'index' | 'commodity' | 'fx' | 'crypto'
 
 export interface AssetInfo {
   ticker: string        // display name, e.g. "NVDA"
@@ -20,10 +20,16 @@ const INDICES = new Set([
 
 const COMMODITIES = new Set([
   'GOLD', 'SILVER', 'PLATINUM', 'PALLADIUM',
-  'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS', 'URNM',
+  'COPPER', 'WTIOIL', 'BRENTOIL', 'NATGAS', 'URNM', 'CL',
 ])
 
 const FX = new Set(['JPY', 'EUR'])
+
+// Rename certain API tickers to a display ticker (ticker stays for routing,
+// coin ID stays for API calls — only the shown ticker text changes).
+export const TICKER_RENAMES: Record<string, string> = {
+  CL: 'WTIOIL',
+}
 
 export function getAssetCategory(ticker: string): AssetCategory {
   if (INDICES.has(ticker))     return 'index'
@@ -34,10 +40,11 @@ export function getAssetCategory(ticker: string): AssetCategory {
 
 // Infer display decimal places from price magnitude.
 export function priceDecimals(price: number): number {
-  if (price >= 1000) return 2
-  if (price >= 100)  return 2
-  if (price >= 10)   return 2
-  if (price >= 1)    return 3
-  if (price >= 0.1)  return 4
+  if (price >= 10000) return 0
+  if (price >= 1000)  return 1
+  if (price >= 100)   return 2
+  if (price >= 10)    return 2
+  if (price >= 1)     return 3
+  if (price >= 0.1)   return 4
   return 5
 }

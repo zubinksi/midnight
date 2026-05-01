@@ -39,6 +39,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
           fill
           scrub
           pulse
+          grid={false}
           loading={isLoading}
           lineWidth={1.5}
           window={windowSecs}

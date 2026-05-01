@@ -38,13 +38,28 @@ const NAMES: Record<string, string> = {
   PLATINUM: 'Platinum',
   PALLADIUM:'Palladium',
   COPPER:   'Copper',
-  WTIOIL:   'WTI Crude Oil',
+  WTIOIL:   'Crude Oil',
+  CL:       'Crude Oil',
   BRENTOIL: 'Brent Crude Oil',
   NATGAS:   'Natural Gas',
   URNM:     'Uranium',
   // FX
   JPY:      'Japanese Yen',
   EUR:      'Euro',
+  // Crypto
+  BTC:      'Bitcoin',
+  ETH:      'Ethereum',
+  SOL:      'Solana',
+  BNB:      'BNB',
+  XRP:      'XRP',
+  DOGE:     'Dogecoin',
+  AVAX:     'Avalanche',
+  LINK:     'Chainlink',
+  ADA:      'Cardano',
+  SUI:      'Sui',
+  HYPE:     'Hyperliquid',
+  TON:      'Toncoin',
+  ARB:      'Arbitrum',
 }
 
 export function getAssetName(ticker: string): string {

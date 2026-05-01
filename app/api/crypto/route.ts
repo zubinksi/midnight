@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server'
-import { getAssetCategory, TICKER_RENAMES } from '@/lib/assets'
 import type { AssetInfo } from '@/lib/assets'
 
 const HL_API = 'https://api.hyperliquid.xyz/info'
 
+// Crypto assets to surface (Hyperliquid perp tickers)
+const CRYPTO_TICKERS = new Set([
+  'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'AVAX', 'LINK', 'ADA', 'SUI', 'HYPE', 'TON', 'ARB',
+])
+
 interface HLMeta {
   name: string
   szDecimals: number
-  maxLeverage: number
-  onlyIsolated: boolean
   isDelisted?: boolean
 }
 
@@ -26,13 +28,11 @@ export async function GET() {
     const res = await fetch(HL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // dex: "xyz" scopes the request to the xyz DEX (HIP-3 real-world assets)
-      body: JSON.stringify({ type: 'metaAndAssetCtxs', dex: 'xyz' }),
+      body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
       next: { revalidate: 0 },
     })
     if (!res.ok) throw new Error(`upstream ${res.status}`)
 
-    // Response: [{ universe: HLMeta[] }, HLAssetCtx[]]
     const raw: [{ universe: HLMeta[] }, HLAssetCtx[]] = await res.json()
     const metas = raw[0]?.universe ?? []
     const ctxs  = raw[1] ?? []
@@ -44,12 +44,7 @@ export async function GET() {
       const ctx  = ctxs[i]
       if (!meta || !ctx) continue
       if (meta.isDelisted) continue
-
-      // When queried with dex: "xyz", names are the bare ticker (e.g. "NVDA").
-      // The full coin ID for all API calls is "xyz:{name}".
-      const rawTicker = meta.name.startsWith('xyz:') ? meta.name.slice(4) : meta.name
-      const ticker    = TICKER_RENAMES[rawTicker] ?? rawTicker
-      const coin      = meta.name.startsWith('xyz:') ? meta.name : `xyz:${rawTicker}`
+      if (!CRYPTO_TICKERS.has(meta.name)) continue
 
       const price        = parseFloat(ctx.markPx ?? ctx.midPx ?? '0') || 0
       const prevDayPx    = parseFloat(ctx.prevDayPx)    || 0
@@ -60,15 +55,15 @@ export async function GET() {
       if (price === 0) continue
 
       assets.push({
-        ticker,
-        coin,
+        ticker:      meta.name,
+        coin:        meta.name,  // no prefix — Hyperliquid perp uses bare ticker
         volume24h,
         price,
         prevDayPx,
         openInterest,
         funding,
-        szDecimals: meta.szDecimals,
-        category: getAssetCategory(ticker),
+        szDecimals:  meta.szDecimals,
+        category:    'crypto',
       })
     }
 
@@ -76,7 +71,7 @@ export async function GET() {
 
     return NextResponse.json(assets, { headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
-    console.error('[/api/assets]', err)
+    console.error('[/api/crypto]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

@@ -30,8 +30,7 @@ async function hlPost<T>(body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// allMids with dex:"xyz" returns { mids: { "NVDA": "112.4", ... } }
-// Keys are bare tickers (no xyz: prefix) when scoped to the xyz DEX.
+// allMids with dex:"xyz" — returns bare xyz DEX tickers ("NVDA", "AAPL", …)
 async function fetchXyzMids(): Promise<Record<string, string>> {
   const raw = await hlPost<{ mids?: Record<string, string> } | Record<string, string>>(
     { type: 'allMids', dex: 'xyz' }
@@ -39,7 +38,15 @@ async function fetchXyzMids(): Promise<Record<string, string>> {
   return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
 }
 
-// Fetch candles using the full Hyperliquid coin ID (e.g. "xyz:NVDA").
+// allMids without dex — returns Hyperliquid perp tickers ("BTC", "ETH", …)
+async function fetchAllMids(): Promise<Record<string, string>> {
+  const raw = await hlPost<{ mids?: Record<string, string> } | Record<string, string>>(
+    { type: 'allMids' }
+  )
+  return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
+}
+
+// Fetch candles using the full Hyperliquid coin ID (e.g. "xyz:NVDA" or "BTC").
 export async function fetchCandles(coin: string, timeframe: Timeframe): Promise<LivelinePoint[]> {
   const { interval, windowMs } = TIMEFRAME_CONFIG[timeframe]
   const endTime   = Date.now()
@@ -77,8 +84,24 @@ export function useAssets(): { assets: AssetInfo[]; loading: boolean; error: str
   return { assets, loading, error }
 }
 
+export function useCryptoAssets(): { assets: AssetInfo[]; loading: boolean } {
+  const [assets, setAssets]   = useState<AssetInfo[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/crypto')
+      .then(r => r.json() as Promise<AssetInfo[]>)
+      .then(data => { if (!cancelled) setAssets(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  return { assets, loading }
+}
+
 // Polls xyz DEX allMids every pollMs ms.
-// With dex:"xyz", response keys are bare tickers ("NVDA"), not coin IDs.
 export function useLivePrices(
   tickers: string[],
   seedPrices: Record<string, number>,
@@ -120,16 +143,59 @@ export function useLivePrices(
   return prices
 }
 
-// Single-asset price poll for the chart detail page.
-// coin = full Hyperliquid identifier e.g. "xyz:NVDA"; ticker key in mids is "NVDA".
-export function useAssetPrice(coin: string, pollMs = 800): number | null {
-  const [price, setPrice] = useState<number | null>(null)
-  const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const ticker            = coin.startsWith('xyz:') ? coin.slice(4) : coin
+// Same as useLivePrices but polls the main Hyperliquid perp allMids (for crypto).
+export function useCryptoLivePrices(
+  tickers: string[],
+  seedPrices: Record<string, number>,
+  pollMs = 800,
+): Record<string, number> {
+  const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
+  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tickerSet = useRef(new Set(tickers))
+
+  useEffect(() => { tickerSet.current = new Set(tickers) }, [tickers])
+
+  useEffect(() => {
+    setPrices(prev => ({ ...seedPrices, ...prev }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(seedPrices)])
 
   const poll = useCallback(async () => {
     try {
-      const mids = await fetchXyzMids()
+      const mids = await fetchAllMids()
+      setPrices(prev => {
+        const next = { ...prev }
+        for (const [ticker, v] of Object.entries(mids)) {
+          if (!tickerSet.current.has(ticker)) continue
+          const n = parseFloat(v)
+          if (!isNaN(n)) next[ticker] = n
+        }
+        return next
+      })
+    } catch { /* keep previous */ }
+    timerRef.current = setTimeout(poll, pollMs)
+  }, [pollMs])
+
+  useEffect(() => {
+    if (tickers.length === 0) return
+    poll()
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [poll, tickers.length])
+
+  return prices
+}
+
+// Single-asset price poll for the chart detail page.
+// Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
+export function useAssetPrice(coin: string, pollMs = 800): number | null {
+  const [price, setPrice] = useState<number | null>(null)
+  const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isCrypto          = !coin.startsWith('xyz:')
+  const ticker            = isCrypto ? coin : coin.slice(4)
+
+  const poll = useCallback(async () => {
+    try {
+      const mids = isCrypto ? await fetchAllMids() : await fetchXyzMids()
       const v = mids[ticker]
       if (v !== undefined) {
         const n = parseFloat(v)
@@ -137,7 +203,7 @@ export function useAssetPrice(coin: string, pollMs = 800): number | null {
       }
     } catch { /* keep previous */ }
     timerRef.current = setTimeout(poll, pollMs)
-  }, [ticker, pollMs])
+  }, [ticker, pollMs, isCrypto])
 
   useEffect(() => {
     poll()

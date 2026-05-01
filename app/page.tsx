@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
@@ -155,8 +155,9 @@ export default function Home() {
                     background: active ? '#1C1C1A' : 'none',
                     border: '1px solid #1C1C1A',
                     borderRadius: 20,
-                    padding: f.key === 'starred' ? '1px 10px' : '5px 12px',
-                    fontSize: f.key === 'starred' ? 20 : 10,
+                    padding: f.key === 'starred' ? '0 10px' : '5px 12px',
+                    height: 28,
+                    fontSize: f.key === 'starred' ? 18 : 10,
                     fontFamily: 'Menlo,Monaco,monospace',
                     letterSpacing: '0.08em',
                     color: f.key === 'starred'
@@ -166,6 +167,10 @@ export default function Home() {
                     transition: 'color 0.15s, background 0.15s',
                     flexShrink: 0,
                     whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
                   }}
                 >
                   {f.label}
@@ -190,81 +195,173 @@ export default function Home() {
                 <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
               </div>
             ) : (
-              displayAssets.map(asset => {
-                const price    = prices[asset.ticker] ?? asset.price
-                const open     = asset.prevDayPx || price
-                const diff     = price - open
-                const pct      = open !== 0 ? (diff / open) * 100 : 0
-                const up       = diff >= 0
-                const color    = up ? '#26ab83' : '#E84332'
-                const decimals = priceDecimals(price)
-                const priceStr = formatPrice(price, decimals)
-                const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
-                const hasOpen  = asset.prevDayPx > 0
-                const starred  = favorites.has(asset.ticker)
-                const name     = getAssetName(asset.ticker)
-
-                return (
-                  <div
-                    key={asset.coin}
-                    onClick={() => router.push(`/chart/${asset.ticker}`)}
-                    style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 10 }}
-                  >
-                    {/* Star */}
-                    <button
-                      onClick={e => { e.stopPropagation(); toggleFavorite(asset.ticker) }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: 28,
-                        height: 28,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 0,
-                        cursor: 'pointer',
-                        fontSize: 16,
-                        color: starred ? '#F0C84A' : '#2C2C2A',
-                        flexShrink: 0,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ★
-                    </button>
-
-                    {/* Ticker + name */}
-                    <div style={{ width: 90, flexShrink: 0 }}>
-                      <div style={S.ticker}>{asset.ticker}</div>
-                      <div style={S.name}>{name}</div>
-                    </div>
-
-                    {/* Spacer */}
-                    <div style={{ flex: 1 }} />
-
-                    {/* Price + change */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={S.price}>{priceStr}</div>
-                      {hasOpen && (
-                        <div style={{ marginTop: 3 }}>
-                          <span style={{
-                            display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-                            fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-                            fontVariantNumeric: 'tabular-nums', color,
-                            background: up ? '#26ab8322' : '#E8433218',
-                          }}>
-                            {pctStr}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
+              displayAssets.map(asset => (
+                <AssetRow
+                  key={asset.coin}
+                  asset={asset}
+                  price={prices[asset.ticker] ?? asset.price}
+                  starred={favorites.has(asset.ticker)}
+                  onToggleFavorite={toggleFavorite}
+                  onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+                />
+              ))
             )}
           </div>
         )}
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const REVEAL_W = 80
+
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
+  asset: { coin: string; ticker: string; prevDayPx: number }
+  price: number
+  starred: boolean
+  onToggleFavorite: (ticker: string) => void
+  onNavigate: () => void
+}) {
+  const open     = asset.prevDayPx || price
+  const diff     = price - open
+  const pct      = open !== 0 ? (diff / open) * 100 : 0
+  const up       = diff >= 0
+  const color    = up ? '#26ab83' : '#E84332'
+  const decimals = priceDecimals(price)
+  const priceStr = formatPrice(price, decimals)
+  const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
+  const hasOpen  = asset.prevDayPx > 0
+  const name     = getAssetName(asset.ticker)
+
+  const rowRef   = useRef<HTMLDivElement>(null)
+  const stateRef = useRef({ startX: 0, startY: 0, offset: 0, revealed: false, scrolling: false })
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0]
+    stateRef.current.startX = t.clientX
+    stateRef.current.startY = t.clientY
+    stateRef.current.scrolling = false
+  }, [])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    const s = stateRef.current
+    const t = e.touches[0]
+    const dx = t.clientX - s.startX
+    const dy = t.clientY - s.startY
+
+    if (!s.scrolling && Math.abs(dy) > Math.abs(dx) + 4) {
+      s.scrolling = true
+    }
+    if (s.scrolling) return
+
+    const base   = s.revealed ? -REVEAL_W : 0
+    const raw    = base + dx
+    const clamped = Math.max(-REVEAL_W, Math.min(0, raw))
+    s.offset = clamped
+    if (rowRef.current) rowRef.current.style.transform = `translateX(${clamped}px)`
+  }, [])
+
+  const onTouchEnd = useCallback(() => {
+    const s = stateRef.current
+    if (s.scrolling) return
+    const snap = s.offset < -REVEAL_W / 2
+    s.revealed = snap
+    s.offset   = snap ? -REVEAL_W : 0
+    if (rowRef.current) {
+      rowRef.current.style.transition = 'transform 0.25s ease'
+      rowRef.current.style.transform  = `translateX(${s.offset}px)`
+      rowRef.current.addEventListener('transitionend', () => {
+        if (rowRef.current) rowRef.current.style.transition = ''
+      }, { once: true })
+    }
+  }, [])
+
+  const handleShare = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const url = `${window.location.origin}/chart/${asset.ticker}`
+    const text = `${asset.ticker} · ${priceStr}${hasOpen ? ` · ${pctStr}` : ''}`
+    if (navigator.share) {
+      navigator.share({ title: asset.ticker, text, url }).catch(() => null)
+    } else {
+      navigator.clipboard.writeText(url).catch(() => null)
+    }
+    // snap back
+    stateRef.current.revealed = false
+    stateRef.current.offset   = 0
+    if (rowRef.current) {
+      rowRef.current.style.transition = 'transform 0.25s ease'
+      rowRef.current.style.transform  = 'translateX(0)'
+      rowRef.current.addEventListener('transitionend', () => {
+        if (rowRef.current) rowRef.current.style.transition = ''
+      }, { once: true })
+    }
+  }, [asset.ticker, priceStr, pctStr, hasOpen])
+
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', marginLeft: -24, marginRight: -24 }}>
+      {/* Share button (revealed on swipe) */}
+      <div
+        onClick={handleShare}
+        style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL_W,
+          background: '#26ab83', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>SHARE</span>
+      </div>
+
+      {/* Sliding row */}
+      <div
+        ref={rowRef}
+        onClick={onNavigate}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          display: 'flex', alignItems: 'center',
+          padding: '14px 24px',
+          borderBottom: '1px solid #1C1C1A',
+          cursor: 'pointer', gap: 10,
+          background: '#080807',
+          position: 'relative',
+        }}
+      >
+        {/* Star */}
+        <button
+          onClick={e => { e.stopPropagation(); onToggleFavorite(asset.ticker) }}
+          style={{
+            background: 'none', border: 'none', borderRadius: '50%',
+            width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0, cursor: 'pointer', fontSize: 16,
+            color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1,
+          }}
+        >★</button>
+
+        {/* Ticker + name */}
+        <div style={{ width: 90, flexShrink: 0 }}>
+          <div style={S.ticker}>{asset.ticker}</div>
+          <div style={S.name}>{name}</div>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Price + change */}
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={S.price}>{priceStr}</div>
+          {hasOpen && (
+            <div style={{ marginTop: 3 }}>
+              <span style={{
+                display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+                fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+                fontVariantNumeric: 'tabular-nums', color,
+                background: up ? '#26ab8322' : '#E8433218',
+              }}>{pctStr}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -50,7 +50,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
         />
       )}
       {/* Cover Liveline's hardcoded x-axis separator line (always at height-28px) */}
-      <div style={{ position: 'absolute', top: 232, left: 0, right: 0, height: 1, background: '#080807', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: 232, left: 0, right: 0, height: 1, background: '#080807', pointerEvents: 'none', zIndex: 2 }} />
     </div>
   )
 }

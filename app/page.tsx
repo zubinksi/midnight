@@ -26,14 +26,14 @@ export default function Home() {
   const [clock, setClock]               = useState(formatDate())
   const [search, setSearch]             = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [favorites, setFavorites]       = useState<Set<string>>(new Set())
+  const [favorites, setFavorites] = useState<Set<string>>(new Set(['HYPE', 'SP500']))
 
   const loading = xyzLoading || cryptoLoading
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem('neue-favorites')
-      if (stored) setFavorites(new Set(JSON.parse(stored) as string[]))
+      if (stored !== null) setFavorites(new Set(JSON.parse(stored) as string[]))
     } catch {}
   }, [])
 
@@ -107,7 +107,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
             <span style={S.label}>
-              LIVE · HYPERLIQUID · {loading ? '…' : `${allAssets.length} MARKETS`}
+              LIVE · {loading ? '…' : `${allAssets.length} MARKETS`}
             </span>
           </div>
 
@@ -115,7 +115,7 @@ export default function Home() {
           <div style={{ position: 'relative', marginBottom: 4 }}>
             <input
               type="text"
-              placeholder="SEARCH MARKETS"
+              placeholder="SEARCH"
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{

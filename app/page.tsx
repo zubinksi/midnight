@@ -230,7 +230,7 @@ export default function Home() {
   )
 }
 
-const REVEAL_W = 160
+const REVEAL_W = 80
 
 function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompare }: {
   asset: { coin: string; ticker: string; prevDayPx: number }
@@ -306,18 +306,6 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompa
     }
   }, [])
 
-  const handleShare = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    const url = `${window.location.origin}/chart/${asset.ticker}`
-    const text = `${asset.ticker} · ${priceStr}${hasOpen ? ` · ${pctStr}` : ''}`
-    if (navigator.share) {
-      navigator.share({ title: asset.ticker, text, url }).catch(() => null)
-    } else {
-      navigator.clipboard.writeText(url).catch(() => null)
-    }
-    snapBack()
-  }, [asset.ticker, priceStr, pctStr, hasOpen, snapBack])
-
   const handleCompare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     snapBack()
@@ -326,26 +314,16 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompa
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden', marginLeft: -24, marginRight: -24 }}>
-      {/* Buttons revealed on swipe (COMPARE left, SHARE right) */}
+      {/* Compare button revealed on swipe */}
       <div
         onClick={handleCompare}
         style={{
-          position: 'absolute', right: 80, top: 0, bottom: 0, width: 80,
-          background: '#1C1C1A', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-        }}
-      >
-        <span style={{ fontSize: 10, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE</span>
-      </div>
-      <div
-        onClick={handleShare}
-        style={{
-          position: 'absolute', right: 0, top: 0, bottom: 0, width: 80,
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL_W,
           background: '#26ab83', display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
         }}
       >
-        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>SHARE</span>
+        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE</span>
       </div>
 
       {/* Sliding row */}

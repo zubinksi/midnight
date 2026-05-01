@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, use } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import type { LivelineSeries, WindowOption } from 'liveline'
+import type { LivelineSeries } from 'liveline'
 import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
 import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
@@ -12,17 +12,14 @@ import { getAssetName } from '@/lib/assetNames'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
-const WINDOWS: WindowOption[] = [
-  { label: '1D', secs: 86400 },
-  { label: '7D', secs: 604800 },
-  { label: '1M', secs: 2592000 },
-  { label: '3M', secs: 7776000 },
-  { label: '6M', secs: 15552000 },
+const WINDOWS: { label: string; tf: Timeframe; secs: number }[] = [
+  { label: '1D', tf: '1D', secs: 86400 },
+  { label: '7D', tf: '7D', secs: 604800 },
+  { label: '1M', tf: '1M', secs: 2592000 },
+  { label: '3M', tf: '3M', secs: 7776000 },
+  { label: '6M', tf: '6M', secs: 15552000 },
 ]
 
-const SECS_TO_TF: Record<number, Timeframe> = {
-  86400: '1D', 604800: '7D', 2592000: '1M', 7776000: '3M', 15552000: '6M',
-}
 const TF_TO_SECS: Record<Timeframe, number> = {
   '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
 }
@@ -83,11 +80,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coinMap, timeframe, raw])
 
-  const handleWindowChange = useCallback((secs: number) => {
-    const tf = SECS_TO_TF[secs]
-    if (tf) setTimeframe(tf)
-  }, [])
-
   const primaryData  = seriesData[tickers[0]] ?? []
   const primaryValue = primaryData.at(-1)?.value ?? 0
 
@@ -113,16 +105,15 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
         {/* Legend */}
         <div style={{ padding: '24px 24px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {tickers.map((ticker, i) => {
-            const pts      = seriesData[ticker] ?? []
-            const pct      = pts.at(-1)?.value ?? 0
-            const hasData  = pts.length > 0
-            const color    = pct >= 0 ? '#26ab83' : '#E84332'
+            const pts   = seriesData[ticker] ?? []
+            const pct   = pts.at(-1)?.value ?? 0
+            const color = pct >= 0 ? '#26ab83' : '#E84332'
             return (
               <div key={ticker} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0, marginBottom: 1 }} />
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 90, flexShrink: 0 }}>{ticker}</span>
                 <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>{getAssetName(ticker)}</span>
-                {hasData && !loading && (
+                {pts.length > 0 && !loading && (
                   <span style={{ fontSize: 13, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
                     {fmtPct(pct)}
                   </span>
@@ -132,8 +123,33 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           })}
         </div>
 
-        {/* Chart */}
-        <div style={{ marginTop: 28, height: 280 }}>
+        {/* Window selector (own row, separate from Liveline's series toggles) */}
+        <div style={{ display: 'flex', gap: 6, padding: '20px 24px 0', overflowX: 'auto', scrollbarWidth: 'none' } as React.CSSProperties}>
+          {WINDOWS.map(w => {
+            const active = timeframe === w.tf
+            return (
+              <button
+                key={w.tf}
+                onClick={() => setTimeframe(w.tf)}
+                style={{
+                  background: active ? '#1C1C1A' : 'none',
+                  border: '1px solid #1C1C1A',
+                  borderRadius: 20,
+                  padding: '5px 12px',
+                  fontSize: 10,
+                  fontFamily: 'Menlo,Monaco,monospace',
+                  letterSpacing: '0.08em',
+                  color: active ? '#F0EDE6' : '#46443D',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >{w.label}</button>
+            )
+          })}
+        </div>
+
+        {/* Chart — no windows prop so Liveline's bottom bar only shows series toggles */}
+        <div style={{ marginTop: 16, height: 280 }}>
           {mounted && (
             <Liveline
               data={primaryData}
@@ -147,19 +163,18 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               loading={isLoading}
               lineWidth={1.5}
               window={TF_TO_SECS[timeframe]}
-              windows={WINDOWS}
-              onWindowChange={handleWindowChange}
               formatValue={fmtPct}
               style={{ width: '100%', height: '100%' }}
             />
           )}
         </div>
 
-        {/* Attribution */}
-        <div style={{ padding: '16px 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Spacer + attribution */}
+        <div style={{ height: 24 }} />
+        <div style={{ padding: '0 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-            % CHANGE FROM WINDOW OPEN · POWERED BY HYPERLIQUID
+            LIVE · POWERED BY HYPERLIQUID
           </span>
         </div>
 

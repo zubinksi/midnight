@@ -9,6 +9,7 @@ import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
+import CompareModal from '@/components/CompareModal'
 
 const WINDOWS = [
   { label: '1D',  secs: 86400 },
@@ -39,11 +40,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const upperTicker = ticker.toUpperCase()
   const router = useRouter()
 
-  const [assetInfo, setAssetInfo]   = useState<AssetInfo | null>(null)
-  const [timeframe, setTimeframe]   = useState<Timeframe>('1D')
-  const [scrubPrice, setScrubPrice] = useState<number | null>(null)
-  const [showShare, setShowShare]   = useState(false)
-  const [starred, setStarred]       = useState(false)
+  const [assetInfo, setAssetInfo]     = useState<AssetInfo | null>(null)
+  const [allAssets, setAllAssets]     = useState<AssetInfo[]>([])
+  const [timeframe, setTimeframe]     = useState<Timeframe>('1D')
+  const [scrubPrice, setScrubPrice]   = useState<number | null>(null)
+  const [showShare, setShowShare]     = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
+  const [starred, setStarred]         = useState(false)
 
   useEffect(() => {
     try {
@@ -86,6 +89,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     return () => { cancelled = true }
   }, [upperTicker])
 
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/assets').then(r => r.json() as Promise<AssetInfo[]>),
+      fetch('/api/crypto').then(r => r.json() as Promise<AssetInfo[]>),
+    ]).then(([xyz, crypto]) => setAllAssets([...xyz, ...crypto])).catch(() => {})
+  }, [])
+
   const coin = assetInfo?.coin ?? upperTicker
 
   const livePrice = useAssetPrice(coin, 800)
@@ -125,6 +135,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             >
               ★
             </button>
+            <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE</button>
             <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
           </div>
         </div>
@@ -184,6 +195,18 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           onClose={() => setShowShare(false)}
         />
       )}
+
+      {showCompare && (
+        <CompareModal
+          baseTicker={upperTicker}
+          allAssets={allAssets}
+          onClose={() => setShowCompare(false)}
+          onCompare={tickers => {
+            setShowCompare(false)
+            router.push(`/compare/${tickers.join('_')}`)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -225,6 +248,7 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
-  shareBtn: { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
+  shareBtn:   { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  compareBtn: { background: 'none', border: '1px solid #1C1C1A', borderRadius: 20, padding: '7px 16px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

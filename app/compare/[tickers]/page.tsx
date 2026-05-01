@@ -91,9 +91,9 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const primaryData  = seriesData[tickers[0]] ?? []
   const primaryValue = primaryData.at(-1)?.value ?? 0
 
-  const additionalSeries: LivelineSeries[] = tickers.slice(1).map((ticker, i) => {
+  const allSeries: LivelineSeries[] = tickers.map((ticker, i) => {
     const data = seriesData[ticker] ?? []
-    return { id: ticker, data, value: data.at(-1)?.value ?? 0, color: COMPARE_COLORS[i + 1], label: ticker }
+    return { id: ticker, data, value: data.at(-1)?.value ?? 0, color: COMPARE_COLORS[i], label: ticker }
   })
 
   const isLoading = !mounted || loading
@@ -139,7 +139,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               data={primaryData}
               value={primaryValue}
               color={COMPARE_COLORS[0]}
-              series={additionalSeries.length > 0 ? additionalSeries : undefined}
+              series={allSeries}
               theme="dark"
               grid
               scrub

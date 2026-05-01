@@ -70,7 +70,7 @@ export default function Home() {
   const prices       = useMemo(() => ({ ...xyzPrices, ...cryptoPrices }), [xyzPrices, cryptoPrices])
 
   useEffect(() => {
-    const t = setInterval(() => setClock(formatDate()), 30000)
+    const t = setInterval(() => setClock(formatDate()), 1000)
     return () => clearInterval(t)
   }, [])
 

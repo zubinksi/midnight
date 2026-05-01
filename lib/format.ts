@@ -37,5 +37,6 @@ export function formatDate(): string {
   const date  = now.getDate()
   const h     = String(now.getHours()).padStart(2, '0')
   const m     = String(now.getMinutes()).padStart(2, '0')
-  return `${day}, ${month} ${date}  ${h}:${m}`
+  const s     = String(now.getSeconds()).padStart(2, '0')
+  return `${day}, ${month} ${date}  ${h}:${m}:${s}`
 }

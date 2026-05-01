@@ -91,11 +91,11 @@ export default function Home() {
   }, [allAssets, categoryFilter, favorites, search])
 
   return (
-    <div style={{ background: '#080807', minHeight: '100dvh' }}>
-      <div style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#080807', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 430, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Header */}
-        <div style={{ padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
+        {/* Fixed header */}
+        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
             <span style={S.label}>NEUE.MARKETS</span>
             <span style={S.label}>{clock}</span>
@@ -170,8 +170,10 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ borderTop: '1px solid #1C1C1A' }} />
+        <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
 
+        {/* Scrollable asset list */}
+        <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         {loading ? (
           <LoadingRows />
         ) : error ? (
@@ -257,8 +259,8 @@ export default function Home() {
             )}
           </div>
         )}
-
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
+        </div>
       </div>
     </div>
   )

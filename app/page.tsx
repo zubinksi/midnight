@@ -102,8 +102,8 @@ export default function Home() {
           </div>
           <div style={{ marginBottom: 20 }}>
             <div style={{ ...S.hero, color: '#46443D' }}>Watchlists for</div>
-            <div style={S.hero}>24/7 Markets.</div>
-            <div style={{ ...S.hero, color: '#46443D' }}>On Hyperliquid.</div>
+            <div style={S.hero}>24/7 markets</div>
+            <div style={{ ...S.hero, color: '#46443D' }}>on Hyperliquid.</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
@@ -144,7 +144,7 @@ export default function Home() {
           </div>
 
           {/* Category filter */}
-          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
             {FILTERS.map(f => {
               const active = categoryFilter === f.key
               return (
@@ -162,6 +162,8 @@ export default function Home() {
                     color: active ? '#F0EDE6' : '#46443D',
                     cursor: 'pointer',
                     transition: 'color 0.15s, background 0.15s',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {f.label}

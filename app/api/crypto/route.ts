@@ -3,11 +3,6 @@ import type { AssetInfo } from '@/lib/assets'
 
 const HL_API = 'https://api.hyperliquid.xyz/info'
 
-// Crypto assets to surface (Hyperliquid perp tickers)
-const CRYPTO_TICKERS = new Set([
-  'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'AVAX', 'LINK', 'ADA', 'SUI', 'HYPE', 'TON', 'ARB',
-])
-
 interface HLMeta {
   name: string
   szDecimals: number
@@ -44,7 +39,6 @@ export async function GET() {
       const ctx  = ctxs[i]
       if (!meta || !ctx) continue
       if (meta.isDelisted) continue
-      if (!CRYPTO_TICKERS.has(meta.name)) continue
 
       const price        = parseFloat(ctx.markPx ?? ctx.midPx ?? '0') || 0
       const prevDayPx    = parseFloat(ctx.prevDayPx)    || 0
@@ -56,7 +50,7 @@ export async function GET() {
 
       assets.push({
         ticker:      meta.name,
-        coin:        meta.name,  // no prefix — Hyperliquid perp uses bare ticker
+        coin:        meta.name,
         volume24h,
         price,
         prevDayPx,
@@ -69,9 +63,10 @@ export async function GET() {
 
     assets.sort((a, b) => b.volume24h - a.volume24h)
 
-    return NextResponse.json(assets, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json(assets.slice(0, 50), { headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
     console.error('[/api/crypto]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
+

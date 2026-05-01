@@ -7,6 +7,7 @@ import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
+import CompareModal from '@/components/CompareModal'
 
 type FilterKey = 'all' | 'starred' | AssetCategory
 
@@ -27,7 +28,8 @@ export default function Home() {
   const [clock, setClock]               = useState(formatDate())
   const [search, setSearch]             = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [favorites, setFavorites] = useState<Set<string>>(new Set(['HYPE', 'SP500']))
+  const [favorites, setFavorites]     = useState<Set<string>>(new Set(['HYPE', 'SP500']))
+  const [compareAsset, setCompareAsset] = useState<string | null>(null)
 
   const loading = xyzLoading || cryptoLoading
 
@@ -203,6 +205,7 @@ export default function Home() {
                   starred={favorites.has(asset.ticker)}
                   onToggleFavorite={toggleFavorite}
                   onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+                  onCompare={() => setCompareAsset(asset.ticker)}
                 />
               ))
             )}
@@ -211,18 +214,31 @@ export default function Home() {
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
         </div>
       </div>
+
+      {compareAsset && (
+        <CompareModal
+          baseTicker={compareAsset}
+          allAssets={allAssets}
+          onClose={() => setCompareAsset(null)}
+          onCompare={tickers => {
+            setCompareAsset(null)
+            router.push(`/compare/${tickers.join('_')}`)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-const REVEAL_W = 80
+const REVEAL_W = 160
 
-function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompare }: {
   asset: { coin: string; ticker: string; prevDayPx: number }
   price: number
   starred: boolean
   onToggleFavorite: (ticker: string) => void
   onNavigate: () => void
+  onCompare: () => void
 }) {
   const open     = asset.prevDayPx || price
   const diff     = price - open
@@ -278,16 +294,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
     }
   }, [])
 
-  const handleShare = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    const url = `${window.location.origin}/chart/${asset.ticker}`
-    const text = `${asset.ticker} · ${priceStr}${hasOpen ? ` · ${pctStr}` : ''}`
-    if (navigator.share) {
-      navigator.share({ title: asset.ticker, text, url }).catch(() => null)
-    } else {
-      navigator.clipboard.writeText(url).catch(() => null)
-    }
-    // snap back
+  const snapBack = useCallback(() => {
     stateRef.current.revealed = false
     stateRef.current.offset   = 0
     if (rowRef.current) {
@@ -297,15 +304,43 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
         if (rowRef.current) rowRef.current.style.transition = ''
       }, { once: true })
     }
-  }, [asset.ticker, priceStr, pctStr, hasOpen])
+  }, [])
+
+  const handleShare = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const url = `${window.location.origin}/chart/${asset.ticker}`
+    const text = `${asset.ticker} · ${priceStr}${hasOpen ? ` · ${pctStr}` : ''}`
+    if (navigator.share) {
+      navigator.share({ title: asset.ticker, text, url }).catch(() => null)
+    } else {
+      navigator.clipboard.writeText(url).catch(() => null)
+    }
+    snapBack()
+  }, [asset.ticker, priceStr, pctStr, hasOpen, snapBack])
+
+  const handleCompare = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    snapBack()
+    onCompare()
+  }, [onCompare, snapBack])
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden', marginLeft: -24, marginRight: -24 }}>
-      {/* Share button (revealed on swipe) */}
+      {/* Buttons revealed on swipe (COMPARE left, SHARE right) */}
+      <div
+        onClick={handleCompare}
+        style={{
+          position: 'absolute', right: 80, top: 0, bottom: 0, width: 80,
+          background: '#1C1C1A', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 10, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE</span>
+      </div>
       <div
         onClick={handleShare}
         style={{
-          position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL_W,
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: 80,
           background: '#26ab83', display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
         }}

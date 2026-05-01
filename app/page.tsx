@@ -101,6 +101,7 @@ export default function Home() {
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
+            <div style={{ ...S.hero, color: '#46443D' }}>Watchlists for</div>
             <div style={S.hero}>24/7 Markets.</div>
             <div style={{ ...S.hero, color: '#46443D' }}>On Hyperliquid.</div>
           </div>

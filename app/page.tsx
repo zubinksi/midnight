@@ -97,19 +97,16 @@ export default function Home() {
         {/* Fixed header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-            <span style={S.label}>NEUE.MARKETS</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
+              <span style={S.label}>LIVE · {loading ? '…' : `${allAssets.length} MARKETS`}</span>
+            </div>
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
             <div style={{ ...S.hero, color: '#46443D' }}>Watchlists for</div>
             <div style={S.hero}>24/7 markets</div>
             <div style={{ ...S.hero, color: '#46443D' }}>on Hyperliquid.</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-            <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-            <span style={S.label}>
-              LIVE · {loading ? '…' : `${allAssets.length} MARKETS`}
-            </span>
           </div>
 
           {/* Search */}

@@ -43,6 +43,31 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [timeframe, setTimeframe]   = useState<Timeframe>('1D')
   const [scrubPrice, setScrubPrice] = useState<number | null>(null)
   const [showShare, setShowShare]   = useState(false)
+  const [starred, setStarred]       = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('neue-favorites')
+      if (stored !== null) {
+        setStarred((JSON.parse(stored) as string[]).includes(upperTicker))
+      } else {
+        setStarred(['HYPE', 'SP500'].includes(upperTicker))
+      }
+    } catch {}
+  }, [upperTicker])
+
+  const toggleStar = () => {
+    setStarred(prev => {
+      const next = !prev
+      try {
+        const stored = localStorage.getItem('neue-favorites')
+        const list: string[] = stored !== null ? JSON.parse(stored) : ['HYPE', 'SP500']
+        const updated = next ? [...new Set([...list, upperTicker])] : list.filter(t => t !== upperTicker)
+        localStorage.setItem('neue-favorites', JSON.stringify(updated))
+      } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -93,7 +118,15 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => router.back()} style={S.backBtn}>← WATCHLIST</button>
-          <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={toggleStar}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: starred ? '#F0C84A' : '#2C2C2A', padding: '4px 2px', lineHeight: 1 }}
+            >
+              ★
+            </button>
+            <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
+          </div>
         </div>
 
         {/* Price block */}

@@ -8,10 +8,11 @@ import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
 
-type FilterKey = 'all' | AssetCategory
+type FilterKey = 'all' | 'starred' | AssetCategory
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',       label: 'ALL' },
+  { key: 'starred',   label: '★' },
   { key: 'crypto',    label: 'CRYPTO' },
   { key: 'stock',     label: 'STOCKS' },
   { key: 'index',     label: 'INDICES' },
@@ -77,6 +78,8 @@ export default function Home() {
   const displayAssets = useMemo(() => {
     let filtered = categoryFilter === 'all'
       ? allAssets
+      : categoryFilter === 'starred'
+      ? allAssets.filter(a => favorites.has(a.ticker))
       : allAssets.filter(a => a.category === categoryFilter)
     const q = search.trim().toLowerCase()
     if (q) filtered = filtered.filter(a =>

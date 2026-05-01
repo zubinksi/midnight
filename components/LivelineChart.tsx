@@ -29,7 +29,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
   const safeValue = value !== 0 ? value : (data.at(-1)?.value ?? 0)
 
   return (
-    <div style={{ width: '100%', height: 260, position: 'relative' }}>
+    <div style={{ width: '100%', height: 260 }}>
       {mounted && (
         <Liveline
           data={data}
@@ -39,7 +39,8 @@ export default function LivelineChart({ data, value, color, loading, window: win
           fill
           scrub
           pulse
-          grid={false}
+          grid
+          padding={{ bottom: 0 }}
           loading={isLoading}
           lineWidth={1.5}
           window={windowSecs}
@@ -49,8 +50,6 @@ export default function LivelineChart({ data, value, color, loading, window: win
           onHover={point => onScrub?.(point?.value ?? null)}
         />
       )}
-      {/* Cover Liveline's hardcoded x-axis separator line (always at height-28px) */}
-      <div style={{ position: 'absolute', top: 232, left: 0, right: 0, height: 1, background: '#080807', pointerEvents: 'none', zIndex: 2 }} />
     </div>
   )
 }

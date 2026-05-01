@@ -107,7 +107,7 @@ export default function Home() {
             <span style={S.label}>{clock}</span>
           </div>
           <div style={{ marginBottom: 20 }}>
-            <div style={{ ...S.hero, color: '#46443D' }}>Watchlists for</div>
+            <div style={{ ...S.hero, color: '#46443D' }}>A watchlist for</div>
             <div style={S.hero}>24/7 markets</div>
             <div style={{ ...S.hero, color: '#46443D' }}>on Hyperliquid.</div>
           </div>
@@ -155,11 +155,13 @@ export default function Home() {
                     background: active ? '#1C1C1A' : 'none',
                     border: '1px solid #1C1C1A',
                     borderRadius: 20,
-                    padding: '5px 12px',
-                    fontSize: 10,
+                    padding: f.key === 'starred' ? '1px 10px' : '5px 12px',
+                    fontSize: f.key === 'starred' ? 20 : 10,
                     fontFamily: 'Menlo,Monaco,monospace',
                     letterSpacing: '0.08em',
-                    color: active ? '#F0EDE6' : '#46443D',
+                    color: f.key === 'starred'
+                      ? (active ? '#F0C84A' : '#46443D')
+                      : (active ? '#F0EDE6' : '#46443D'),
                     cursor: 'pointer',
                     transition: 'color 0.15s, background 0.15s',
                     flexShrink: 0,

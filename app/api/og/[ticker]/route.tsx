@@ -17,45 +17,10 @@ export async function GET(
   let asset: AssetInfo | null = null
   try {
     const base = new URL(req.url).origin
-    const res  = await fetch(`${base}/api/assets`)
+    const res  = await fetch(`${base}/api/assets`, { next: { revalidate: 60 } })
     if (res.ok) {
       const list: AssetInfo[] = await res.json()
       asset = list.find(a => a.ticker === upperTicker) ?? null
-    }
-  } catch {}
-
-  // Fetch 1D candles for sparkline
-  let sparkPath = ''
-  let sparkColor = '#26ab83'
-  try {
-    const endTime   = Date.now()
-    const startTime = endTime - 24 * 60 * 60 * 1000
-    const candleRes = await fetch('https://api.hyperliquid.xyz/info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'candleSnapshot',
-        req: { coin: `xyz:${upperTicker}`, interval: '15m', startTime, endTime },
-      }),
-    })
-    if (candleRes.ok) {
-      const candles: Array<{ t: number; c: string }> = await candleRes.json()
-      if (Array.isArray(candles) && candles.length > 1) {
-        const values = candles.map(c => parseFloat(c.c)).filter(v => !isNaN(v))
-        if (values.length > 1) {
-          const min = Math.min(...values)
-          const max = Math.max(...values)
-          const range = max - min || 1
-          const W = 1088; const H = 100; const pad = 4
-          const pts = values.map((v, i) => {
-            const x = (i / (values.length - 1)) * W
-            const y = pad + (H - pad * 2) - ((v - min) / range) * (H - pad * 2)
-            return `${x},${y}`
-          })
-          sparkPath  = 'M' + pts.join('L')
-          sparkColor = values[values.length - 1] >= values[0] ? '#26ab83' : '#E84332'
-        }
-      }
     }
   } catch {}
 
@@ -69,40 +34,37 @@ export async function GET(
   const pct    = asset?.prevDayPx ? (diff / asset.prevDayPx) * 100 : 0
   const up     = diff >= 0
   const pctStr = asset?.prevDayPx ? `${up ? '+' : ''}${pct.toFixed(2)}%` : ''
+  const changeColor = up ? '#26ab83' : '#E84332'
 
   return new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', background: '#080807', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '52px 56px 48px', fontFamily: 'monospace' }}>
+      <div style={{ width: '100%', height: '100%', background: '#080807', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '64px 72px', fontFamily: 'monospace' }}>
 
-        {/* Top: ticker + name / pct */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 15, color: '#46443D', letterSpacing: '0.1em' }}>{upperTicker}</span>
-            <span style={{ fontSize: 22, color: '#46443D', marginTop: 4 }}>{assetName}</span>
-            <span style={{ fontSize: 80, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.03em', marginTop: 16, lineHeight: 1 }}>
-              {priceStr}
-            </span>
-          </div>
-          {pctStr && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingTop: 4 }}>
-              <span style={{ fontSize: 32, color: up ? '#26ab83' : '#E84332', fontWeight: 600 }}>{pctStr}</span>
-              <span style={{ fontSize: 13, color: '#46443D', marginTop: 8, letterSpacing: '0.06em' }}>24H CHANGE</span>
-            </div>
-          )}
+        {/* Top: branding */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#26ab83' }} />
+          <span style={{ fontSize: 14, color: '#46443D', letterSpacing: '0.12em' }}>NEUE.MARKETS · LIVE</span>
         </div>
 
-        {/* Sparkline */}
-        {sparkPath && (
-          <div style={{ display: 'flex', marginBottom: 8 }}>
-            <svg width={1088} height={100} viewBox="0 0 1088 100">
-              <path d={sparkPath} stroke={sparkColor} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+        {/* Middle: ticker + price + change */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: 18, color: '#46443D', letterSpacing: '0.08em', marginBottom: 8 }}>{upperTicker} · {assetName}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32 }}>
+            <span style={{ fontSize: 96, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.04em', lineHeight: 1 }}>
+              {priceStr}
+            </span>
+            {pctStr && (
+              <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 10 }}>
+                <span style={{ fontSize: 40, fontWeight: 600, color: changeColor, lineHeight: 1 }}>{pctStr}</span>
+                <span style={{ fontSize: 13, color: '#46443D', marginTop: 6, letterSpacing: '0.08em' }}>24H CHANGE</span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Bottom: branding */}
+        {/* Bottom: attribution */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.01em' }}>neue.markets</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.01em' }}>neue.markets</span>
           <span style={{ fontSize: 13, color: '#46443D', letterSpacing: '0.08em' }}>POWERED BY HYPERLIQUID</span>
         </div>
       </div>

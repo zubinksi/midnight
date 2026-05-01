@@ -58,9 +58,12 @@ export default function Home() {
 
   const historyRef = useRef<Record<string, number[]>>({})
   for (const a of assets) {
-    // Seed with prevDayPx so we always have ≥2 points on first paint
     if (!historyRef.current[a.ticker]) {
-      historyRef.current[a.ticker] = a.prevDayPx > 0 ? [a.prevDayPx] : []
+      // Seed with both prevDayPx and current price to guarantee ≥2 points on first paint
+      const seed: number[] = []
+      if (a.prevDayPx > 0) seed.push(a.prevDayPx)
+      if (a.price > 0) seed.push(a.price)
+      historyRef.current[a.ticker] = seed
     }
     const p = prices[a.ticker]
     if (p == null) continue
@@ -192,7 +195,7 @@ export default function Home() {
                 const pct      = open !== 0 ? (diff / open) * 100 : 0
                 const up       = diff >= 0
                 const color    = up ? '#26ab83' : '#E84332'
-                const hist     = historyRef.current[asset.ticker] ?? [price]
+                const hist     = historyRef.current[asset.ticker] ?? [open, price]
                 const decimals = priceDecimals(price)
                 const priceStr = formatPrice(price, decimals)
                 const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
@@ -236,7 +239,7 @@ export default function Home() {
                     </div>
 
                     {/* Sparkline fills middle */}
-                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <Sparkline values={hist} height={32} color={color} responsive />
                     </div>
 

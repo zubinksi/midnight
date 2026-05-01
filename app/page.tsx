@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useLivePrices } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import Sparkline from '@/components/Sparkline'
 
 type FilterKey = 'all' | AssetCategory
 
@@ -55,24 +54,6 @@ export default function Home() {
   }, [assets])
 
   const prices = useLivePrices(tickers, seedPrices, 800)
-
-  const historyRef = useRef<Record<string, number[]>>({})
-  for (const a of assets) {
-    if (!historyRef.current[a.ticker]) {
-      // Seed with both prevDayPx and current price to guarantee ≥2 points on first paint
-      const seed: number[] = []
-      if (a.prevDayPx > 0) seed.push(a.prevDayPx)
-      if (a.price > 0) seed.push(a.price)
-      historyRef.current[a.ticker] = seed
-    }
-    const p = prices[a.ticker]
-    if (p == null) continue
-    const arr = historyRef.current[a.ticker]
-    if (arr.length === 0 || arr[arr.length - 1] !== p) {
-      arr.push(p)
-      if (arr.length > 60) arr.shift()
-    }
-  }
 
   useEffect(() => {
     const t = setInterval(() => setClock(formatDate()), 30000)
@@ -195,7 +176,6 @@ export default function Home() {
                 const pct      = open !== 0 ? (diff / open) * 100 : 0
                 const up       = diff >= 0
                 const color    = up ? '#26ab83' : '#E84332'
-                const hist     = historyRef.current[asset.ticker] ?? [open, price]
                 const decimals = priceDecimals(price)
                 const priceStr = formatPrice(price, decimals)
                 const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
@@ -213,7 +193,7 @@ export default function Home() {
                     <button
                       onClick={e => { e.stopPropagation(); toggleFavorite(asset.ticker) }}
                       style={{
-                        background: starred ? 'none' : '#1C1C1A',
+                        background: 'none',
                         border: 'none',
                         borderRadius: '50%',
                         width: 28,
@@ -224,12 +204,12 @@ export default function Home() {
                         padding: 0,
                         cursor: 'pointer',
                         fontSize: 16,
-                        color: starred ? '#F0C84A' : '#46443D',
+                        color: starred ? '#F0C84A' : '#2C2C2A',
                         flexShrink: 0,
                         lineHeight: 1,
                       }}
                     >
-                      {starred ? '★' : '☆'}
+                      ★
                     </button>
 
                     {/* Ticker + name */}
@@ -238,10 +218,8 @@ export default function Home() {
                       <div style={S.name}>{name}</div>
                     </div>
 
-                    {/* Sparkline fills middle */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Sparkline values={hist} height={32} color={color} responsive />
-                    </div>
+                    {/* Spacer */}
+                    <div style={{ flex: 1 }} />
 
                     {/* Price + change */}
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>

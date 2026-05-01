@@ -117,7 +117,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
-          <button onClick={() => router.back()} style={S.backBtn}>← WATCHLIST</button>
+          <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>← WATCHLIST</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               onClick={toggleStar}

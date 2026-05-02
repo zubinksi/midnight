@@ -140,34 +140,44 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           })}
         </div>
 
-        {/* Time window selector — our own row, left-aligned with site content */}
-        <div style={{ display: 'flex', gap: 2, padding: '20px 24px 0' }}>
-          {WINDOWS.map(w => {
-            const active = timeframe === w.tf
-            return (
-              <button
-                key={w.tf}
-                onClick={() => setTimeframe(w.tf)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '3px 10px',
-                  fontSize: 11,
-                  fontFamily: 'Menlo,Monaco,monospace',
-                  color: active ? '#F0EDE6' : '#46443D',
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  letterSpacing: '0.04em',
-                }}
-              >{w.label}</button>
-            )
-          })}
+        {/* Time window selector — matches Liveline's native window button style */}
+        <div style={{ padding: '20px 24px 0' }}>
+          <div style={{
+            display: 'inline-flex',
+            gap: 2,
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: 6,
+            padding: 2,
+          }}>
+            {WINDOWS.map(w => {
+              const active = timeframe === w.tf
+              return (
+                <button
+                  key={w.tf}
+                  onClick={() => setTimeframe(w.tf)}
+                  style={{
+                    position: 'relative',
+                    background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '3px 10px',
+                    fontSize: 11,
+                    lineHeight: '16px',
+                    fontFamily: 'Menlo,Monaco,monospace',
+                    color: active ? '#F0EDE6' : '#46443D',
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'color 0.2s, background 0.15s',
+                  }}
+                >{w.label}</button>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Chart — Liveline renders series toggle chips on their own row above the canvas.
-            padding.left=24 left-aligns the chips row with the rest of the site content. */}
-        <div style={{ marginTop: 4 }}>
+        {/* Chart — series chips rendered by Liveline on their own row above the canvas.
+            padding.left=24 left-aligns chips with site content. marginTop adds space between rows. */}
+        <div style={{ marginTop: 12 }}>
           {mounted && (
             <Liveline
               data={primaryData}

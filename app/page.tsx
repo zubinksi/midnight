@@ -145,19 +145,36 @@ export default function Home() {
             </div>
             <span style={S.label}>{clock}</span>
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'baseline' }}>
-              <span
-                onClick={() => setMode('watch')}
-                style={{ ...S.hero, color: mode === 'watch' ? '#F0EDE6' : '#46443D', cursor: 'pointer', transition: 'color 0.2s' }}
-              >Watch</span>
-              <span
-                onClick={() => setMode('compare')}
-                style={{ ...S.hero, color: mode === 'compare' ? '#F0EDE6' : '#46443D', cursor: 'pointer', transition: 'color 0.2s' }}
-              >Compare</span>
-            </div>
+          <div style={{ marginBottom: 16 }}>
             <div style={S.hero}>24/7 markets</div>
             <div style={S.hero}>on Hyperliquid.</div>
+          </div>
+          {/* Mode tabs */}
+          <div style={{
+            display: 'flex', gap: 2,
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid #1C1C1A',
+            borderRadius: 8, padding: 3,
+            marginBottom: 20,
+          }}>
+            {(['watch', 'compare'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                style={{
+                  flex: 1,
+                  background: mode === m ? '#1C1C1A' : 'transparent',
+                  border: 'none', borderRadius: 6,
+                  padding: '8px 0',
+                  fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+                  letterSpacing: '0.08em',
+                  color: mode === m ? '#F0EDE6' : '#46443D',
+                  fontWeight: mode === m ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'color 0.15s, background 0.15s',
+                }}
+              >{m.toUpperCase()}</button>
+            ))}
           </div>
         </div>
 

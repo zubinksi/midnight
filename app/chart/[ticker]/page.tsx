@@ -139,9 +139,9 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <button
               onClick={toggleStar}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, paddingBottom: 2, lineHeight: 1, flexShrink: 0 }}
             >★</button>
-            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: 17, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>
               {upperTicker} · {assetName}
             </div>
           </div>
@@ -255,5 +255,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 const S = {
   backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
   shareBtn:   { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
-  compareBtn: { background: 'rgba(38,171,131,0.12)', border: '1px solid rgba(38,171,131,0.25)', borderRadius: 20, padding: '7px 16px', color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  compareBtn: { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

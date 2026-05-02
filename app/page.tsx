@@ -37,10 +37,15 @@ export default function Home() {
   const loading = xyzLoading || cryptoLoading
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('neue-favorites')
-      if (stored !== null) setFavorites(new Set(JSON.parse(stored) as string[]))
-    } catch {}
+    const read = () => {
+      try {
+        const stored = localStorage.getItem('neue-favorites')
+        if (stored !== null) setFavorites(new Set(JSON.parse(stored) as string[]))
+      } catch {}
+    }
+    read()
+    window.addEventListener('focus', read)
+    return () => window.removeEventListener('focus', read)
   }, [])
 
   useEffect(() => {

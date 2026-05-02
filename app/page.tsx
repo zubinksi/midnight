@@ -323,7 +323,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompa
           cursor: 'pointer',
         }}
       >
-        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE</span>
+        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE ⇄</span>
       </div>
 
       {/* Sliding row */}

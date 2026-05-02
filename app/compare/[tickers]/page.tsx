@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, use } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import type { LivelineSeries } from 'liveline'
+import type { LivelineSeries, WindowOption } from 'liveline'
 import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
 import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
@@ -20,9 +20,8 @@ const WINDOWS: { label: string; tf: Timeframe; secs: number }[] = [
   { label: '6M', tf: '6M', secs: 15552000 },
 ]
 
-const TF_TO_SECS: Record<Timeframe, number> = {
-  '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
-}
+const WINDOWS_OPT: WindowOption[] = WINDOWS.map(w => ({ label: w.label, secs: w.secs }))
+
 
 function normalize(pts: LivelinePoint[]): LivelinePoint[] {
   if (pts.length === 0) return []
@@ -95,11 +94,19 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
 
         {/* Top bar */}
-        <div style={{ padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button
             onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
             style={S.backBtn}
           >← WATCHLIST</button>
+          <button
+            onClick={() => {
+              const url = window.location.href
+              if (navigator.share) navigator.share({ url }).catch(() => null)
+              else navigator.clipboard.writeText(url).catch(() => null)
+            }}
+            style={S.shareBtn}
+          >SHARE ↗</button>
         </div>
 
         {/* Legend */}
@@ -123,33 +130,8 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           })}
         </div>
 
-        {/* Window selector (own row, separate from Liveline's series toggles) */}
-        <div style={{ display: 'flex', gap: 6, padding: '20px 24px 0', overflowX: 'auto', scrollbarWidth: 'none' } as React.CSSProperties}>
-          {WINDOWS.map(w => {
-            const active = timeframe === w.tf
-            return (
-              <button
-                key={w.tf}
-                onClick={() => setTimeframe(w.tf)}
-                style={{
-                  background: active ? '#1C1C1A' : 'none',
-                  border: '1px solid #1C1C1A',
-                  borderRadius: 20,
-                  padding: '5px 12px',
-                  fontSize: 10,
-                  fontFamily: 'Menlo,Monaco,monospace',
-                  letterSpacing: '0.08em',
-                  color: active ? '#F0EDE6' : '#46443D',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >{w.label}</button>
-            )
-          })}
-        </div>
-
-        {/* Chart — no windows prop so Liveline's bottom bar only shows series toggles */}
-        <div style={{ marginTop: 16, height: 280 }}>
+        {/* Chart with window selector — clip the series toggle chips Liveline renders */}
+        <div style={{ marginTop: 20, height: 300, overflow: 'hidden' }}>
           {mounted && (
             <Liveline
               data={primaryData}
@@ -162,9 +144,14 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               padding={{ bottom: 0 }}
               loading={isLoading}
               lineWidth={1.5}
-              window={TF_TO_SECS[timeframe]}
+              window={WINDOWS.find(w => w.tf === timeframe)?.secs}
+              windows={WINDOWS_OPT}
+              onWindowChange={secs => {
+                const w = WINDOWS.find(w => w.secs === secs)
+                if (w) setTimeframe(w.tf)
+              }}
               formatValue={fmtPct}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: '100%', height: 345 }}
             />
           )}
         </div>
@@ -185,5 +172,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 }
 
 const S = {
-  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
+  backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
+  shareBtn: { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

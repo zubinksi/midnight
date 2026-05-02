@@ -129,21 +129,21 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>← WATCHLIST</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={toggleStar}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: starred ? '#F0C84A' : '#2C2C2A', padding: '4px 2px', lineHeight: 1 }}
-            >
-              ★
-            </button>
-            <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE</button>
+            <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
             <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
           </div>
         </div>
 
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
-          <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
-            {upperTicker} · {assetName}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <button
+              onClick={toggleStar}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, flexShrink: 0 }}
+            >★</button>
+            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>
+              {upperTicker} · {assetName}
+            </div>
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
@@ -165,6 +165,11 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             windows={WINDOWS}
             onWindowChange={handleWindowChange}
             onScrub={handleScrub}
+            formatTime={timeframe !== '1D' ? (t: number) => {
+              const d = new Date(t * 1000)
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+              return `${months[d.getMonth()]} ${d.getDate()}`
+            } : undefined}
           />
         </div>
 

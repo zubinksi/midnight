@@ -19,9 +19,10 @@ interface Props {
   windows?: WindowOption[]
   onWindowChange?: (secs: number) => void
   onScrub?: (price: number | null) => void
+  formatTime?: (t: number) => string
 }
 
-export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub }: Props) {
+export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub, formatTime }: Props) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -46,6 +47,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
           window={windowSecs}
           windows={windows}
           onWindowChange={onWindowChange}
+          formatTime={formatTime}
           style={{ width: '100%', height: '100%' }}
           onHover={point => onScrub?.(point?.value ?? null)}
         />

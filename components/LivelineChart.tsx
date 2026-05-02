@@ -30,7 +30,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
   const safeValue = value !== 0 ? value : (data.at(-1)?.value ?? 0)
 
   return (
-    <div style={{ width: '100%', height: 300 }}>
+    <div style={{ width: '100%', height: 360 }}>
       {mounted && (
         <Liveline
           data={data}
@@ -41,7 +41,6 @@ export default function LivelineChart({ data, value, color, loading, window: win
           scrub
           pulse
           grid
-          padding={{ bottom: 0 }}
           loading={isLoading}
           lineWidth={1.5}
           window={windowSecs}

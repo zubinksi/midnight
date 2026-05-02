@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import type { LivelineSeries, WindowOption } from 'liveline'
+import type { LivelineSeries } from 'liveline'
 import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
 import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
@@ -19,12 +19,6 @@ const WINDOWS: { label: string; tf: Timeframe; secs: number }[] = [
   { label: '3M', tf: '3M', secs: 7776000 },
   { label: '6M', tf: '6M', secs: 15552000 },
 ]
-
-const WINDOWS_OPT: WindowOption[] = WINDOWS.map(w => ({ label: w.label, secs: w.secs }))
-
-// Liveline renders its toolbar (windows + series chips) at the top of the component.
-// We push the component up by TOOLBAR_H so only the chart canvas is visible.
-const TOOLBAR_H = 48
 
 function normalize(pts: LivelinePoint[]): LivelinePoint[] {
   if (pts.length === 0) return []
@@ -111,9 +105,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   })
 
   const isLoading = !mounted || loading
-  // Chart canvas height we want to show; total Liveline height includes hidden toolbar on top
-  const CANVAS_H = 300
-  const LIVELINE_H = CANVAS_H + TOOLBAR_H
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -149,36 +140,55 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           })}
         </div>
 
-        {/* Chart — Liveline is pushed up by TOOLBAR_H so only the canvas shows */}
-        <div style={{ marginTop: 20, height: CANVAS_H, overflow: 'hidden' }}>
-          <div style={{ marginTop: -TOOLBAR_H }}>
-            {mounted && (
-              <Liveline
-                data={primaryData}
-                value={primaryValue}
-                color={COMPARE_COLORS[0]}
-                series={allSeries}
-                theme="dark"
-                grid
-                scrub
-                padding={{ bottom: 0 }}
-                loading={isLoading}
-                lineWidth={1.5}
-                window={WINDOWS.find(w => w.tf === timeframe)?.secs}
-                windows={WINDOWS_OPT}
-                onWindowChange={secs => {
-                  const w = WINDOWS.find(w => w.secs === secs)
-                  if (w) setTimeframe(w.tf)
+        {/* Time window selector — our own row, left-aligned with site content */}
+        <div style={{ display: 'flex', gap: 2, padding: '20px 24px 0' }}>
+          {WINDOWS.map(w => {
+            const active = timeframe === w.tf
+            return (
+              <button
+                key={w.tf}
+                onClick={() => setTimeframe(w.tf)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '3px 10px',
+                  fontSize: 11,
+                  fontFamily: 'Menlo,Monaco,monospace',
+                  color: active ? '#F0EDE6' : '#46443D',
+                  fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  letterSpacing: '0.04em',
                 }}
-                formatValue={fmtPct}
-                style={{ width: '100%', height: LIVELINE_H }}
-              />
-            )}
-          </div>
+              >{w.label}</button>
+            )
+          })}
+        </div>
+
+        {/* Chart — Liveline renders series toggle chips on their own row above the canvas.
+            padding.left=24 left-aligns the chips row with the rest of the site content. */}
+        <div style={{ marginTop: 4 }}>
+          {mounted && (
+            <Liveline
+              data={primaryData}
+              value={primaryValue}
+              color={COMPARE_COLORS[0]}
+              series={allSeries}
+              theme="dark"
+              grid
+              scrub
+              loading={isLoading}
+              lineWidth={1.5}
+              window={WINDOWS.find(w => w.tf === timeframe)?.secs}
+              formatValue={fmtPct}
+              padding={{ left: 24 }}
+              style={{ width: '100%', height: 360 }}
+            />
+          )}
         </div>
 
         {/* Attribution */}
-        <div style={{ padding: '16px 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '8px 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
             LIVE · POWERED BY HYPERLIQUID
@@ -214,7 +224,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           >
             <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
 
-            {/* Tickers preview */}
             <div style={{ background: '#080807', border: '1px solid #1C1C1A', borderRadius: 12, padding: '16px 20px', marginBottom: 24 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {tickers.map((ticker, i) => (
@@ -227,18 +236,12 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               </div>
             </div>
 
-            <button
-              onClick={handleShareLink}
-              style={S.actionBtn}
-            >
+            <button onClick={handleShareLink} style={S.actionBtn}>
               <span>Share Link</span>
               <span style={{ color: '#46443D' }}>↗</span>
             </button>
 
-            <button
-              onClick={handleCopyLink}
-              style={S.actionBtn}
-            >
+            <button onClick={handleCopyLink} style={S.actionBtn}>
               <span>Copy Link</span>
               <span style={{ color: copied ? '#26ab83' : '#46443D', transition: 'color 0.2s' }}>
                 {copied ? 'COPIED' : '↗'}

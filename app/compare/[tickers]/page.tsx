@@ -9,6 +9,7 @@ import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
 import { COMPARE_COLORS } from '@/components/CompareModal'
 import { getAssetName } from '@/lib/assetNames'
+import { loadComparisons, saveComparisons } from '@/lib/comparisons'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
@@ -43,8 +44,28 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const [mounted, setMounted]       = useState(false)
   const [showShare, setShowShare]   = useState(false)
   const [copied, setCopied]         = useState(false)
+  const [saved, setSaved]           = useState(false)
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    setSaved(loadComparisons().some(c => c.id === raw))
+  }, [raw])
+
+  const toggleSave = () => {
+    setSaved(prev => {
+      const next = !prev
+      const list = loadComparisons()
+      if (next) {
+        if (!list.some(c => c.id === raw)) list.unshift({ id: raw, tickers })
+      } else {
+        const i = list.findIndex(c => c.id === raw)
+        if (i !== -1) list.splice(i, 1)
+      }
+      saveComparisons(list)
+      return next
+    })
+  }
 
   useEffect(() => {
     Promise.all([
@@ -116,7 +137,13 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
             onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
             style={S.backBtn}
           >← WATCHLIST</button>
-          <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={toggleSave}
+              style={saved ? S.savedBtn : S.saveBtn}
+            >{saved ? 'SAVED ✓' : 'SAVE'}</button>
+            <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
+          </div>
         </div>
 
         {/* Legend */}
@@ -276,6 +303,8 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 
 const S = {
   backBtn:   { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
+  saveBtn:   { background: 'none', border: '1px solid #1C1C1A', borderRadius: 20, padding: '7px 14px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  savedBtn:  { background: 'rgba(38,171,131,0.12)', border: '1px solid rgba(38,171,131,0.3)', borderRadius: 20, padding: '7px 14px', color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
   shareBtn:  { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
   actionBtn: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #1C1C1A', padding: '16px 0', cursor: 'pointer', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 13, textAlign: 'left' } as React.CSSProperties,
 }

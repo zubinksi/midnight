@@ -7,7 +7,9 @@ import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import CompareModal from '@/components/CompareModal'
+import CompareModal, { COMPARE_COLORS } from '@/components/CompareModal'
+import { loadComparisons, saveComparisons } from '@/lib/comparisons'
+import type { SavedComparison } from '@/lib/comparisons'
 
 type FilterKey = 'all' | 'starred' | AssetCategory
 
@@ -28,8 +30,9 @@ export default function Home() {
   const [clock, setClock]               = useState(formatDate())
   const [search, setSearch]             = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [favorites, setFavorites]     = useState<Set<string>>(new Set(['HYPE', 'SP500']))
-  const [compareAsset, setCompareAsset] = useState<string | null>(null)
+  const [favorites, setFavorites]         = useState<Set<string>>(new Set(['HYPE', 'SP500']))
+  const [compareAsset, setCompareAsset]   = useState<string | null>(null)
+  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([])
 
   const loading = xyzLoading || cryptoLoading
 
@@ -39,6 +42,21 @@ export default function Home() {
       if (stored !== null) setFavorites(new Set(JSON.parse(stored) as string[]))
     } catch {}
   }, [])
+
+  useEffect(() => {
+    const read = () => setSavedComparisons(loadComparisons())
+    read()
+    window.addEventListener('focus', read)
+    return () => window.removeEventListener('focus', read)
+  }, [])
+
+  const removeComparison = (id: string) => {
+    setSavedComparisons(prev => {
+      const next = prev.filter(c => c.id !== id)
+      saveComparisons(next)
+      return next
+    })
+  }
 
   const toggleFavorite = (ticker: string) => {
     setFavorites(prev => {
@@ -181,6 +199,58 @@ export default function Home() {
             })}
           </div>
         </div>
+
+        {/* Saved comparisons */}
+        {savedComparisons.length > 0 && (
+          <div style={{
+            flexShrink: 0,
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            paddingLeft: 24,
+            paddingRight: 24,
+            paddingBottom: 16,
+          } as React.CSSProperties}>
+            {savedComparisons.map(c => (
+              <div
+                key={c.id}
+                onClick={() => router.push(`/compare/${c.id}`)}
+                style={{
+                  flexShrink: 0,
+                  position: 'relative',
+                  width: 130,
+                  background: '#0F0F0E',
+                  border: '1px solid #1C1C1A',
+                  borderRadius: 10,
+                  padding: '10px 12px 10px',
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Remove */}
+                <button
+                  onClick={e => { e.stopPropagation(); removeComparison(c.id) }}
+                  style={{
+                    position: 'absolute', top: 6, right: 6,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#46443D', fontSize: 9, padding: 2, lineHeight: 1,
+                  }}
+                >✕</button>
+                {/* Tickers */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingRight: 10 }}>
+                  {c.tickers.map((ticker, i) => (
+                    <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1 }}>{ticker}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
 

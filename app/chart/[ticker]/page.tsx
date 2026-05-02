@@ -170,6 +170,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
               const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
               return `${months[d.getMonth()]} ${d.getDate()}`
             } : undefined}
+            padding={{ left: 24 }}
           />
         </div>
 

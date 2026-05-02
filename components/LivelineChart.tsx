@@ -20,9 +20,10 @@ interface Props {
   onWindowChange?: (secs: number) => void
   onScrub?: (price: number | null) => void
   formatTime?: (t: number) => string
+  padding?: { left?: number; right?: number; top?: number; bottom?: number }
 }
 
-export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub, formatTime }: Props) {
+export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub, formatTime, padding }: Props) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -47,6 +48,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
           windows={windows}
           onWindowChange={onWindowChange}
           formatTime={formatTime}
+          padding={padding}
           style={{ width: '100%', height: '100%' }}
           onHover={point => onScrub?.(point?.value ?? null)}
         />

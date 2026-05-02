@@ -124,7 +124,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
               placeholder="ADD TICKER"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              autoFocus
+              autoFocus={false}
               style={{
                 width: '100%', background: 'transparent', border: 'none',
                 borderBottom: '1px solid #1C1C1A',

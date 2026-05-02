@@ -30,7 +30,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
   const safeValue = value !== 0 ? value : (data.at(-1)?.value ?? 0)
 
   return (
-    <div style={{ width: '100%', height: 260 }}>
+    <div style={{ width: '100%', height: 300 }}>
       {mounted && (
         <Liveline
           data={data}

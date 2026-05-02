@@ -157,7 +157,7 @@ export default function Home() {
                     background: active ? '#1C1C1A' : 'none',
                     border: '1px solid #1C1C1A',
                     borderRadius: 20,
-                    padding: f.key === 'starred' ? '0 10px' : '5px 12px',
+                    padding: f.key === 'starred' ? '0 10px 6px' : '5px 12px',
                     height: 28,
                     fontSize: f.key === 'starred' ? 18 : 10,
                     fontFamily: 'Menlo,Monaco,monospace',

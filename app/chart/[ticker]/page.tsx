@@ -255,5 +255,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 const S = {
   backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
   shareBtn:   { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
-  compareBtn: { background: 'none', border: '1px solid #1C1C1A', borderRadius: 20, padding: '7px 16px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  compareBtn: { background: 'rgba(38,171,131,0.12)', border: '1px solid rgba(38,171,131,0.25)', borderRadius: 20, padding: '7px 16px', color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
 }

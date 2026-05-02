@@ -73,7 +73,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
 
         {/* Header */}
         <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 20 }}>
-          COMPARE · UP TO 3 ASSETS
+          COMPARE · UP TO 4 ASSETS
         </div>
 
         {/* Ticker chips */}
@@ -169,7 +169,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
             transition: 'background 0.15s, color 0.15s',
           }}
         >
-          {canCompare ? `COMPARE ${selected.length + 1} ASSETS` : 'COMPARE —'}
+          {canCompare ? `VIEW CHART · ${selected.length + 1} ASSETS` : 'VIEW CHART —'}
         </button>
 
         {/* Dismiss */}

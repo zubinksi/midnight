@@ -157,7 +157,7 @@ export default function Home() {
               >Compare</span>
             </div>
             <div style={S.hero}>24/7 markets</div>
-            <div style={{ ...S.hero, color: '#46443D' }}>on Hyperliquid.</div>
+            <div style={S.hero}>on Hyperliquid.</div>
           </div>
         </div>
 

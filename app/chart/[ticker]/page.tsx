@@ -141,8 +141,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           </div>
         </div>
 
-        {/* Chart */}
+        {/* Data source attribution + time windows */}
         <div style={{ marginTop: 20, padding: '0 24px' }}>
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+              HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' · TRADE.XYZ' : ''}
+            </span>
+          </div>
           <div style={{
             display: 'inline-flex', gap: 2,
             background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2,
@@ -167,12 +172,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
               )
             })}
           </div>
-        </div>
-        {/* Data source attribution — above chart */}
-        <div style={{ padding: '6px 24px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-            HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' · TRADE.XYZ' : ''}
-          </span>
         </div>
 
         <div>

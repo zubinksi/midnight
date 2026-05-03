@@ -11,33 +11,21 @@ import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
 import CompareModal from '@/components/CompareModal'
 
-const ALL_SECS = 4 * 365 * 24 * 3600 // sentinel for ALL — larger than any real window
-
-const WINDOWS = [
-  { label: '1D',  secs: 86400 },
-  { label: '7D',  secs: 604800 },
-  { label: '1M',  secs: 2592000 },
-  { label: '3M',  secs: 7776000 },
-  { label: '6M',  secs: 15552000 },
-  { label: 'ALL', secs: ALL_SECS },
+const WINDOWS: { label: string; tf: Timeframe }[] = [
+  { label: '1D',  tf: '1D' },
+  { label: '7D',  tf: '7D' },
+  { label: '1M',  tf: '1M' },
+  { label: '3M',  tf: '3M' },
+  { label: '6M',  tf: '6M' },
+  { label: 'ALL', tf: 'ALL' },
 ]
 
-const SECS_TO_TIMEFRAME: Record<number, Timeframe> = {
-  86400:       '1D',
-  604800:      '7D',
-  2592000:     '1M',
-  7776000:     '3M',
-  15552000:    '6M',
-  [ALL_SECS]:  'ALL',
-}
-
-const TIMEFRAME_TO_SECS: Record<Timeframe, number> = {
+const TIMEFRAME_TO_SECS: Partial<Record<Timeframe, number>> = {
   '1D':  86400,
   '7D':  604800,
   '1M':  2592000,
   '3M':  7776000,
   '6M':  15552000,
-  'ALL': ALL_SECS,
 }
 
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {
@@ -121,10 +109,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
 
-  const handleWindowChange = useCallback((secs: number) => {
-    const tf = SECS_TO_TIMEFRAME[secs]
-    if (tf) setTimeframe(tf)
-  }, [])
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -160,15 +144,39 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Chart */}
-        <div style={{ marginTop: 28 }}>
+        <div style={{ marginTop: 20, padding: '0 24px' }}>
+          <div style={{
+            display: 'inline-flex', gap: 2,
+            background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2,
+            marginBottom: 4,
+          }}>
+            {WINDOWS.map(w => {
+              const active = timeframe === w.tf
+              return (
+                <button
+                  key={w.tf}
+                  onClick={() => setTimeframe(w.tf)}
+                  style={{
+                    background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    border: 'none', borderRadius: 4, padding: '3px 10px',
+                    fontSize: 11, lineHeight: '16px',
+                    fontFamily: 'Menlo,Monaco,monospace',
+                    color: active ? '#F0EDE6' : '#46443D',
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
+                  }}
+                >{w.label}</button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
           <LivelineChart
             data={data}
             value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
             color={changeColor}
             loading={loading}
             window={TIMEFRAME_TO_SECS[timeframe]}
-            windows={WINDOWS}
-            onWindowChange={handleWindowChange}
             onScrub={handleScrub}
             formatTime={timeframe !== '1D' ? (t: number) => {
               const d = new Date(t * 1000)

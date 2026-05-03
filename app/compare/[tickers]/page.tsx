@@ -13,15 +13,17 @@ import { loadComparisons, saveComparisons } from '@/lib/comparisons'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
-const ALL_SECS = 4 * 365 * 24 * 3600
+const WINDOW_SECS: Partial<Record<Timeframe, number>> = {
+  '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
+}
 
-const WINDOWS: { label: string; tf: Timeframe; secs: number }[] = [
-  { label: '1D',  tf: '1D',  secs: 86400 },
-  { label: '7D',  tf: '7D',  secs: 604800 },
-  { label: '1M',  tf: '1M',  secs: 2592000 },
-  { label: '3M',  tf: '3M',  secs: 7776000 },
-  { label: '6M',  tf: '6M',  secs: 15552000 },
-  { label: 'ALL', tf: 'ALL', secs: ALL_SECS },
+const WINDOWS: { label: string; tf: Timeframe }[] = [
+  { label: '1D',  tf: '1D'  },
+  { label: '7D',  tf: '7D'  },
+  { label: '1M',  tf: '1M'  },
+  { label: '3M',  tf: '3M'  },
+  { label: '6M',  tf: '6M'  },
+  { label: 'ALL', tf: 'ALL' },
 ]
 
 function normalize(pts: LivelinePoint[]): LivelinePoint[] {
@@ -219,7 +221,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               scrub
               loading={isLoading}
               lineWidth={1.5}
-              window={WINDOWS.find(w => w.tf === timeframe)?.secs}
+              window={WINDOW_SECS[timeframe]}
               formatValue={fmtPct}
               formatTime={timeframe !== '1D' ? (t: number) => {
                 const d = new Date(t * 1000)

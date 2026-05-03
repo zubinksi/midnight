@@ -120,10 +120,10 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
-          <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>← WATCHLIST</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
-            <button onClick={() => setShowShare(true)} style={S.shareBtn}>SHARE ↗</button>
+          <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={() => setShowCompare(true)} style={S.iconBtn}>⇄</button>
+            <button onClick={() => setShowShare(true)} style={S.iconBtn}>↗</button>
           </div>
         </div>
 
@@ -271,7 +271,6 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', padding: 0 } as React.CSSProperties,
-  shareBtn:   { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
-  compareBtn: { background: '#1C1C1A', border: '1px solid #2C2C2A', borderRadius: 20, padding: '7px 16px', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer' } as React.CSSProperties,
+  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 22, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  iconBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 18, cursor: 'pointer', padding: '4px 10px', lineHeight: 1 } as React.CSSProperties,
 }

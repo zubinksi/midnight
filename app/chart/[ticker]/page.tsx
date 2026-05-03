@@ -341,5 +341,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 const S = {
   backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
   pillBtn:  { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
-  pillBtnOn:{ borderColor: '#F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
+  pillBtnOn:{ border: '1px solid #F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
 }

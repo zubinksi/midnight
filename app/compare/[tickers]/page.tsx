@@ -127,7 +127,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
             style={S.backBtn}
           >←</button>
           <button onClick={toggleSave} style={{ ...S.bookmarkBtn, opacity: saved ? 1 : 0.3 }}>
-            🔖
+            ★
           </button>
         </div>
 
@@ -231,5 +231,5 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 
 const S = {
   backBtn:     { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 22, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  bookmarkBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 0', lineHeight: 1, transition: 'opacity 0.2s' } as React.CSSProperties,
+  bookmarkBtn: { background: 'none', border: 'none', color: '#F0C84A', cursor: 'pointer', fontSize: 32, padding: '4px 0', lineHeight: 1, transition: 'opacity 0.2s' } as React.CSSProperties,
 }

@@ -125,11 +125,11 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
-            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
+            <span style={{ fontSize: 15, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
             <button
               onClick={toggleStar}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, marginLeft: 'auto', flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, marginLeft: 'auto', flexShrink: 0 }}
             >★</button>
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>

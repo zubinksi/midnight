@@ -119,12 +119,12 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
-          <button onClick={() => setShowCompare(true)} style={S.iconBtn}>⇄</button>
         </div>
 
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
             <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
             <span style={{ fontSize: 15, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
             <button
@@ -168,6 +168,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             })}
           </div>
         </div>
+        {/* Data source attribution — above chart */}
+        <div style={{ padding: '6px 24px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+            HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' · TRADE.XYZ' : ''}
+          </span>
+        </div>
+
         <div>
           <LivelineChart
             data={data}
@@ -185,16 +192,18 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           />
         </div>
 
+        {/* Compare button — below chart, above stats */}
+        <div style={{ padding: '16px 24px 0' }}>
+          <button
+            onClick={() => setShowCompare(true)}
+            style={S.compareBtn}
+          >COMPARE ⇄</button>
+        </div>
+
         {/* Stats */}
         <StatsGrid assetInfo={assetInfo} currentPrice={currentPrice} />
 
-        {/* Attribution */}
-        <div style={{ padding: '0 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-            LIVE · POWERED BY HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' AND TRADE.XYZ' : ''}
-          </span>
-        </div>
+        <div style={{ padding: '0 24px 40px' }} />
 
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
@@ -251,6 +260,6 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  iconBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 20, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  compareBtn: { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
 }

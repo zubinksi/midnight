@@ -125,6 +125,10 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const primaryData  = seriesData[tickers[0]] ?? []
   const primaryValue = primaryData.at(-1)?.value ?? 0
 
+  const chartWindow = timeframe === 'ALL' && primaryData.length > 1
+    ? Math.ceil((primaryData.at(-1)!.time - primaryData[0].time) * 1.02)
+    : WINDOW_SECS[timeframe]
+
   const allSeries: LivelineSeries[] = tickers.map((ticker, i) => {
     const data = seriesData[ticker] ?? []
     return { id: ticker, data, value: data.at(-1)?.value ?? 0, color: COMPARE_COLORS[i], label: ticker }
@@ -221,7 +225,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               scrub
               loading={isLoading}
               lineWidth={1.5}
-              window={WINDOW_SECS[timeframe]}
+              window={chartWindow}
               formatValue={fmtPct}
               formatTime={timeframe !== '1D' ? (t: number) => {
                 const d = new Date(t * 1000)

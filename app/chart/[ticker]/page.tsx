@@ -109,6 +109,10 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
 
+  const chartWindow = timeframe === 'ALL' && data.length > 1
+    ? Math.ceil((data.at(-1)!.time - data[0].time) * 1.02)
+    : TIMEFRAME_TO_SECS[timeframe]
+
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -176,7 +180,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
             color={changeColor}
             loading={loading}
-            window={TIMEFRAME_TO_SECS[timeframe]}
+            window={chartWindow}
             onScrub={handleScrub}
             formatTime={timeframe !== '1D' ? (t: number) => {
               const d = new Date(t * 1000)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
@@ -27,13 +27,10 @@ export default function Home() {
   const router = useRouter()
   const { assets: xyzAssets, loading: xyzLoading, error } = useAssets()
   const { assets: cryptoAssets, loading: cryptoLoading }   = useCryptoAssets()
-  const [clock, setClock]               = useState(formatDate())
-  const [search, setSearch]             = useState('')
+  const [clock, setClock]                   = useState(formatDate())
+  const [search, setSearch]                 = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [favorites, setFavorites]         = useState<Set<string>>(new Set(['HYPE', 'SP500']))
-  const [mode, setMode]                   = useState<'watch' | 'compare'>('watch')
-  const [compareSelected, setCompareSelected] = useState<string[]>([])
-  const [compareSearch, setCompareSearch] = useState('')
+  const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([])
 
   const loading = xyzLoading || cryptoLoading
@@ -78,18 +75,12 @@ export default function Home() {
   const allAssets = useMemo(() => [...xyzAssets, ...cryptoAssets], [xyzAssets, cryptoAssets])
 
   const { xyzTickers, xyzSeedPrices, cryptoTickers, cryptoSeedPrices } = useMemo(() => {
-    const xyzTickers: string[]                    = []
-    const xyzSeedPrices: Record<string, number>   = {}
-    const cryptoTickers: string[]                 = []
+    const xyzTickers: string[]                     = []
+    const xyzSeedPrices: Record<string, number>    = {}
+    const cryptoTickers: string[]                  = []
     const cryptoSeedPrices: Record<string, number> = {}
-    for (const a of xyzAssets) {
-      xyzTickers.push(a.ticker)
-      xyzSeedPrices[a.ticker] = a.price
-    }
-    for (const a of cryptoAssets) {
-      cryptoTickers.push(a.ticker)
-      cryptoSeedPrices[a.ticker] = a.price
-    }
+    for (const a of xyzAssets)    { xyzTickers.push(a.ticker);    xyzSeedPrices[a.ticker]    = a.price }
+    for (const a of cryptoAssets) { cryptoTickers.push(a.ticker); cryptoSeedPrices[a.ticker] = a.price }
     return { xyzTickers, xyzSeedPrices, cryptoTickers, cryptoSeedPrices }
   }, [xyzAssets, cryptoAssets])
 
@@ -120,23 +111,11 @@ export default function Home() {
     })
   }, [allAssets, categoryFilter, favorites, search])
 
-  const compareFiltered = useMemo(() => {
-    const q = compareSearch.trim().toLowerCase()
-    if (!q) return []
-    return allAssets
-      .filter(a => !compareSelected.includes(a.ticker))
-      .filter(a =>
-        a.ticker.toLowerCase().includes(q) ||
-        getAssetName(a.ticker).toLowerCase().includes(q)
-      )
-      .slice(0, 6)
-  }, [compareSearch, allAssets, compareSelected])
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#080807', overflow: 'hidden' }}>
       <div style={{ maxWidth: 430, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Fixed header — always visible */}
+        {/* Fixed header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -149,222 +128,82 @@ export default function Home() {
             <div style={S.hero}>24/7 markets</div>
             <div style={S.hero}>on Hyperliquid.</div>
           </div>
-          {/* Mode tabs */}
-          <div style={{
-            display: 'flex', gap: 2,
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid #1C1C1A',
-            borderRadius: 8, padding: 3,
-            marginBottom: 20,
-          }}>
-            {(['watch', 'compare'] as const).map(m => (
+          {/* Search */}
+          <div style={{ position: 'relative', marginBottom: 4 }}>
+            <input
+              type="text"
+              placeholder="SEARCH"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                borderBottom: '1px solid #1C1C1A', padding: '10px 0',
+                color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
+                fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
+              } as React.CSSProperties}
+            />
+            {search && (
               <button
-                key={m}
-                onClick={() => setMode(m)}
-                style={{
-                  flex: 1,
-                  background: mode === m ? '#1C1C1A' : 'transparent',
-                  border: 'none', borderRadius: 6,
-                  padding: '8px 0',
-                  fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-                  letterSpacing: '0.08em',
-                  color: mode === m ? '#F0EDE6' : '#46443D',
-                  fontWeight: mode === m ? 600 : 400,
-                  cursor: 'pointer',
-                  transition: 'color 0.15s, background 0.15s',
-                }}
-              >{m.toUpperCase()}</button>
-            ))}
+                onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, padding: '4px 0' }}
+              >✕</button>
+            )}
+          </div>
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
+            {FILTERS.map(f => {
+              const active = categoryFilter === f.key
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setCategoryFilter(f.key)}
+                  style={{
+                    background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
+                    borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
+                    height: 28, fontSize: f.key === 'starred' ? 18 : 10,
+                    fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
+                    color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
+                    cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                  }}
+                >{f.label}</button>
+              )
+            })}
           </div>
         </div>
 
-        {/* Mode panels */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
 
-          {/* ── WATCH PANEL ── */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column',
-            opacity: mode === 'watch' ? 1 : 0,
-            transition: 'opacity 0.2s',
-            pointerEvents: mode === 'watch' ? 'auto' : 'none',
-          }}>
-            {/* Search + filters */}
-            <div style={{ flexShrink: 0, padding: '0 24px' }}>
-              <div style={{ position: 'relative', marginBottom: 4 }}>
-                <input
-                  type="text"
-                  placeholder="SEARCH"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  style={{
-                    width: '100%', background: 'transparent', border: 'none',
-                    borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-                    color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
-                    fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
-                  } as React.CSSProperties}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, padding: '4px 0' }}
-                  >✕</button>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
-                {FILTERS.map(f => {
-                  const active = categoryFilter === f.key
-                  return (
-                    <button
-                      key={f.key}
-                      onClick={() => setCategoryFilter(f.key)}
-                      style={{
-                        background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
-                        borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
-                        height: 28, fontSize: f.key === 'starred' ? 18 : 10,
-                        fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
-                        color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
-                        cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
-                        flexShrink: 0, whiteSpace: 'nowrap',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                      }}
-                    >{f.label}</button>
-                  )
-                })}
-              </div>
-            </div>
-            <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
-            <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-              {loading ? (
-                <LoadingRows />
-              ) : error ? (
-                <ErrorState message={error} />
+        {/* Scrollable list */}
+        <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          {loading ? (
+            <LoadingRows />
+          ) : error ? (
+            <ErrorState message={error} />
+          ) : (
+            <div style={{ padding: '0 24px' }}>
+              {displayAssets.length === 0 && search ? (
+                <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                  <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
+                </div>
               ) : (
-                <div style={{ padding: '0 24px' }}>
-                  {displayAssets.length === 0 && search ? (
-                    <div style={{ padding: '48px 0', textAlign: 'center' }}>
-                      <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
-                    </div>
-                  ) : (
-                    displayAssets.map(asset => (
-                      <AssetRow
-                        key={asset.coin}
-                        asset={asset}
-                        price={prices[asset.ticker] ?? asset.price}
-                        starred={favorites.has(asset.ticker)}
-                        onToggleFavorite={toggleFavorite}
-                        onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-                        onCompare={() => {
-                          setCompareSelected([asset.ticker])
-                          setCompareSearch('')
-                          setMode('compare')
-                        }}
-                      />
-                    ))
-                  )}
-                </div>
-              )}
-              <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
-            </div>
-          </div>
-
-          {/* ── COMPARE PANEL ── */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column',
-            opacity: mode === 'compare' ? 1 : 0,
-            transition: 'opacity 0.2s',
-            pointerEvents: mode === 'compare' ? 'auto' : 'none',
-          }}>
-            {/* Fixed: chips + search */}
-            <div style={{ flexShrink: 0, padding: '0 24px 16px' }}>
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>
-                SELECT UP TO 4 ASSETS
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                {compareSelected.map((ticker, i) => (
-                  <button
-                    key={ticker}
-                    onClick={() => setCompareSelected(prev => prev.filter(t => t !== ticker))}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1C1C1A', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}
-                  >
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{ticker}</span>
-                    <span style={{ fontSize: 10, color: '#46443D', marginLeft: 2 }}>✕</span>
-                  </button>
-                ))}
-                {Array.from({ length: Math.max(0, 2 - compareSelected.length) }).map((_, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px dashed #1C1C1A', borderRadius: 8, padding: '6px 12px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1C1C1A', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>···</span>
-                  </div>
-                ))}
-              </div>
-              {compareSelected.length < 4 && (
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    placeholder="ADD TICKER"
-                    value={compareSearch}
-                    onChange={e => setCompareSearch(e.target.value)}
-                    style={{
-                      width: '100%', background: 'transparent', border: 'none',
-                      borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-                      color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
-                      fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
-                    } as React.CSSProperties}
+                displayAssets.map(asset => (
+                  <AssetRow
+                    key={asset.coin}
+                    asset={asset}
+                    price={prices[asset.ticker] ?? asset.price}
+                    starred={favorites.has(asset.ticker)}
+                    onToggleFavorite={toggleFavorite}
+                    onNavigate={() => router.push(`/chart/${asset.ticker}`)}
                   />
-                  {compareSearch && (
-                    <button
-                      onClick={() => setCompareSearch('')}
-                      style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, padding: '4px 0' }}
-                    >✕</button>
-                  )}
-                </div>
+                ))
               )}
-            </div>
 
-            {/* Scrollable: results + VIEW CHART + saved */}
-            <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 24px' } as React.CSSProperties}>
-              {compareFiltered.length > 0 && (
-                <div style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #1C1C1A' }}>
-                  {compareFiltered.map(a => (
-                    <button
-                      key={a.ticker}
-                      onClick={() => {
-                        if (compareSelected.length >= 4) return
-                        setCompareSelected(prev => [...prev, a.ticker])
-                        setCompareSearch('')
-                      }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        width: '100%', background: 'none', border: 'none',
-                        borderBottom: '1px solid #1C1C1A', padding: '12px 14px',
-                        cursor: 'pointer', textAlign: 'left',
-                      } as React.CSSProperties}
-                    >
-                      <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontWeight: 700, width: 80, flexShrink: 0 }}>{a.ticker}</span>
-                      <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{getAssetName(a.ticker)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => compareSelected.length >= 2 && router.push(`/compare/${compareSelected.join('_')}`)}
-                style={{
-                  width: '100%', border: 'none', borderRadius: 10, padding: 14,
-                  cursor: compareSelected.length >= 2 ? 'pointer' : 'default',
-                  fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
-                  background: compareSelected.length >= 2 ? '#26ab83' : '#1C1C1A',
-                  color: compareSelected.length >= 2 ? '#080807' : '#2C2C2A',
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-              >
-                {compareSelected.length >= 2 ? `VIEW CHART · ${compareSelected.length} ASSETS` : 'VIEW CHART —'}
-              </button>
+              {/* Saved comparisons */}
               {savedComparisons.length > 0 && (
-                <div style={{ marginTop: 32 }}>
-                  <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 12 }}>SAVED</div>
+                <div style={{ paddingTop: 32, paddingBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 12 }}>COMPARISONS</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {savedComparisons.map(c => (
                       <div
@@ -389,25 +228,22 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
             </div>
-          </div>
-
+          )}
+          <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
         </div>
+
       </div>
     </div>
   )
 }
 
-const REVEAL_W = 80
-
-function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompare }: {
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
   asset: { coin: string; ticker: string; prevDayPx: number }
   price: number
   starred: boolean
   onToggleFavorite: (ticker: string) => void
   onNavigate: () => void
-  onCompare: () => void
 }) {
   const open     = asset.prevDayPx || price
   const diff     = price - open
@@ -420,131 +256,42 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, onCompa
   const hasOpen  = asset.prevDayPx > 0
   const name     = getAssetName(asset.ticker)
 
-  const rowRef   = useRef<HTMLDivElement>(null)
-  const stateRef = useRef({ startX: 0, startY: 0, offset: 0, revealed: false, scrolling: false })
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0]
-    stateRef.current.startX = t.clientX
-    stateRef.current.startY = t.clientY
-    stateRef.current.scrolling = false
-  }, [])
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    const s = stateRef.current
-    const t = e.touches[0]
-    const dx = t.clientX - s.startX
-    const dy = t.clientY - s.startY
-
-    if (!s.scrolling && Math.abs(dy) > Math.abs(dx) + 4) {
-      s.scrolling = true
-    }
-    if (s.scrolling) return
-
-    const base   = s.revealed ? -REVEAL_W : 0
-    const raw    = base + dx
-    const clamped = Math.max(-REVEAL_W, Math.min(0, raw))
-    s.offset = clamped
-    if (rowRef.current) rowRef.current.style.transform = `translateX(${clamped}px)`
-  }, [])
-
-  const onTouchEnd = useCallback(() => {
-    const s = stateRef.current
-    if (s.scrolling) return
-    const snap = s.offset < -REVEAL_W / 2
-    s.revealed = snap
-    s.offset   = snap ? -REVEAL_W : 0
-    if (rowRef.current) {
-      rowRef.current.style.transition = 'transform 0.25s ease'
-      rowRef.current.style.transform  = `translateX(${s.offset}px)`
-      rowRef.current.addEventListener('transitionend', () => {
-        if (rowRef.current) rowRef.current.style.transition = ''
-      }, { once: true })
-    }
-  }, [])
-
-  const snapBack = useCallback(() => {
-    stateRef.current.revealed = false
-    stateRef.current.offset   = 0
-    if (rowRef.current) {
-      rowRef.current.style.transition = 'transform 0.25s ease'
-      rowRef.current.style.transform  = 'translateX(0)'
-      rowRef.current.addEventListener('transitionend', () => {
-        if (rowRef.current) rowRef.current.style.transition = ''
-      }, { once: true })
-    }
-  }, [])
-
-  const handleCompare = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    snapBack()
-    onCompare()
-  }, [onCompare, snapBack])
-
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', marginLeft: -24, marginRight: -24 }}>
-      {/* Compare button revealed on swipe */}
-      <div
-        onClick={handleCompare}
+    <div
+      onClick={onNavigate}
+      style={{
+        display: 'flex', alignItems: 'center',
+        padding: '14px 0',
+        borderBottom: '1px solid #1C1C1A',
+        cursor: 'pointer', gap: 10,
+      }}
+    >
+      <button
+        onClick={e => { e.stopPropagation(); onToggleFavorite(asset.ticker) }}
         style={{
-          position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL_W,
-          background: '#26ab83', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
+          background: 'none', border: 'none', borderRadius: '50%',
+          width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 0, cursor: 'pointer', fontSize: 16,
+          color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1,
         }}
-      >
-        <span style={{ fontSize: 10, color: '#080807', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', fontWeight: 700 }}>COMPARE ⇄</span>
+      >★</button>
+      <div style={{ width: 90, flexShrink: 0 }}>
+        <div style={S.ticker}>{asset.ticker}</div>
+        <div style={S.name}>{name}</div>
       </div>
-
-      {/* Sliding row */}
-      <div
-        ref={rowRef}
-        onClick={onNavigate}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        style={{
-          display: 'flex', alignItems: 'center',
-          padding: '14px 24px',
-          borderBottom: '1px solid #1C1C1A',
-          cursor: 'pointer', gap: 10,
-          background: '#080807',
-          position: 'relative',
-        }}
-      >
-        {/* Star */}
-        <button
-          onClick={e => { e.stopPropagation(); onToggleFavorite(asset.ticker) }}
-          style={{
-            background: 'none', border: 'none', borderRadius: '50%',
-            width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0, cursor: 'pointer', fontSize: 16,
-            color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1,
-          }}
-        >★</button>
-
-        {/* Ticker + name */}
-        <div style={{ width: 90, flexShrink: 0 }}>
-          <div style={S.ticker}>{asset.ticker}</div>
-          <div style={S.name}>{name}</div>
-        </div>
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Price + change */}
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={S.price}>{priceStr}</div>
-          {hasOpen && (
-            <div style={{ marginTop: 3 }}>
-              <span style={{
-                display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-                fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-                fontVariantNumeric: 'tabular-nums', color,
-                background: up ? '#26ab8322' : '#E8433218',
-              }}>{pctStr}</span>
-            </div>
-          )}
-        </div>
+      <div style={{ flex: 1 }} />
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={S.price}>{priceStr}</div>
+        {hasOpen && (
+          <div style={{ marginTop: 3 }}>
+            <span style={{
+              display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+              fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+              fontVariantNumeric: 'tabular-nums', color,
+              background: up ? '#26ab8322' : '#E8433218',
+            }}>{pctStr}</span>
+          </div>
+        )}
       </div>
     </div>
   )

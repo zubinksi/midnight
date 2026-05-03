@@ -142,7 +142,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Data source attribution + time windows */}
-        <div style={{ marginTop: 20, padding: '0 24px' }}>
+        <div style={{ marginTop: 8, padding: '0 24px' }}>
           <div style={{ marginBottom: 8 }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
               HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' · TRADE.XYZ' : ''}

@@ -8,7 +8,6 @@ import { getAssetName } from '@/lib/assetNames'
 import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
-import ShareSheet from '@/components/ShareSheet'
 import CompareModal from '@/components/CompareModal'
 
 const WINDOWS: { label: string; tf: Timeframe }[] = [
@@ -37,7 +36,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [allAssets, setAllAssets]     = useState<AssetInfo[]>([])
   const [timeframe, setTimeframe]     = useState<Timeframe>('1D')
   const [scrubPrice, setScrubPrice]   = useState<number | null>(null)
-  const [showShare, setShowShare]     = useState(false)
   const [showCompare, setShowCompare] = useState(false)
   const [starred, setStarred]         = useState(false)
 
@@ -121,22 +119,18 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <button onClick={() => setShowCompare(true)} style={S.iconBtn}>⇄</button>
-            <button onClick={() => setShowShare(true)} style={S.iconBtn}>↗</button>
-          </div>
+          <button onClick={() => setShowCompare(true)} style={S.iconBtn}>⇄</button>
         </div>
 
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
             <button
               onClick={toggleStar}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, paddingBottom: 2, lineHeight: 1, flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, marginLeft: 'auto', flexShrink: 0 }}
             >★</button>
-            <div style={{ fontSize: 17, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>
-              {upperTicker} · {assetName}
-            </div>
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
@@ -205,20 +199,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
 
-      {showShare && (
-        <ShareSheet
-          ticker={upperTicker}
-          assetName={assetName}
-          price={currentPrice}
-          diff={windowDiff}
-          pct={windowPct}
-          decimals={decimals}
-          sparkValues={sparkValues}
-          changeColor={changeColor}
-          onClose={() => setShowShare(false)}
-        />
-      )}
-
       {showCompare && (
         <CompareModal
           baseTicker={upperTicker}
@@ -272,5 +252,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 
 const S = {
   backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 22, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  iconBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 18, cursor: 'pointer', padding: '4px 10px', lineHeight: 1 } as React.CSSProperties,
+  iconBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 20, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
 }

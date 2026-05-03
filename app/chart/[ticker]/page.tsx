@@ -27,22 +27,6 @@ const TIMEFRAME_TO_SECS: Partial<Record<Timeframe, number>> = {
   '6M':  15552000,
 }
 
-// NYSE hours in UTC — EST approximation (14:30–21:00); shifts 1h earlier during EDT
-const NYSE_OPEN_UTC  = 14 * 3600 + 30 * 60
-const NYSE_CLOSE_UTC = 21 * 3600
-
-function getNYSESessionBands(start: number, end: number): Array<{ start: number; end: number }> {
-  const bands: Array<{ start: number; end: number }> = []
-  for (let d = Math.floor(start / 86400) * 86400; d < end; d += 86400) {
-    const dow = new Date(d * 1000).getUTCDay()
-    if (dow === 0 || dow === 6) continue
-    const open  = d + NYSE_OPEN_UTC
-    const close = d + NYSE_CLOSE_UTC
-    if (close <= start || open >= end) continue
-    bands.push({ start: Math.max(open, start), end: Math.min(close, end) })
-  }
-  return bands
-}
 
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = use(params)
@@ -56,10 +40,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [showCompare, setShowCompare]   = useState(false)
   const [starred, setStarred]           = useState(false)
   const [chartMode, setChartMode]       = useState<'price' | 'funding'>('price')
-  const [showSessions, setShowSessions] = useState(false)
   const [fundingData, setFundingData]   = useState<Array<{ time: number; rate: number }>>([])
   const [fundingLoading, setFundingLoading] = useState(false)
-  const [chartWidth, setChartWidth]     = useState(0)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -109,14 +91,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ]).then(([xyz, crypto]) => setAllAssets([...xyz, ...crypto])).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    const el = chartContainerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => setChartWidth(entries[0].contentRect.width))
-    ro.observe(el)
-    setChartWidth(el.getBoundingClientRect().width)
-    return () => ro.disconnect()
-  }, [])
 
   const coin = assetInfo?.coin ?? upperTicker
 
@@ -151,11 +125,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const chartWindow = timeframe === 'ALL' && data.length > 1
     ? Math.ceil((data.at(-1)!.time - data[0].time) * 1.02)
     : TIMEFRAME_TO_SECS[timeframe]
-
-  const now          = Math.floor(Date.now() / 1000)
-  const visibleStart = timeframe === 'ALL' && data.length > 1
-    ? data[0].time
-    : now - (TIMEFRAME_TO_SECS[timeframe] ?? 86400)
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -220,7 +189,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Chart area */}
-        <div ref={chartContainerRef} style={{ position: 'relative' }}>
+        <div ref={chartContainerRef}>
           {chartMode === 'price' ? (
             <LivelineChart
               data={data}
@@ -239,14 +208,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           ) : (
             <FundingChart data={fundingData} loading={fundingLoading} />
           )}
-          {showSessions && chartMode === 'price' && chartWidth > 0 && (
-            <SessionBands
-              windowStart={visibleStart}
-              windowEnd={now}
-              width={chartWidth}
-              height={360}
-            />
-          )}
         </div>
 
         {/* Action buttons */}
@@ -256,10 +217,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             onClick={() => setChartMode(m => m === 'funding' ? 'price' : 'funding')}
             style={{ ...S.pillBtn, ...(chartMode === 'funding' ? S.pillBtnOn : {}) }}
           >FUNDING</button>
-          <button
-            onClick={() => setShowSessions(s => !s)}
-            style={{ ...S.pillBtn, ...(showSessions ? S.pillBtnOn : {}) }}
-          >SESSIONS</button>
         </div>
 
         {/* Stats */}
@@ -284,30 +241,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   )
 }
 
-function SessionBands({
-  windowStart, windowEnd, width, height,
-}: {
-  windowStart: number; windowEnd: number; width: number; height: number
-}) {
-  const duration = windowEnd - windowStart
-  const bands    = getNYSESessionBands(windowStart, windowEnd)
-  return (
-    <div style={{ position: 'absolute', top: 0, left: 0, width, height, pointerEvents: 'none', overflow: 'hidden' }}>
-      {bands.map(({ start, end }, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            left:  `${((start - windowStart) / duration) * 100}%`,
-            width: `${((end - start)          / duration) * 100}%`,
-            top: 0, height: '100%',
-            background: 'rgba(255,255,255,0.05)',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
+
 
 function FundingChart({
   data, loading,
@@ -407,5 +341,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 const S = {
   backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
   pillBtn:  { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
-  pillBtnOn:{ borderColor: '#46443D', color: '#F0EDE6' } as React.CSSProperties,
+  pillBtnOn:{ borderColor: '#F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { AssetInfo } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
 
@@ -14,8 +14,28 @@ interface Props {
 }
 
 export default function CompareModal({ baseTicker, allAssets, onClose, onCompare }: Props) {
-  const [search, setSearch]   = useState('')
+  const [search, setSearch]     = useState('')
   const [selected, setSelected] = useState<string[]>([])
+  const [dragY, setDragY]       = useState(0)
+  const [snapping, setSnapping] = useState(false)
+  const dragStartY = useRef(0)
+
+  const onDragStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY
+    setSnapping(false)
+  }
+  const onDragMove = (e: React.TouchEvent) => {
+    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current)
+    setDragY(dy)
+  }
+  const onDragEnd = () => {
+    if (dragY > 120) {
+      onClose()
+    } else {
+      setSnapping(true)
+      setDragY(0)
+    }
+  }
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -66,14 +86,21 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
           borderRadius: '20px 20px 0 0',
           padding: '28px 24px',
           paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
+          transform: `translateY(${dragY}px)`,
+          transition: snapping ? 'transform 0.25s ease' : 'none',
         }}
       >
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
-
-        {/* Header */}
-        <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 20 }}>
-          COMPARE · UP TO 4 ASSETS
+        {/* Drag zone: handle + header */}
+        <div
+          onTouchStart={onDragStart}
+          onTouchMove={onDragMove}
+          onTouchEnd={onDragEnd}
+          style={{ margin: '-28px -24px 0', padding: '28px 24px 0', touchAction: 'none' }}
+        >
+          <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
+          <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 20 }}>
+            COMPARE · UP TO 4 ASSETS
+          </div>
         </div>
 
         {/* Ticker chips */}

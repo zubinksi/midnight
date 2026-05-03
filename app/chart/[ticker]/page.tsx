@@ -11,28 +11,33 @@ import LivelineChart from '@/components/LivelineChart'
 import ShareSheet from '@/components/ShareSheet'
 import CompareModal from '@/components/CompareModal'
 
+const ALL_SECS = 4 * 365 * 24 * 3600 // sentinel for ALL — larger than any real window
+
 const WINDOWS = [
   { label: '1D',  secs: 86400 },
   { label: '7D',  secs: 604800 },
   { label: '1M',  secs: 2592000 },
   { label: '3M',  secs: 7776000 },
   { label: '6M',  secs: 15552000 },
+  { label: 'ALL', secs: ALL_SECS },
 ]
 
 const SECS_TO_TIMEFRAME: Record<number, Timeframe> = {
-  86400:    '1D',
-  604800:   '7D',
-  2592000:  '1M',
-  7776000:  '3M',
-  15552000: '6M',
+  86400:       '1D',
+  604800:      '7D',
+  2592000:     '1M',
+  7776000:     '3M',
+  15552000:    '6M',
+  [ALL_SECS]:  'ALL',
 }
 
 const TIMEFRAME_TO_SECS: Record<Timeframe, number> = {
-  '1D': 86400,
-  '7D': 604800,
-  '1M': 2592000,
-  '3M': 7776000,
-  '6M': 15552000,
+  '1D':  86400,
+  '7D':  604800,
+  '1M':  2592000,
+  '3M':  7776000,
+  '6M':  15552000,
+  'ALL': ALL_SECS,
 }
 
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {

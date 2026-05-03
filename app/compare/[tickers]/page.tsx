@@ -13,12 +13,15 @@ import { loadComparisons, saveComparisons } from '@/lib/comparisons'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
+const ALL_SECS = 4 * 365 * 24 * 3600
+
 const WINDOWS: { label: string; tf: Timeframe; secs: number }[] = [
-  { label: '1D', tf: '1D', secs: 86400 },
-  { label: '7D', tf: '7D', secs: 604800 },
-  { label: '1M', tf: '1M', secs: 2592000 },
-  { label: '3M', tf: '3M', secs: 7776000 },
-  { label: '6M', tf: '6M', secs: 15552000 },
+  { label: '1D',  tf: '1D',  secs: 86400 },
+  { label: '7D',  tf: '7D',  secs: 604800 },
+  { label: '1M',  tf: '1M',  secs: 2592000 },
+  { label: '3M',  tf: '3M',  secs: 7776000 },
+  { label: '6M',  tf: '6M',  secs: 15552000 },
+  { label: 'ALL', tf: 'ALL', secs: ALL_SECS },
 ]
 
 function normalize(pts: LivelinePoint[]): LivelinePoint[] {
@@ -204,7 +207,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 
         {/* Chart — series chips rendered by Liveline on their own row above the canvas.
             padding.left=24 left-aligns chips with site content. marginTop adds space between rows. */}
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, overflow: 'hidden' }}>
           {mounted && (
             <Liveline
               data={primaryData}
@@ -218,6 +221,11 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
               lineWidth={1.5}
               window={WINDOWS.find(w => w.tf === timeframe)?.secs}
               formatValue={fmtPct}
+              formatTime={timeframe !== '1D' ? (t: number) => {
+                const d = new Date(t * 1000)
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                return `${months[d.getMonth()]} ${d.getDate()}`
+              } : undefined}
               padding={{ left: 24 }}
               style={{ width: '100%', height: 360 }}
             />

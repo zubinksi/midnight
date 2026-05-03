@@ -14,11 +14,10 @@ import { loadComparisons, saveComparisons } from '@/lib/comparisons'
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
 const WINDOW_SECS: Partial<Record<Timeframe, number>> = {
-  '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
+  '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
 }
 
 const WINDOWS: { label: string; tf: Timeframe }[] = [
-  { label: '1D',  tf: '1D'  },
   { label: '7D',  tf: '7D'  },
   { label: '1M',  tf: '1M'  },
   { label: '3M',  tf: '3M'  },
@@ -42,7 +41,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const tickers = raw.split('_').map(t => t.toUpperCase()).slice(0, 4)
   const router  = useRouter()
 
-  const [timeframe, setTimeframe]   = useState<Timeframe>('1D')
+  const [timeframe, setTimeframe]   = useState<Timeframe>('7D')
   const [coinMap, setCoinMap]       = useState<Record<string, string>>({})
   const [seriesData, setSeriesData] = useState<Record<string, LivelinePoint[]>>({})
   const [loading, setLoading]       = useState(true)

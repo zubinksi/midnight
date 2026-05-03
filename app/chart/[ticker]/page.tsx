@@ -251,6 +251,6 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 22, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 44, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
   iconBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 20, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
 }

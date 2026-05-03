@@ -16,24 +16,29 @@ interface Props {
 export default function CompareModal({ baseTicker, allAssets, onClose, onCompare }: Props) {
   const [search, setSearch]     = useState('')
   const [selected, setSelected] = useState<string[]>([])
-  const [dragY, setDragY]       = useState(0)
-  const [snapping, setSnapping] = useState(false)
-  const dragStartY = useRef(0)
+  const sheetRef    = useRef<HTMLDivElement>(null)
+  const dragStartY  = useRef(0)
+  const dragCurrent = useRef(0)
 
   const onDragStart = (e: React.TouchEvent) => {
-    dragStartY.current = e.touches[0].clientY
-    setSnapping(false)
+    dragStartY.current  = e.touches[0].clientY
+    dragCurrent.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
   }
   const onDragMove = (e: React.TouchEvent) => {
     const dy = Math.max(0, e.touches[0].clientY - dragStartY.current)
-    setDragY(dy)
+    dragCurrent.current = dy
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dy}px)`
   }
   const onDragEnd = () => {
-    if (dragY > 120) {
+    if (dragCurrent.current > 120) {
       onClose()
     } else {
-      setSnapping(true)
-      setDragY(0)
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.25s ease'
+        sheetRef.current.style.transform  = 'translateY(0)'
+      }
+      dragCurrent.current = 0
     }
   }
 
@@ -77,6 +82,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
       } as React.CSSProperties}
     >
       <div
+        ref={sheetRef}
         className="slide-up"
         onClick={e => e.stopPropagation()}
         style={{
@@ -86,8 +92,6 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
           borderRadius: '20px 20px 0 0',
           padding: '28px 24px',
           paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
-          transform: `translateY(${dragY}px)`,
-          transition: snapping ? 'transform 0.25s ease' : 'none',
         }}
       >
         {/* Drag zone: handle + header */}

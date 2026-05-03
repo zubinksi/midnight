@@ -177,61 +177,61 @@ export default function Home() {
 
         {/* Scrollable list */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          {loading ? (
-            <LoadingRows />
-          ) : error ? (
-            <ErrorState message={error} />
-          ) : (
-            <div style={{ padding: '0 24px' }}>
-              {displayAssets.length === 0 && search ? (
-                <div style={{ padding: '48px 0', textAlign: 'center' }}>
-                  <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
-                </div>
-              ) : (
-                displayAssets.map(asset => (
-                  <AssetRow
-                    key={asset.coin}
-                    asset={asset}
-                    price={prices[asset.ticker] ?? asset.price}
-                    starred={favorites.has(asset.ticker)}
-                    onToggleFavorite={toggleFavorite}
-                    onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-                  />
-                ))
-              )}
-            </div>
-          )}
-          <div style={{ height: savedComparisons.length > 0 ? 16 : 'max(env(safe-area-inset-bottom), 32px)' }} />
-        </div>
-
-        {/* Fixed saved comparisons footer */}
-        {savedComparisons.length > 0 && (
-          <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A', padding: '16px 24px', paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
-            <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>COMPARISONS</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {savedComparisons.map(c => (
-                <div
-                  key={c.id}
-                  onClick={() => router.push(`/compare/${c.id}`)}
-                  style={{ display: 'flex', alignItems: 'center', background: '#0F0F0E', border: '1px solid #1C1C1A', borderRadius: 10, padding: '10px 14px', cursor: 'pointer', gap: 16 }}
-                >
-                  <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {c.tickers.map((ticker, i) => (
-                      <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1 }}>{ticker}</span>
+          <div style={{ padding: '0 24px' }}>
+            {/* Saved comparisons — top of list */}
+            {savedComparisons.length > 0 && (
+              <div style={{ paddingTop: 16, paddingBottom: 8 }}>
+                <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>COMPARISONS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                  {savedComparisons.map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => router.push(`/compare/${c.id}`)}
+                      style={{ display: 'flex', alignItems: 'center', background: '#0F0F0E', border: '1px solid #1C1C1A', borderRadius: 10, padding: '10px 14px', cursor: 'pointer', gap: 16 }}
+                    >
+                      <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        {c.tickers.map((ticker, i) => (
+                          <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1 }}>{ticker}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); removeComparison(c.id) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontSize: 10, padding: 2, lineHeight: 1, flexShrink: 0 }}
-                  >✕</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); removeComparison(c.id) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontSize: 10, padding: 2, lineHeight: 1, flexShrink: 0 }}
+                      >✕</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                <div style={{ borderTop: '1px solid #1C1C1A' }} />
+              </div>
+            )}
+
+            {/* Asset rows */}
+            {loading ? (
+              <LoadingRows />
+            ) : error ? (
+              <ErrorState message={error} />
+            ) : displayAssets.length === 0 && search ? (
+              <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
+              </div>
+            ) : (
+              displayAssets.map(asset => (
+                <AssetRow
+                  key={asset.coin}
+                  asset={asset}
+                  price={prices[asset.ticker] ?? asset.price}
+                  starred={favorites.has(asset.ticker)}
+                  onToggleFavorite={toggleFavorite}
+                  onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+                />
+              ))
+            )}
           </div>
-        )}
+          <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
+        </div>
 
       </div>
     </div>

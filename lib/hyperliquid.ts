@@ -65,6 +65,25 @@ export async function fetchCandles(coin: string, timeframe: Timeframe): Promise<
     .filter(p => !isNaN(p.value))
 }
 
+export async function fetchFundingHistory(
+  coin: string,
+  timeframe: Timeframe,
+): Promise<Array<{ time: number; rate: number }>> {
+  const { windowMs } = TIMEFRAME_CONFIG[timeframe]
+  const endTime   = Date.now()
+  const startTime = windowMs != null ? endTime - windowMs : endTime - 365 * 24 * 60 * 60 * 1000
+
+  const history = await hlPost<Array<{ coin: string; fundingRate: string; time: number }>>(
+    { type: 'fundingHistory', coin, startTime, endTime }
+  )
+
+  if (!Array.isArray(history)) return []
+  return history
+    .filter(h => h?.time != null && h?.fundingRate != null)
+    .map(h => ({ time: Math.floor(h.time / 1000), rate: parseFloat(h.fundingRate) * 100 }))
+    .filter(h => !isNaN(h.rate))
+}
+
 // ─── hooks ────────────────────────────────────────────────────────────────────
 
 export function useAssets(): { assets: AssetInfo[]; loading: boolean; error: string | null } {

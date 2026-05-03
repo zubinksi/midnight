@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useCallback, use, useEffect } from 'react'
+import { useState, useCallback, use, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
+import { useAssetPrice, usePriceHistory, fetchFundingHistory, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
@@ -27,17 +27,40 @@ const TIMEFRAME_TO_SECS: Partial<Record<Timeframe, number>> = {
   '6M':  15552000,
 }
 
+// NYSE hours in UTC — EST approximation (14:30–21:00); shifts 1h earlier during EDT
+const NYSE_OPEN_UTC  = 14 * 3600 + 30 * 60
+const NYSE_CLOSE_UTC = 21 * 3600
+
+function getNYSESessionBands(start: number, end: number): Array<{ start: number; end: number }> {
+  const bands: Array<{ start: number; end: number }> = []
+  for (let d = Math.floor(start / 86400) * 86400; d < end; d += 86400) {
+    const dow = new Date(d * 1000).getUTCDay()
+    if (dow === 0 || dow === 6) continue
+    const open  = d + NYSE_OPEN_UTC
+    const close = d + NYSE_CLOSE_UTC
+    if (close <= start || open >= end) continue
+    bands.push({ start: Math.max(open, start), end: Math.min(close, end) })
+  }
+  return bands
+}
+
 export default function ChartPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = use(params)
   const upperTicker = ticker.toUpperCase()
   const router = useRouter()
 
-  const [assetInfo, setAssetInfo]     = useState<AssetInfo | null>(null)
-  const [allAssets, setAllAssets]     = useState<AssetInfo[]>([])
-  const [timeframe, setTimeframe]     = useState<Timeframe>('1D')
-  const [scrubPrice, setScrubPrice]   = useState<number | null>(null)
-  const [showCompare, setShowCompare] = useState(false)
-  const [starred, setStarred]         = useState(false)
+  const [assetInfo, setAssetInfo]       = useState<AssetInfo | null>(null)
+  const [allAssets, setAllAssets]       = useState<AssetInfo[]>([])
+  const [timeframe, setTimeframe]       = useState<Timeframe>('1D')
+  const [scrubPrice, setScrubPrice]     = useState<number | null>(null)
+  const [showCompare, setShowCompare]   = useState(false)
+  const [starred, setStarred]           = useState(false)
+  const [chartMode, setChartMode]       = useState<'price' | 'funding'>('price')
+  const [showSessions, setShowSessions] = useState(false)
+  const [fundingData, setFundingData]   = useState<Array<{ time: number; rate: number }>>([])
+  const [fundingLoading, setFundingLoading] = useState(false)
+  const [chartWidth, setChartWidth]     = useState(0)
+  const chartContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     try {
@@ -71,7 +94,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         if (cancelled) return
         const found = list.find(a => a.ticker === upperTicker)
         if (found) return setAssetInfo(found)
-        // Fall back to crypto assets
         return fetch('/api/crypto')
           .then(r => r.json() as Promise<AssetInfo[]>)
           .then(cryptoList => { if (!cancelled) setAssetInfo(cryptoList.find(a => a.ticker === upperTicker) ?? null) })
@@ -87,10 +109,30 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ]).then(([xyz, crypto]) => setAllAssets([...xyz, ...crypto])).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const el = chartContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => setChartWidth(entries[0].contentRect.width))
+    ro.observe(el)
+    setChartWidth(el.getBoundingClientRect().width)
+    return () => ro.disconnect()
+  }, [])
+
   const coin = assetInfo?.coin ?? upperTicker
 
   const livePrice = useAssetPrice(coin, 800)
   const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
+
+  useEffect(() => {
+    if (chartMode !== 'funding') return
+    let cancelled = false
+    setFundingLoading(true)
+    fetchFundingHistory(coin, timeframe)
+      .then(d => { if (!cancelled) setFundingData(d) })
+      .catch(() => { if (!cancelled) setFundingData([]) })
+      .finally(() => { if (!cancelled) setFundingLoading(false) })
+    return () => { cancelled = true }
+  }, [chartMode, coin, timeframe])
 
   const currentPrice  = livePrice ?? assetInfo?.price ?? 0
   const displayPrice  = scrubPrice ?? currentPrice
@@ -103,7 +145,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const changeColor   = windowUp ? '#26ab83' : '#E84332'
   const { diffStr, pctStr } = formatChange(windowDiff, windowPct, decimals)
 
-  const sparkValues   = data.length > 0 ? data.map(p => p.value) : [currentPrice]
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
 
@@ -111,6 +152,10 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ? Math.ceil((data.at(-1)!.time - data[0].time) * 1.02)
     : TIMEFRAME_TO_SECS[timeframe]
 
+  const now          = Math.floor(Date.now() / 1000)
+  const visibleStart = timeframe === 'ALL' && data.length > 1
+    ? data[0].time
+    : now - (TIMEFRAME_TO_SECS[timeframe] ?? 86400)
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -141,7 +186,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           </div>
         </div>
 
-        {/* Data source attribution + time windows */}
+        {/* Attribution + time windows */}
         <div style={{ marginTop: 8, padding: '0 24px' }}>
           <div style={{ marginBottom: 8 }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
@@ -174,36 +219,53 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           </div>
         </div>
 
-        <div>
-          <LivelineChart
-            data={data}
-            value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
-            color={changeColor}
-            loading={loading}
-            window={chartWindow}
-            onScrub={handleScrub}
-            formatTime={timeframe !== '1D' ? (t: number) => {
-              const d = new Date(t * 1000)
-              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-              return `${months[d.getMonth()]} ${d.getDate()}`
-            } : undefined}
-            padding={{ left: 24 }}
-          />
+        {/* Chart area */}
+        <div ref={chartContainerRef} style={{ position: 'relative' }}>
+          {chartMode === 'price' ? (
+            <LivelineChart
+              data={data}
+              value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
+              color={changeColor}
+              loading={loading}
+              window={chartWindow}
+              onScrub={handleScrub}
+              formatTime={timeframe !== '1D' ? (t: number) => {
+                const d = new Date(t * 1000)
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                return `${months[d.getMonth()]} ${d.getDate()}`
+              } : undefined}
+              padding={{ left: 24 }}
+            />
+          ) : (
+            <FundingChart data={fundingData} loading={fundingLoading} />
+          )}
+          {showSessions && chartMode === 'price' && chartWidth > 0 && (
+            <SessionBands
+              windowStart={visibleStart}
+              windowEnd={now}
+              width={chartWidth}
+              height={360}
+            />
+          )}
         </div>
 
-        {/* Compare button — below chart, above stats */}
-        <div style={{ padding: '16px 24px 0' }}>
+        {/* Action buttons */}
+        <div style={{ padding: '16px 24px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => setShowCompare(true)} style={S.pillBtn}>COMPARE ⇄</button>
           <button
-            onClick={() => setShowCompare(true)}
-            style={S.compareBtn}
-          >COMPARE ⇄</button>
+            onClick={() => setChartMode(m => m === 'funding' ? 'price' : 'funding')}
+            style={{ ...S.pillBtn, ...(chartMode === 'funding' ? S.pillBtnOn : {}) }}
+          >FUNDING</button>
+          <button
+            onClick={() => setShowSessions(s => !s)}
+            style={{ ...S.pillBtn, ...(showSessions ? S.pillBtnOn : {}) }}
+          >SESSIONS</button>
         </div>
 
         {/* Stats */}
         <StatsGrid assetInfo={assetInfo} currentPrice={currentPrice} />
 
         <div style={{ padding: '0 24px 40px' }} />
-
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
 
@@ -218,6 +280,90 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           }}
         />
       )}
+    </div>
+  )
+}
+
+function SessionBands({
+  windowStart, windowEnd, width, height,
+}: {
+  windowStart: number; windowEnd: number; width: number; height: number
+}) {
+  const duration = windowEnd - windowStart
+  const bands    = getNYSESessionBands(windowStart, windowEnd)
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, width, height, pointerEvents: 'none', overflow: 'hidden' }}>
+      {bands.map(({ start, end }, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left:  `${((start - windowStart) / duration) * 100}%`,
+            width: `${((end - start)          / duration) * 100}%`,
+            top: 0, height: '100%',
+            background: 'rgba(255,255,255,0.05)',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function FundingChart({
+  data, loading,
+}: {
+  data: Array<{ time: number; rate: number }>
+  loading: boolean
+}) {
+  const svgH = 320
+
+  if (loading) return (
+    <div style={{ height: 360, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>LOADING</span>
+    </div>
+  )
+  if (data.length === 0) return (
+    <div style={{ height: 360, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>NO DATA</span>
+    </div>
+  )
+
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.rate)), 0.001)
+  const midY   = svgH / 2
+  const maxH   = midY - 28
+  const latest = data.at(-1)!
+
+  return (
+    <div style={{ padding: '0 24px', height: 360, display: 'flex', flexDirection: 'column' }}>
+      <svg width="100%" height={svgH} style={{ display: 'block', flex: '0 0 auto' }}>
+        {/* Zero line */}
+        <line x1="0" y1={midY} x2="100%" y2={midY} stroke="#2C2C2A" strokeWidth={1} />
+        {/* Bars */}
+        {data.map((d, i) => {
+          const barH = Math.max((Math.abs(d.rate) / maxAbs) * maxH, 1)
+          return (
+            <rect
+              key={i}
+              x={`${(i / data.length) * 100}%`}
+              y={d.rate >= 0 ? midY - barH : midY}
+              width={`${(0.8 / data.length) * 100}%`}
+              height={barH}
+              fill={d.rate >= 0 ? '#26ab83' : '#E84332'}
+              opacity={0.75}
+            />
+          )
+        })}
+        {/* Scale labels */}
+        <text x="100%" y={midY - maxH - 4}  textAnchor="end" fill="#46443D" fontSize={9} fontFamily="Menlo,Monaco,monospace">+{maxAbs.toFixed(4)}%</text>
+        <text x="100%" y={midY + maxH + 12} textAnchor="end" fill="#46443D" fontSize={9} fontFamily="Menlo,Monaco,monospace">-{maxAbs.toFixed(4)}%</text>
+      </svg>
+      {/* Latest rate */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingTop: 10, fontFamily: 'Menlo,Monaco,monospace' }}>
+        <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>LATEST 8H RATE</span>
+        <span style={{ fontSize: 13, color: latest.rate >= 0 ? '#26ab83' : '#E84332' }}>
+          {latest.rate >= 0 ? '+' : ''}{latest.rate.toFixed(4)}%
+        </span>
+      </div>
     </div>
   )
 }
@@ -259,6 +405,7 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  compareBtn: { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
+  backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  pillBtn:  { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
+  pillBtnOn:{ borderColor: '#46443D', color: '#F0EDE6' } as React.CSSProperties,
 }

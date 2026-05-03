@@ -230,6 +230,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 }
 
 const S = {
-  backBtn:     { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 44, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  backBtn:     { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
   bookmarkBtn: { background: 'none', border: 'none', color: '#F0C84A', cursor: 'pointer', fontSize: 32, padding: '4px 0', lineHeight: 1, transition: 'opacity 0.2s' } as React.CSSProperties,
 }

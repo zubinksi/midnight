@@ -9,7 +9,6 @@ import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
 import { COMPARE_COLORS } from '@/components/CompareModal'
 import { getAssetName } from '@/lib/assetNames'
-import { loadComparisons, saveComparisons } from '@/lib/comparisons'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
@@ -45,29 +44,9 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const [coinMap, setCoinMap]       = useState<Record<string, string>>({})
   const [seriesData, setSeriesData] = useState<Record<string, LivelinePoint[]>>({})
   const [loading, setLoading]       = useState(true)
-  const [mounted, setMounted]       = useState(false)
-  const [saved, setSaved]           = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
-
-  useEffect(() => {
-    setSaved(loadComparisons().some(c => c.id === raw))
-  }, [raw])
-
-  const toggleSave = () => {
-    setSaved(prev => {
-      const next = !prev
-      const list = loadComparisons()
-      if (next) {
-        if (!list.some(c => c.id === raw)) list.unshift({ id: raw, tickers })
-      } else {
-        const i = list.findIndex(c => c.id === raw)
-        if (i !== -1) list.splice(i, 1)
-      }
-      saveComparisons(list)
-      return next
-    })
-  }
 
   useEffect(() => {
     Promise.all([
@@ -125,9 +104,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
             onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
             style={S.backBtn}
           >←</button>
-          <button onClick={toggleSave} style={{ ...S.bookmarkBtn, color: saved ? '#F0C84A' : '#2C2C2A' }}>
-            ★
-          </button>
         </div>
 
         {/* Legend */}
@@ -229,6 +205,5 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 }
 
 const S = {
-  backBtn:     { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  bookmarkBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, padding: '4px 0', lineHeight: 1, transition: 'color 0.2s' } as React.CSSProperties,
+  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
 }

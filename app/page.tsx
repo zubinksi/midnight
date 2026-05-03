@@ -7,9 +7,6 @@ import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import { COMPARE_COLORS } from '@/components/CompareModal'
-import { loadComparisons, saveComparisons } from '@/lib/comparisons'
-import type { SavedComparison } from '@/lib/comparisons'
 
 type FilterKey = 'all' | 'starred' | AssetCategory
 
@@ -31,8 +28,6 @@ export default function Home() {
   const [search, setSearch]                 = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
-  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([])
-
   const loading = xyzLoading || cryptoLoading
 
   useEffect(() => {
@@ -46,21 +41,6 @@ export default function Home() {
     window.addEventListener('focus', read)
     return () => window.removeEventListener('focus', read)
   }, [])
-
-  useEffect(() => {
-    const read = () => setSavedComparisons(loadComparisons())
-    read()
-    window.addEventListener('focus', read)
-    return () => window.removeEventListener('focus', read)
-  }, [])
-
-  const removeComparison = (id: string) => {
-    setSavedComparisons(prev => {
-      const next = prev.filter(c => c.id !== id)
-      saveComparisons(next)
-      return next
-    })
-  }
 
   const toggleFavorite = (ticker: string) => {
     setFavorites(prev => {
@@ -178,37 +158,6 @@ export default function Home() {
         {/* Scrollable list */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div style={{ padding: '0 24px' }}>
-            {/* Saved comparisons — top of list */}
-            {savedComparisons.length > 0 && (
-              <div style={{ paddingTop: 16, paddingBottom: 8 }}>
-                <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>COMPARISONS</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-                  {savedComparisons.map(c => (
-                    <div
-                      key={c.id}
-                      onClick={() => router.push(`/compare/${c.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', background: '#0F0F0E', border: '1px solid #1C1C1A', borderRadius: 10, padding: '10px 14px', cursor: 'pointer', gap: 16 }}
-                    >
-                      <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                        {c.tickers.map((ticker, i) => (
-                          <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1 }}>{ticker}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); removeComparison(c.id) }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontSize: 10, padding: 2, lineHeight: 1, flexShrink: 0 }}
-                      >✕</button>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ borderTop: '1px solid #1C1C1A' }} />
-              </div>
-            )}
-
-            {/* Asset rows */}
             {loading ? (
               <LoadingRows />
             ) : error ? (

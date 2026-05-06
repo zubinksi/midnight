@@ -48,6 +48,9 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
     return () => document.removeEventListener('keydown', h)
   }, [onClose])
 
+  const hasBase = baseTicker.length > 0
+  const maxSelected = hasBase ? 3 : 4
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return []
@@ -61,14 +64,14 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
   }, [search, allAssets, baseTicker, selected])
 
   const add = (ticker: string) => {
-    if (selected.length >= 3) return
+    if (selected.length >= maxSelected) return
     setSelected(prev => [...prev, ticker])
     setSearch('')
   }
 
   const remove = (ticker: string) => setSelected(prev => prev.filter(t => t !== ticker))
 
-  const canCompare = selected.length > 0
+  const canCompare = hasBase ? selected.length > 0 : selected.length > 1
 
   return (
     <div
@@ -109,14 +112,16 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
 
         {/* Ticker chips */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          {/* Base ticker (locked) */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: '#1C1C1A', borderRadius: 8, padding: '6px 12px',
-          }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[0], flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{baseTicker}</span>
-          </div>
+          {/* Base ticker (locked) — only shown when pre-seeded */}
+          {hasBase && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: '#1C1C1A', borderRadius: 8, padding: '6px 12px',
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[0], flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{baseTicker}</span>
+            </div>
+          )}
 
           {/* Selected tickers */}
           {selected.map((t, i) => (
@@ -129,14 +134,14 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
                 cursor: 'pointer',
               }}
             >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i + 1], flexShrink: 0 }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[hasBase ? i + 1 : i], flexShrink: 0 }} />
               <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
               <span style={{ fontSize: 10, color: '#46443D', marginLeft: 2 }}>✕</span>
             </button>
           ))}
 
           {/* Empty slots */}
-          {Array.from({ length: 3 - selected.length }).map((_, i) => (
+          {Array.from({ length: maxSelected - selected.length }).map((_, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: 6,
               border: '1px dashed #1C1C1A', borderRadius: 8, padding: '6px 12px',
@@ -148,7 +153,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
         </div>
 
         {/* Search input */}
-        {selected.length < 3 && (
+        {selected.length < maxSelected && (
           <div style={{ marginBottom: 8 }}>
             <input
               type="text"
@@ -190,7 +195,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
 
         {/* Compare button */}
         <button
-          onClick={() => canCompare && onCompare([baseTicker, ...selected])}
+          onClick={() => canCompare && onCompare(hasBase ? [baseTicker, ...selected] : selected)}
           style={{
             width: '100%', border: 'none', borderRadius: 10, padding: 14,
             cursor: canCompare ? 'pointer' : 'default',
@@ -200,7 +205,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
             transition: 'background 0.15s, color 0.15s',
           }}
         >
-          {canCompare ? `VIEW CHART · ${selected.length + 1} ASSETS` : 'VIEW CHART —'}
+          {canCompare ? `VIEW CHART · ${hasBase ? selected.length + 1 : selected.length} ASSETS` : 'VIEW CHART —'}
         </button>
 
         {/* Dismiss */}

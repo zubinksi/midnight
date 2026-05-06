@@ -209,7 +209,7 @@ export default function MarketMoversChart({ xyzAssets, prices, allAssets, onComp
 
       {showModal && (
         <CompareModal
-          baseTicker={movers[0]?.ticker ?? xyzAssets[0]?.ticker ?? ''}
+          baseTicker=""
           allAssets={allAssets}
           onClose={() => setShowModal(false)}
           onCompare={tickers => { setShowModal(false); onCompare(tickers) }}

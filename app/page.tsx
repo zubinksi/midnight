@@ -112,6 +112,17 @@ export default function Home() {
             </div>
             <span style={S.label}>{clock}</span>
           </div>
+
+          {/* Market Movers Chart — negative margin breaks out of parent's 24px padding so the chart fills full width */}
+          <div style={{ margin: '0 -24px 16px' }}>
+            <MarketMoversChart
+              xyzAssets={xyzAssets}
+              prices={xyzPrices}
+              allAssets={allAssets}
+              onCompare={tickers => router.push(`/compare/${tickers.join('_')}`)}
+            />
+          </div>
+
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 4 }}>
             <input
@@ -187,18 +198,6 @@ export default function Home() {
 
         {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-
-          {/* Market movers chart */}
-          <div style={{ padding: '24px 0 0' }}>
-            <MarketMoversChart
-              xyzAssets={xyzAssets}
-              prices={xyzPrices}
-              allAssets={allAssets}
-              onCompare={tickers => router.push(`/compare/${tickers.join('_')}`)}
-            />
-          </div>
-
-          <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 0' }} />
 
           {/* Asset list */}
           <div style={{ padding: '0 24px' }}>

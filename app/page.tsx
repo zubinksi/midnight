@@ -7,6 +7,7 @@ import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
+import MarketMoversChart from '@/components/MarketMoversChart'
 
 type FilterKey = 'all' | 'starred' | AssetCategory
 
@@ -104,16 +105,12 @@ export default function Home() {
 
         {/* Fixed header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
               <span style={S.label}>LIVE · {loading ? '…' : `${allAssets.length} MARKETS`}</span>
             </div>
             <span style={S.label}>{clock}</span>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={S.hero}>24/7 markets</div>
-            <div style={S.hero}>on Hyperliquid.</div>
           </div>
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 4 }}>
@@ -188,8 +185,22 @@ export default function Home() {
 
         <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
 
-        {/* Scrollable list */}
+        {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+
+          {/* Market movers chart */}
+          <div style={{ padding: '24px 0 0' }}>
+            <MarketMoversChart
+              xyzAssets={xyzAssets}
+              prices={xyzPrices}
+              allAssets={allAssets}
+              onCompare={tickers => router.push(`/compare/${tickers.join('_')}`)}
+            />
+          </div>
+
+          <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 0' }} />
+
+          {/* Asset list */}
           <div style={{ padding: '0 24px' }}>
             {loading ? (
               <LoadingRows />
@@ -281,7 +292,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
 
 function LoadingRows() {
   return (
-    <div style={{ padding: '0 24px' }}>
+    <>
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #1C1C1A', gap: 10, opacity: 1 - i * 0.1 }}>
           <div style={{ width: 14, height: 14, background: '#1C1C1A', borderRadius: 2, flexShrink: 0 }} />
@@ -293,7 +304,7 @@ function LoadingRows() {
           <div style={{ width: 64, height: 15, background: '#1C1C1A', borderRadius: 3 }} />
         </div>
       ))}
-    </div>
+    </>
   )
 }
 
@@ -309,7 +320,6 @@ function ErrorState({ message }: { message: string }) {
 
 const S = {
   label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
-  hero:   { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
   ticker: { fontSize: 17, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
   name:   { fontSize: 12, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as React.CSSProperties,
   price:  { fontSize: 17, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,

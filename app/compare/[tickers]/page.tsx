@@ -173,9 +173,8 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           </div>
         </div>
 
-        {/* Chart — series chips rendered by Liveline on their own row above the canvas.
-            padding.left=24 left-aligns chips with site content. marginTop adds space between rows. */}
-        <div style={{ marginTop: 12, overflow: 'hidden' }}>
+        {/* Chart */}
+        <div style={{ marginTop: 12 }}>
           {mounted && (
             <Liveline
               data={primaryData}

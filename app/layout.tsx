@@ -3,16 +3,16 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'neue.markets — Track Markets. 24/7.',
+  title: 'neue.markets',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://neue.markets'),
   openGraph: {
-    title: '',
+    title: 'neue.markets',
     description: '',
     siteName: 'neue.markets',
   },
   twitter: {
     card: 'summary_large_image',
-    title: '',
+    title: 'neue.markets',
     description: '',
   },
 }

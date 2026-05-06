@@ -15,7 +15,7 @@ export interface AssetInfo {
 // Static category mapping — trade.xyz does not expose this via API.
 // Sources: docs.trade.xyz/asset-directory/{equities,equity-indices,commodities,korea}
 const INDICES = new Set([
-  'XYZ100', 'SP500', 'JP225', 'KR200', 'EWY', 'EWJ', 'USAR',
+  'XYZ100', 'SP500', 'JP225', 'KR200', 'EWY', 'EWJ', 'USAR', 'XLE', 'EWZ',
 ])
 
 const COMMODITIES = new Set([

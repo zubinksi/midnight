@@ -137,45 +137,51 @@ export default function Home() {
             )}
           </div>
           {/* Filters + sort */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
-            {FILTERS.map(f => {
-              const active = categoryFilter === f.key
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setCategoryFilter(f.key)}
-                  style={{
-                    background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
-                    borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
-                    height: 28, fontSize: f.key === 'starred' ? 18 : 10,
-                    fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
-                    color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
-                    cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                  }}
-                >{f.label}</button>
-              )
-            })}
-            <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
-              {(['volume', 'change'] as const).map(s => {
-                const active = sortBy === s
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 20, paddingRight: 88, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
+              {FILTERS.map(f => {
+                const active = categoryFilter === f.key
                 return (
                   <button
-                    key={s}
-                    onClick={() => setSortBy(s)}
+                    key={f.key}
+                    onClick={() => setCategoryFilter(f.key)}
                     style={{
-                      background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                      border: 'none', borderRadius: 4, padding: '3px 8px',
-                      fontSize: 10, lineHeight: '16px',
+                      background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
+                      borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
+                      height: 28, fontSize: f.key === 'starred' ? 18 : 10,
                       fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
-                      color: active ? '#F0EDE6' : '#46443D',
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
+                      color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
+                      cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
                     }}
-                  >{s === 'volume' ? 'VOL' : 'CHG'}</button>
+                  >{f.label}</button>
                 )
               })}
+            </div>
+            {/* Sort toggle — fixed to the right, pills scroll behind it */}
+            <div style={{ position: 'absolute', right: 0, top: 14, bottom: 20, display: 'flex', alignItems: 'center', background: 'linear-gradient(to right, transparent, #080807 28px)', paddingLeft: 28 }}>
+              <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 2 }}>
+                {(['volume', 'change'] as const).map(s => {
+                  const active = sortBy === s
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setSortBy(s)}
+                      style={{
+                        background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        border: 'none', borderRadius: 4, padding: '3px 8px',
+                        fontSize: 10, lineHeight: '16px',
+                        fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
+                        color: active ? '#F0EDE6' : '#46443D',
+                        fontWeight: active ? 600 : 400,
+                        cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >{s === 'volume' ? 'VOL' : 'CHG'}</button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

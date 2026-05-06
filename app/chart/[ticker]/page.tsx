@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import { useAssetPrice, usePriceHistory, fetchFundingHistory, fetchNYSEClosePrice, getNYSESessionLabel, Timeframe } from '@/lib/hyperliquid'
+import { useAssetPrice, usePriceHistory, fetchNYSEClosePrice, getNYSESessionLabel, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
@@ -39,10 +39,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [scrubPrice, setScrubPrice]     = useState<number | null>(null)
   const [showCompare, setShowCompare]   = useState(false)
   const [starred, setStarred]           = useState(false)
-  const [chartMode, setChartMode]       = useState<'price' | 'funding'>('price')
   const [closePrice, setClosePrice]     = useState<number | null>(null)
-  const [fundingData, setFundingData]   = useState<Array<{ time: number; rate: number }>>([])
-  const [fundingLoading, setFundingLoading] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,17 +94,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
   const livePrice = useAssetPrice(coin, 800)
   const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
-
-  useEffect(() => {
-    if (chartMode !== 'funding') return
-    let cancelled = false
-    setFundingLoading(true)
-    fetchFundingHistory(coin, timeframe)
-      .then(d => { if (!cancelled) setFundingData(d) })
-      .catch(() => { if (!cancelled) setFundingData([]) })
-      .finally(() => { if (!cancelled) setFundingLoading(false) })
-    return () => { cancelled = true }
-  }, [chartMode, coin, timeframe])
 
   const currentPrice  = livePrice ?? assetInfo?.price ?? 0
   const displayPrice  = scrubPrice ?? currentPrice
@@ -218,36 +204,26 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
         {/* Chart area */}
         <div ref={chartContainerRef}>
-          {chartMode === 'price' ? (
-            <LivelineChart
-              data={data}
-              value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
-              color={changeColor}
-              loading={loading}
-              window={chartWindow}
-              onScrub={handleScrub}
-              formatTime={timeframe !== '1D' ? (t: number) => {
-                const d = new Date(t * 1000)
-                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-                return `${months[d.getMonth()]} ${d.getDate()}`
-              } : undefined}
-              padding={{ left: 24 }}
-              referenceLine={closePrice !== null && sessionLabel !== null ? { value: closePrice, label: 'CLOSE' } : undefined}
-            />
-          ) : (
-            <FundingChart data={fundingData} loading={fundingLoading} />
-          )}
+          <LivelineChart
+            data={data}
+            value={livePrice ?? assetInfo?.price ?? data.at(-1)?.value ?? 0}
+            color={changeColor}
+            loading={loading}
+            window={chartWindow}
+            onScrub={handleScrub}
+            formatTime={timeframe !== '1D' ? (t: number) => {
+              const d = new Date(t * 1000)
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+              return `${months[d.getMonth()]} ${d.getDate()}`
+            } : undefined}
+            padding={{ left: 24 }}
+            referenceLine={closePrice !== null && sessionLabel !== null ? { value: closePrice, label: 'CLOSE' } : undefined}
+          />
         </div>
 
         {/* Action buttons */}
-        <div style={{ padding: '16px 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ padding: '16px 24px 0' }}>
           <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => setChartMode(m => m === 'funding' ? 'price' : 'funding')}
-              style={{ ...S.pillBtn, ...(chartMode === 'funding' ? S.pillBtnOn : {}) }}
-            >FUNDING</button>
-          </div>
         </div>
 
         {/* Stats */}
@@ -274,64 +250,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
 
 
-function FundingChart({
-  data, loading,
-}: {
-  data: Array<{ time: number; rate: number }>
-  loading: boolean
-}) {
-  const svgH = 320
-
-  if (loading) return (
-    <div style={{ height: 360, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>LOADING</span>
-    </div>
-  )
-  if (data.length === 0) return (
-    <div style={{ height: 360, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em' }}>NO DATA</span>
-    </div>
-  )
-
-  const maxAbs = Math.max(...data.map(d => Math.abs(d.rate)), 0.001)
-  const midY   = svgH / 2
-  const maxH   = midY - 28
-  const latest = data.at(-1)!
-
-  return (
-    <div style={{ padding: '0 24px', height: 360, display: 'flex', flexDirection: 'column' }}>
-      <svg width="100%" height={svgH} style={{ display: 'block', flex: '0 0 auto' }}>
-        {/* Zero line */}
-        <line x1="0" y1={midY} x2="100%" y2={midY} stroke="#2C2C2A" strokeWidth={1} />
-        {/* Bars */}
-        {data.map((d, i) => {
-          const barH = Math.max((Math.abs(d.rate) / maxAbs) * maxH, 1)
-          return (
-            <rect
-              key={i}
-              x={`${(i / data.length) * 100}%`}
-              y={d.rate >= 0 ? midY - barH : midY}
-              width={`${(0.8 / data.length) * 100}%`}
-              height={barH}
-              fill={d.rate >= 0 ? '#26ab83' : '#E84332'}
-              opacity={0.75}
-            />
-          )
-        })}
-        {/* Scale labels */}
-        <text x="100%" y={midY - maxH - 4}  textAnchor="end" fill="#46443D" fontSize={9} fontFamily="Menlo,Monaco,monospace">+{maxAbs.toFixed(4)}%</text>
-        <text x="100%" y={midY + maxH + 12} textAnchor="end" fill="#46443D" fontSize={9} fontFamily="Menlo,Monaco,monospace">-{maxAbs.toFixed(4)}%</text>
-      </svg>
-      {/* Latest rate */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingTop: 10, fontFamily: 'Menlo,Monaco,monospace' }}>
-        <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>LATEST 8H RATE</span>
-        <span style={{ fontSize: 13, color: latest.rate >= 0 ? '#26ab83' : '#E84332' }}>
-          {latest.rate >= 0 ? '+' : ''}{latest.rate.toFixed(4)}%
-        </span>
-      </div>
-    </div>
-  )
-}
 
 function StatsGrid({ assetInfo, currentPrice }: {
   assetInfo: AssetInfo | null
@@ -372,6 +290,4 @@ function StatsGrid({ assetInfo, currentPrice }: {
 const S = {
   backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
   compareBtn: { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
-  pillBtn:    { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
-  pillBtnOn:  { border: '1px solid #F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
 }

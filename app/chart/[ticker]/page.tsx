@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import { useAssetPrice, usePriceHistory, fetchFundingHistory, Timeframe } from '@/lib/hyperliquid'
+import { useAssetPrice, usePriceHistory, fetchFundingHistory, fetchNYSEClosePrice, getNYSESessionLabel, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
@@ -40,6 +40,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [showCompare, setShowCompare]   = useState(false)
   const [starred, setStarred]           = useState(false)
   const [chartMode, setChartMode]       = useState<'price' | 'funding'>('price')
+  const [closePrice, setClosePrice]     = useState<number | null>(null)
   const [fundingData, setFundingData]   = useState<Array<{ time: number; rate: number }>>([])
   const [fundingLoading, setFundingLoading] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -112,12 +113,32 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const displayPrice  = scrubPrice ?? currentPrice
   const decimals      = priceDecimals(displayPrice)
 
+  const isXyz        = assetInfo?.coin.startsWith('xyz:') ?? false
+  const sessionLabel = getNYSESessionLabel()
+
+  useEffect(() => {
+    if (!isXyz || sessionLabel === null) { setClosePrice(null); return }
+    let cancelled = false
+    fetchNYSEClosePrice(coin)
+      .then(p => { if (!cancelled) setClosePrice(p) })
+      .catch(() => { if (!cancelled) setClosePrice(null) })
+    return () => { cancelled = true }
+  }, [coin, isXyz, sessionLabel])
+
   const windowOpen    = openPrice ?? assetInfo?.prevDayPx ?? displayPrice
   const windowDiff    = displayPrice - windowOpen
   const windowPct     = windowOpen !== 0 ? (windowDiff / windowOpen) * 100 : 0
   const windowUp      = windowDiff >= 0
   const changeColor   = windowUp ? '#26ab83' : '#E84332'
   const { diffStr, pctStr } = formatChange(windowDiff, windowPct, decimals)
+
+  const afterHrsDiff  = closePrice !== null ? currentPrice - closePrice : null
+  const afterHrsPct   = closePrice !== null && closePrice !== 0 ? ((currentPrice - closePrice) / closePrice) * 100 : null
+  const afterHrsUp    = (afterHrsDiff ?? 0) >= 0
+  const afterHrsColor = afterHrsUp ? '#26ab83' : '#E84332'
+  const afterHrsStr   = afterHrsDiff !== null && afterHrsPct !== null
+    ? formatChange(afterHrsDiff, afterHrsPct, decimals)
+    : null
 
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
@@ -153,6 +174,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             <span style={{ color: changeColor }}>{diffStr}</span>
             <span style={{ color: changeColor }}>{pctStr}</span>
           </div>
+          {sessionLabel !== null && afterHrsStr !== null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>{sessionLabel}</span>
+              <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.diffStr}</span>
+              <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>
+            </div>
+          )}
         </div>
 
         {/* Attribution + time windows */}

@@ -47,7 +47,50 @@ async function fetchAllMids(): Promise<Record<string, string>> {
   return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
 }
 
-// Fetch candles using the full Hyperliquid coin ID (e.g. "xyz:NVDA" or "BTC").
+// Returns 'AFTER HRS', 'PRE-MKT', or null (market open).
+// NYSE hours approximated as 14:30–21:00 UTC (EST); shifts 1h during EDT.
+export function getNYSESessionLabel(): 'AFTER HRS' | 'PRE-MKT' | null {
+  const now  = new Date()
+  const dow  = now.getUTCDay()
+  if (dow === 0 || dow === 6) return 'AFTER HRS'
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes()
+  if (mins < 870)  return 'PRE-MKT'    // before 14:30 UTC
+  if (mins >= 1260) return 'AFTER HRS' // after 21:00 UTC
+  return null
+}
+
+// Finds the most recent NYSE close time (20:00 UTC on last weekday).
+function getLastNYSECloseUTC(): number | null {
+  const now = Math.floor(Date.now() / 1000)
+  for (let i = 0; i < 7; i++) {
+    const d   = new Date((now - i * 86400) * 1000)
+    const dow = d.getUTCDay()
+    if (dow === 0 || dow === 6) continue
+    const closeUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 20, 0, 0) / 1000
+    if (closeUTC <= now) return closeUTC
+  }
+  return null
+}
+
+// Fetches the price at the last NYSE close for xyz assets.
+export async function fetchNYSEClosePrice(coin: string): Promise<number | null> {
+  const closeTime = getLastNYSECloseUTC()
+  if (closeTime === null) return null
+
+  const candles = await hlPost<Array<{ t: number; c: string }>>({
+    type: 'candleSnapshot',
+    req: { coin, interval: '15m', startTime: (closeTime - 1800) * 1000, endTime: (closeTime + 1800) * 1000 },
+  })
+
+  if (!Array.isArray(candles) || candles.length === 0) return null
+  const best = candles.reduce((a, b) =>
+    Math.abs(a.t / 1000 - closeTime) <= Math.abs(b.t / 1000 - closeTime) ? a : b
+  )
+  const price = parseFloat(best.c)
+  return isNaN(price) ? null : price
+}
+
+
 export async function fetchCandles(coin: string, timeframe: Timeframe): Promise<LivelinePoint[]> {
   const { interval, windowMs } = TIMEFRAME_CONFIG[timeframe]
   const endTime   = Date.now()

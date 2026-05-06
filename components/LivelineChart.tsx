@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import type { WindowOption } from 'liveline'
+import type { WindowOption, ReferenceLine } from 'liveline'
 import type { LivelinePoint } from '@/lib/hyperliquid'
 
 const Liveline = dynamic(
@@ -21,9 +21,10 @@ interface Props {
   onScrub?: (price: number | null) => void
   formatTime?: (t: number) => string
   padding?: { left?: number; right?: number; top?: number; bottom?: number }
+  referenceLine?: ReferenceLine
 }
 
-export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub, formatTime, padding }: Props) {
+export default function LivelineChart({ data, value, color, loading, window: windowSecs, windows, onWindowChange, onScrub, formatTime, padding, referenceLine }: Props) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -49,6 +50,7 @@ export default function LivelineChart({ data, value, color, loading, window: win
           onWindowChange={onWindowChange}
           formatTime={formatTime}
           padding={padding}
+          referenceLine={referenceLine}
           style={{ width: '100%', height: '100%' }}
           onHover={point => onScrub?.(point?.value ?? null)}
         />

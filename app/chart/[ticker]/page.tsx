@@ -232,6 +232,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
                 return `${months[d.getMonth()]} ${d.getDate()}`
               } : undefined}
               padding={{ left: 24 }}
+              referenceLine={closePrice !== null && sessionLabel !== null ? { value: closePrice, label: 'CLOSE' } : undefined}
             />
           ) : (
             <FundingChart data={fundingData} loading={fundingLoading} />
@@ -239,12 +240,14 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Action buttons */}
-        <div style={{ padding: '16px 24px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={() => setShowCompare(true)} style={S.pillBtn}>COMPARE ⇄</button>
-          <button
-            onClick={() => setChartMode(m => m === 'funding' ? 'price' : 'funding')}
-            style={{ ...S.pillBtn, ...(chartMode === 'funding' ? S.pillBtnOn : {}) }}
-          >FUNDING</button>
+        <div style={{ padding: '16px 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setChartMode(m => m === 'funding' ? 'price' : 'funding')}
+              style={{ ...S.pillBtn, ...(chartMode === 'funding' ? S.pillBtnOn : {}) }}
+            >FUNDING</button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -367,7 +370,8 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn:  { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  pillBtn:  { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
-  pillBtnOn:{ border: '1px solid #F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
+  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  compareBtn: { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
+  pillBtn:    { background: 'none', border: '1px solid #2C2C2A', borderRadius: 20, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', padding: '6px 14px', lineHeight: '16px' } as React.CSSProperties,
+  pillBtnOn:  { border: '1px solid #F0EDE6', color: '#F0EDE6' } as React.CSSProperties,
 }

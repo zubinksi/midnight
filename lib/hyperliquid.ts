@@ -47,26 +47,47 @@ async function fetchAllMids(): Promise<Record<string, string>> {
   return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
 }
 
-// Returns 'AFTER HRS', 'PRE-MKT', or null (market open).
-// NYSE hours approximated as 14:30–21:00 UTC (EST); shifts 1h during EDT.
-export function getNYSESessionLabel(): 'AFTER HRS' | 'PRE-MKT' | null {
-  const now  = new Date()
-  const dow  = now.getUTCDay()
-  if (dow === 0 || dow === 6) return 'AFTER HRS'
-  const mins = now.getUTCHours() * 60 + now.getUTCMinutes()
-  if (mins < 870)  return 'PRE-MKT'    // before 14:30 UTC
-  if (mins >= 1260) return 'AFTER HRS' // after 21:00 UTC
-  return null
+// Returns the current UTC offset for America/New_York in whole hours (e.g. 4 for EDT, 5 for EST).
+function getETOffsetHours(): number {
+  const now = new Date()
+  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const et  = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  return (utc.getTime() - et.getTime()) / 3_600_000
 }
 
-// Finds the most recent NYSE close time (20:00 UTC on last weekday).
+// Returns 'AFTER HRS', 'PRE-MKT', or null (market open).
+// Works in America/New_York time so EDT/EST is handled automatically.
+export function getNYSESessionLabel(): 'AFTER HRS' | 'PRE-MKT' | null {
+  const now   = new Date()
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour:    'numeric',
+    minute:  '2-digit',
+    hour12:  false,
+  }).formatToParts(now)
+
+  const weekday = parts.find(p => p.type === 'weekday')!.value
+  if (weekday === 'Sat' || weekday === 'Sun') return 'AFTER HRS'
+
+  const hour   = parseInt(parts.find(p => p.type === 'hour')!.value) % 24
+  const minute = parseInt(parts.find(p => p.type === 'minute')!.value)
+  const mins   = hour * 60 + minute
+
+  if (mins >= 570 && mins < 960) return null        // 9:30 AM – 4:00 PM ET: market open
+  if (mins >= 240 && mins < 570) return 'PRE-MKT'  // 4:00 AM – 9:30 AM ET
+  return 'AFTER HRS'
+}
+
+// Finds the most recent NYSE close time (4:00 PM ET) as a UTC unix timestamp.
 function getLastNYSECloseUTC(): number | null {
+  const closeHourUTC = 16 + getETOffsetHours()  // 4:00 PM ET in UTC (20 during EDT, 21 during EST)
   const now = Math.floor(Date.now() / 1000)
   for (let i = 0; i < 7; i++) {
     const d   = new Date((now - i * 86400) * 1000)
     const dow = d.getUTCDay()
     if (dow === 0 || dow === 6) continue
-    const closeUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 20, 0, 0) / 1000
+    const closeUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), closeHourUTC, 0, 0) / 1000
     if (closeUTC <= now) return closeUTC
   }
   return null

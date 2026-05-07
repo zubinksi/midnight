@@ -112,13 +112,17 @@ export default function Home() {
       const bf = favorites.has(b.ticker) ? 0 : 1
       if (af !== bf) return af - bf
       if (sortBy === 'change') {
-        const aPct = a.prevDayPx > 0 ? (a.price - a.prevDayPx) / a.prevDayPx : 0
-        const bPct = b.prevDayPx > 0 ? (b.price - b.prevDayPx) / b.prevDayPx : 0
-        return bPct - aPct
+        const pct = (asset: typeof a) => {
+          const cp = closePrices[asset.ticker]
+          if (isMarketClosed && cp !== undefined && cp !== 0)
+            return (asset.price - cp) / cp
+          return asset.prevDayPx > 0 ? (asset.price - asset.prevDayPx) / asset.prevDayPx : 0
+        }
+        return pct(b) - pct(a)
       }
       return (b.volume24h ?? 0) - (a.volume24h ?? 0)
     })
-  }, [allAssets, categoryFilter, favorites, search, sortBy])
+  }, [allAssets, categoryFilter, favorites, search, sortBy, closePrices, isMarketClosed])
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#080807', overflow: 'hidden' }}>

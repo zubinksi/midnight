@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, use, useEffect, useRef } from 'react'
+import { useState, useCallback, use, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
@@ -40,7 +40,10 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [showCompare, setShowCompare]   = useState(false)
   const [starred, setStarred]           = useState(false)
   const [closePrice, setClosePrice]     = useState<number | null>(null)
+  const [showSearch, setShowSearch]     = useState(false)
+  const [searchQuery, setSearchQuery]   = useState('')
   const chartContainerRef = useRef<HTMLDivElement>(null)
+  const searchInputRef    = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     try {
@@ -129,6 +132,14 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
 
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    return allAssets
+      .filter(a => a.ticker.toLowerCase().includes(q) || getAssetName(a.ticker).toLowerCase().includes(q))
+      .slice(0, 6)
+  }, [allAssets, searchQuery])
+
   const chartWindow = timeframe === 'ALL' && data.length > 1
     ? Math.ceil((data.at(-1)!.time - data[0].time) * 1.02)
     : TIMEFRAME_TO_SECS[timeframe]
@@ -140,7 +151,59 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
+          <button
+            onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', lineHeight: 1, color: '#46443D' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="7.5" cy="7.5" r="5" />
+              <line x1="11.5" y1="11.5" x2="16" y2="16" />
+            </svg>
+          </button>
         </div>
+
+        {/* Search overlay */}
+        {showSearch && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#080807', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ maxWidth: 430, margin: '0 auto', width: '100%', padding: 'max(env(safe-area-inset-top), 56px) 24px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="SEARCH MARKETS"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%', background: 'transparent', border: 'none',
+                      borderBottom: '1px solid #1C1C1A', padding: '10px 0',
+                      color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
+                      fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
+                    } as React.CSSProperties}
+                  />
+                </div>
+                <button
+                  onClick={() => { setShowSearch(false); setSearchQuery('') }}
+                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
+                >CANCEL</button>
+              </div>
+              <div>
+                {searchResults.map(a => (
+                  <div
+                    key={a.coin}
+                    onClick={() => { setShowSearch(false); setSearchQuery(''); router.push(`/chart/${a.ticker}`) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 }}>{a.ticker}</div>
+                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginTop: 2 }}>{getAssetName(a.ticker)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Price block */}
         <div style={{ padding: '32px 24px 0' }}>
@@ -170,13 +233,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           )}
         </div>
 
-        {/* Attribution + time windows */}
+        {/* Time windows */}
         <div style={{ marginTop: 8, padding: '0 24px' }}>
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-              HYPERLIQUID{assetInfo?.coin.startsWith('xyz:') ? ' · TRADE.XYZ' : ''}
-            </span>
-          </div>
           <div style={{
             display: 'inline-flex', gap: 2,
             background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2,

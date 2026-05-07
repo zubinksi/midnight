@@ -8,7 +8,6 @@ import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
 import { fetchCandles } from '@/lib/hyperliquid'
 import type { AssetInfo } from '@/lib/assets'
 import { COMPARE_COLORS } from '@/components/CompareModal'
-import CompareModal from '@/components/CompareModal'
 import { getAssetName } from '@/lib/assetNames'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
@@ -43,11 +42,9 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 
   const [timeframe, setTimeframe]   = useState<Timeframe>('7D')
   const [coinMap, setCoinMap]       = useState<Record<string, string>>({})
-  const [allAssets, setAllAssets]   = useState<AssetInfo[]>([])
   const [seriesData, setSeriesData] = useState<Record<string, LivelinePoint[]>>({})
   const [loading, setLoading]       = useState(true)
   const [mounted, setMounted]       = useState(false)
-  const [showCompare, setShowCompare] = useState(false)
 
   useEffect(() => setMounted(true), [])
 
@@ -56,10 +53,8 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
       fetch('/api/assets').then(r => r.json() as Promise<AssetInfo[]>),
       fetch('/api/crypto').then(r => r.json() as Promise<AssetInfo[]>),
     ]).then(([xyz, crypto]) => {
-      const combined = [...xyz, ...crypto]
-      setAllAssets(combined)
       const map: Record<string, string> = {}
-      for (const a of combined) map[a.ticker] = a.coin
+      for (const a of [...xyz, ...crypto]) map[a.ticker] = a.coin
       setCoinMap(map)
     }).catch(() => {})
   }, [])
@@ -199,11 +194,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           )}
         </div>
 
-        {/* Compare button */}
-        <div style={{ padding: '16px 24px 0' }}>
-          <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
-        </div>
-
         {/* Attribution */}
         <div style={{ padding: '8px 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
@@ -215,22 +205,10 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
 
-      {showCompare && (
-        <CompareModal
-          baseTicker={tickers[0]}
-          allAssets={allAssets}
-          onClose={() => setShowCompare(false)}
-          onCompare={next => {
-            setShowCompare(false)
-            router.push(`/compare/${next.join('_')}`)
-          }}
-        />
-      )}
     </div>
   )
 }
 
 const S = {
-  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  compareBtn: { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
+  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
 }

@@ -233,7 +233,7 @@ export default function Home() {
                   onToggleFavorite={toggleFavorite}
                   onNavigate={() => router.push(`/chart/${asset.ticker}`)}
                   closePrice={closePrices[asset.ticker]}
-                  isMarketClosed={isMarketClosed}
+                  sessionLabel={sessionLabel}
                 />
               ))
             )}
@@ -246,23 +246,24 @@ export default function Home() {
   )
 }
 
-function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePrice, isMarketClosed }: {
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePrice, sessionLabel }: {
   asset: { coin: string; ticker: string; prevDayPx: number }
   price: number
   starred: boolean
   onToggleFavorite: (ticker: string) => void
   onNavigate: () => void
   closePrice?: number
-  isMarketClosed: boolean
+  sessionLabel: 'AFTER HRS' | 'PRE-MKT' | null
 }) {
   const decimals = priceDecimals(price)
   const priceStr = formatPrice(price, decimals)
   const name     = getAssetName(asset.ticker)
 
-  const showAH = isMarketClosed && closePrice !== undefined
+  const showAH  = sessionLabel !== null && closePrice !== undefined
   const ahDiff  = showAH ? price - closePrice! : 0
   const ahPct   = showAH && closePrice! !== 0 ? (ahDiff / closePrice!) * 100 : 0
   const ahUp    = ahDiff >= 0
+  const icon    = sessionLabel === 'PRE-MKT' ? '☀️' : '🌙'
 
   const open    = asset.prevDayPx || price
   const dayDiff = price - open
@@ -272,7 +273,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
   const badgeUp    = showAH ? ahUp    : dayUp
   const badgeColor = badgeUp ? '#26ab83' : '#E84332'
   const badgeStr   = showAH
-    ? `AH ${ahUp ? '+' : ''}${ahPct.toFixed(2)}%`
+    ? `${icon} ${ahUp ? '+' : ''}${ahPct.toFixed(2)}%`
     : `${dayUp ? '+' : ''}${dayPct.toFixed(2)}%`
   const showBadge  = showAH || asset.prevDayPx > 0
 

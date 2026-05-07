@@ -27,7 +27,8 @@ export default function Home() {
   const [clock, setClock]                   = useState(formatDate())
   const [search, setSearch]                 = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [sortBy, setSortBy]                 = useState<'volume' | 'change'>('volume')
+  const [sortBy, setSortBy]                 = useState<'volume' | 'price-desc' | 'price-asc'>('volume')
+  const [showSortSheet, setShowSortSheet]   = useState(false)
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
@@ -111,14 +112,14 @@ export default function Home() {
       const af = favorites.has(a.ticker) ? 0 : 1
       const bf = favorites.has(b.ticker) ? 0 : 1
       if (af !== bf) return af - bf
-      if (sortBy === 'change') {
+      if (sortBy === 'price-desc' || sortBy === 'price-asc') {
         const pct = (asset: typeof a) => {
           const cp = closePrices[asset.ticker]
           if (isMarketClosed && cp !== undefined && cp !== 0)
             return (asset.price - cp) / cp
           return asset.prevDayPx > 0 ? (asset.price - asset.prevDayPx) / asset.prevDayPx : 0
         }
-        return pct(b) - pct(a)
+        return sortBy === 'price-desc' ? pct(b) - pct(a) : pct(a) - pct(b)
       }
       return (b.volume24h ?? 0) - (a.volume24h ?? 0)
     })
@@ -184,34 +185,55 @@ export default function Home() {
               )
             })}
           </div>
-          {/* Sort toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16 }}>
-            <span style={S.label}>SORT</span>
-            <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 2 }}>
-              {(['volume', 'change'] as const).map(s => {
-                const active = sortBy === s
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setSortBy(s)}
-                    style={{
-                      background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                      border: 'none', borderRadius: 4, padding: '3px 10px',
-                      fontSize: 10, lineHeight: '16px',
-                      fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
-                      color: active ? '#F0EDE6' : '#46443D',
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >{s === 'volume' ? 'VOL' : 'CHG'}</button>
-                )
-              })}
-            </div>
-          </div>
+        </div>
+
+        {/* Sort icon row */}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', padding: '6px 24px 6px' }}>
+          <button
+            onClick={() => setShowSortSheet(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="2" y1="3.5" x2="12" y2="3.5" />
+              <line x1="2" y1="7"   x2="9"  y2="7"   />
+              <line x1="2" y1="10.5" x2="6" y2="10.5" />
+              <polyline points="11,5 13,7 11,9" />
+            </svg>
+          </button>
         </div>
 
         <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
+
+        {/* Sort bottom sheet */}
+        {showSortSheet && (
+          <div
+            onClick={() => setShowSortSheet(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000000BB', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' } as React.CSSProperties}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              className="slide-up"
+              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(32px, env(safe-area-inset-bottom))' }}
+            >
+              <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>
+              {([
+                { key: 'volume',     label: 'Volume' },
+                { key: 'price-desc', label: 'Change ↓' },
+                { key: 'price-asc',  label: 'Change ↑' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => { setSortBy(opt.key); setShowSortSheet(false) }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #1C1C1A', padding: '16px 0', cursor: 'pointer' }}
+                >
+                  <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{opt.label}</span>
+                  {sortBy === opt.key && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83' }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>

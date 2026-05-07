@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices } from '@/lib/hyperliquid'
+import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
@@ -29,7 +29,29 @@ export default function Home() {
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
   const [sortBy, setSortBy]                 = useState<'volume' | 'change'>('volume')
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
+  const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
+
+  const sessionLabel   = getNYSESessionLabel()
+  const isMarketClosed = sessionLabel !== null
+
+  useEffect(() => {
+    if (!isMarketClosed || xyzAssets.length === 0) { setClosePrices({}); return }
+    let cancelled = false
+    Promise.all(
+      xyzAssets.map(a =>
+        fetchNYSEClosePrice(a.coin)
+          .then(p => ({ ticker: a.ticker, p }))
+          .catch(() => ({ ticker: a.ticker, p: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map: Record<string, number> = {}
+      for (const { ticker, p } of results) if (p !== null) map[ticker] = p
+      setClosePrices(map)
+    })
+    return () => { cancelled = true }
+  }, [xyzAssets.length, isMarketClosed])
 
   useEffect(() => {
     const read = () => {
@@ -210,6 +232,8 @@ export default function Home() {
                   starred={favorites.has(asset.ticker)}
                   onToggleFavorite={toggleFavorite}
                   onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+                  closePrice={closePrices[asset.ticker]}
+                  isMarketClosed={isMarketClosed}
                 />
               ))
             )}
@@ -222,23 +246,35 @@ export default function Home() {
   )
 }
 
-function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePrice, isMarketClosed }: {
   asset: { coin: string; ticker: string; prevDayPx: number }
   price: number
   starred: boolean
   onToggleFavorite: (ticker: string) => void
   onNavigate: () => void
+  closePrice?: number
+  isMarketClosed: boolean
 }) {
-  const open     = asset.prevDayPx || price
-  const diff     = price - open
-  const pct      = open !== 0 ? (diff / open) * 100 : 0
-  const up       = diff >= 0
-  const color    = up ? '#26ab83' : '#E84332'
   const decimals = priceDecimals(price)
   const priceStr = formatPrice(price, decimals)
-  const pctStr   = `${up ? '+' : ''}${pct.toFixed(2)}%`
-  const hasOpen  = asset.prevDayPx > 0
   const name     = getAssetName(asset.ticker)
+
+  const showAH = isMarketClosed && closePrice !== undefined
+  const ahDiff  = showAH ? price - closePrice! : 0
+  const ahPct   = showAH && closePrice! !== 0 ? (ahDiff / closePrice!) * 100 : 0
+  const ahUp    = ahDiff >= 0
+
+  const open    = asset.prevDayPx || price
+  const dayDiff = price - open
+  const dayPct  = open !== 0 ? (dayDiff / open) * 100 : 0
+  const dayUp   = dayDiff >= 0
+
+  const badgeUp    = showAH ? ahUp    : dayUp
+  const badgeColor = badgeUp ? '#26ab83' : '#E84332'
+  const badgeStr   = showAH
+    ? `AH ${ahUp ? '+' : ''}${ahPct.toFixed(2)}%`
+    : `${dayUp ? '+' : ''}${dayPct.toFixed(2)}%`
+  const showBadge  = showAH || asset.prevDayPx > 0
 
   return (
     <div
@@ -266,14 +302,14 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate }: {
       <div style={{ flex: 1 }} />
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={S.price}>{priceStr}</div>
-        {hasOpen && (
+        {showBadge && (
           <div style={{ marginTop: 3 }}>
             <span style={{
               display: 'inline-block', padding: '2px 7px', borderRadius: 4,
               fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
-              fontVariantNumeric: 'tabular-nums', color,
-              background: up ? '#26ab8322' : '#E8433218',
-            }}>{pctStr}</span>
+              fontVariantNumeric: 'tabular-nums', color: badgeColor,
+              background: badgeUp ? '#26ab8322' : '#E8433218',
+            }}>{badgeStr}</span>
           </div>
         )}
       </div>

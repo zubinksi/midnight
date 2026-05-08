@@ -18,6 +18,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'index',     label: 'INDICES' },
   { key: 'commodity', label: 'COMMODITIES' },
   { key: 'fx',        label: 'FX' },
+  { key: 'pre-ipo',   label: 'PRE IPO' },
 ]
 
 export default function Home() {

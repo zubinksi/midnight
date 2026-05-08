@@ -1,4 +1,4 @@
-export type AssetCategory = 'stock' | 'index' | 'commodity' | 'fx' | 'crypto'
+export type AssetCategory = 'stock' | 'index' | 'commodity' | 'fx' | 'crypto' | 'pre-ipo'
 
 export interface AssetInfo {
   ticker: string        // display name, e.g. "NVDA"
@@ -25,6 +25,8 @@ const COMMODITIES = new Set([
 
 const FX = new Set(['JPY', 'EUR'])
 
+const PRE_IPO = new Set(['CBRS'])
+
 // Rename certain API tickers to a display ticker (ticker stays for routing,
 // coin ID stays for API calls — only the shown ticker text changes).
 export const TICKER_RENAMES: Record<string, string> = {
@@ -35,6 +37,7 @@ export function getAssetCategory(ticker: string): AssetCategory {
   if (INDICES.has(ticker))     return 'index'
   if (COMMODITIES.has(ticker)) return 'commodity'
   if (FX.has(ticker))          return 'fx'
+  if (PRE_IPO.has(ticker))     return 'pre-ipo'
   return 'stock'
 }
 

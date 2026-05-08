@@ -27,7 +27,13 @@ export default function Home() {
   const [clock, setClock]                   = useState(formatDate())
   const [search, setSearch]                 = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
-  const [sortBy, setSortBy]                 = useState<'volume' | 'price-desc' | 'price-asc'>('volume')
+  const [sortBy, setSortBy]                 = useState<'volume' | 'price-desc' | 'price-asc'>(() => {
+    try {
+      const v = localStorage.getItem('neue-sort')
+      if (v === 'price-desc' || v === 'price-asc') return v
+    } catch {}
+    return 'volume'
+  })
   const [showSortSheet, setShowSortSheet]   = useState(false)
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
@@ -224,7 +230,7 @@ export default function Home() {
               ] as const).map(opt => (
                 <button
                   key={opt.key}
-                  onClick={() => { setSortBy(opt.key); setShowSortSheet(false) }}
+                  onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {}; setShowSortSheet(false) }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #1C1C1A', padding: '16px 0', cursor: 'pointer' }}
                 >
                   <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{opt.label}</span>

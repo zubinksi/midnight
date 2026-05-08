@@ -111,6 +111,7 @@ export default function Home() {
     let startY = 0, dy = 0
     const onStart = (e: TouchEvent) => {
       startY = e.touches[0].clientY; dy = 0
+      sheet.style.animation = 'none'
       sheet.style.transition = 'none'
     }
     const onMove = (e: TouchEvent) => {

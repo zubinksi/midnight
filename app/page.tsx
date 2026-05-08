@@ -8,14 +8,13 @@ import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
 
-type FilterKey = 'all' | 'starred' | AssetCategory
+type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',       label: 'ALL' },
   { key: 'starred',   label: '★' },
   { key: 'crypto',    label: 'CRYPTO' },
-  { key: 'stock',     label: 'STOCKS' },
-  { key: 'index',     label: 'INDICES' },
+  { key: 'equities',  label: 'EQUITIES' },
   { key: 'commodity', label: 'COMMODITIES' },
   { key: 'fx',        label: 'FX' },
   { key: 'pre-ipo',   label: 'PRE IPO' },
@@ -137,6 +136,8 @@ export default function Home() {
       ? allAssets
       : categoryFilter === 'starred'
       ? allAssets.filter(a => favorites.has(a.ticker))
+      : categoryFilter === 'equities'
+      ? allAssets.filter(a => a.category === 'stock' || a.category === 'index')
       : allAssets.filter(a => a.category === categoryFilter)
     const q = search.trim().toLowerCase()
     if (q) filtered = filtered.filter(a =>

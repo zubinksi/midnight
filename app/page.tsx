@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
@@ -35,7 +35,34 @@ export default function Home() {
     return 'volume'
   })
   const [showSortSheet, setShowSortSheet]   = useState(false)
-  const sortSheetRef = useRef<HTMLDivElement>(null)
+  const sortSheetRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    let startY = 0, dy = 0
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY; dy = 0
+      node.style.animation = 'none'
+      node.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      dy = Math.max(0, e.touches[0].clientY - startY)
+      node.style.transform = `translateY(${dy}px)`
+      e.preventDefault()
+    }
+    const onEnd = () => {
+      if (dy > 120) {
+        node.style.transition = 'transform 0.25s ease'
+        node.style.transform  = 'translateY(100%)'
+        setTimeout(() => setShowSortSheet(false), 220)
+      } else {
+        node.style.transition = 'transform 0.25s ease'
+        node.style.transform  = 'translateY(0)'
+        dy = 0
+      }
+    }
+    node.addEventListener('touchstart', onStart, { passive: true })
+    node.addEventListener('touchmove',  onMove,  { passive: false })
+    node.addEventListener('touchend',   onEnd,   { passive: true })
+  }, [])
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
@@ -103,42 +130,6 @@ export default function Home() {
     const t = setInterval(() => setClock(formatDate()), 1000)
     return () => clearInterval(t)
   }, [])
-
-  useEffect(() => {
-    if (!showSortSheet) return
-    const sheet = sortSheetRef.current
-    if (!sheet) return
-    let startY = 0, dy = 0
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY; dy = 0
-      sheet.style.animation = 'none'
-      sheet.style.transition = 'none'
-    }
-    const onMove = (e: TouchEvent) => {
-      dy = Math.max(0, e.touches[0].clientY - startY)
-      sheet.style.transform = `translateY(${dy}px)`
-      e.preventDefault()
-    }
-    const onEnd = () => {
-      if (dy > 120) {
-        sheet.style.transition = 'transform 0.25s ease'
-        sheet.style.transform  = 'translateY(100%)'
-        setTimeout(() => setShowSortSheet(false), 220)
-      } else {
-        sheet.style.transition = 'transform 0.25s ease'
-        sheet.style.transform  = 'translateY(0)'
-        dy = 0
-      }
-    }
-    sheet.addEventListener('touchstart', onStart, { passive: true })
-    sheet.addEventListener('touchmove',  onMove,  { passive: false })
-    sheet.addEventListener('touchend',   onEnd,   { passive: true })
-    return () => {
-      sheet.removeEventListener('touchstart', onStart)
-      sheet.removeEventListener('touchmove',  onMove)
-      sheet.removeEventListener('touchend',   onEnd)
-    }
-  }, [showSortSheet])
 
   const displayAssets = useMemo(() => {
     let filtered = categoryFilter === 'all'

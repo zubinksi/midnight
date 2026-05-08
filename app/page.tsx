@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
@@ -35,6 +35,7 @@ export default function Home() {
     return 'volume'
   })
   const [showSortSheet, setShowSortSheet]   = useState(false)
+  const sortSheetRef = useRef<HTMLDivElement>(null)
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
@@ -102,6 +103,41 @@ export default function Home() {
     const t = setInterval(() => setClock(formatDate()), 1000)
     return () => clearInterval(t)
   }, [])
+
+  useEffect(() => {
+    if (!showSortSheet) return
+    const sheet = sortSheetRef.current
+    if (!sheet) return
+    let startY = 0, dy = 0
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY; dy = 0
+      sheet.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      dy = Math.max(0, e.touches[0].clientY - startY)
+      sheet.style.transform = `translateY(${dy}px)`
+      e.preventDefault()
+    }
+    const onEnd = () => {
+      if (dy > 120) {
+        sheet.style.transition = 'transform 0.25s ease'
+        sheet.style.transform  = 'translateY(100%)'
+        setTimeout(() => setShowSortSheet(false), 220)
+      } else {
+        sheet.style.transition = 'transform 0.25s ease'
+        sheet.style.transform  = 'translateY(0)'
+        dy = 0
+      }
+    }
+    sheet.addEventListener('touchstart', onStart, { passive: true })
+    sheet.addEventListener('touchmove',  onMove,  { passive: false })
+    sheet.addEventListener('touchend',   onEnd,   { passive: true })
+    return () => {
+      sheet.removeEventListener('touchstart', onStart)
+      sheet.removeEventListener('touchmove',  onMove)
+      sheet.removeEventListener('touchend',   onEnd)
+    }
+  }, [showSortSheet])
 
   const displayAssets = useMemo(() => {
     let filtered = categoryFilter === 'all'
@@ -218,8 +254,9 @@ export default function Home() {
           >
             <div
               onClick={e => e.stopPropagation()}
+              ref={sortSheetRef}
               className="slide-up"
-              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(32px, env(safe-area-inset-bottom))' }}
+              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(32px, env(safe-area-inset-bottom))', touchAction: 'none' }}
             >
               <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
               <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>

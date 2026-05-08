@@ -16,36 +16,48 @@ interface Props {
 export default function CompareModal({ baseTicker, allAssets, onClose, onCompare }: Props) {
   const [search, setSearch]     = useState('')
   const [selected, setSelected] = useState<string[]>([])
-  const sheetRef    = useRef<HTMLDivElement>(null)
-  const dragStartY  = useRef(0)
-  const dragCurrent = useRef(0)
-
-  const onDragStart = (e: React.TouchEvent) => {
-    dragStartY.current  = e.touches[0].clientY
-    dragCurrent.current = 0
-    if (sheetRef.current) sheetRef.current.style.transition = 'none'
-  }
-  const onDragMove = (e: React.TouchEvent) => {
-    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current)
-    dragCurrent.current = dy
-    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dy}px)`
-  }
-  const onDragEnd = () => {
-    if (dragCurrent.current > 120) {
-      onClose()
-    } else {
-      if (sheetRef.current) {
-        sheetRef.current.style.transition = 'transform 0.25s ease'
-        sheetRef.current.style.transform  = 'translateY(0)'
-      }
-      dragCurrent.current = 0
-    }
-  }
+  const sheetRef      = useRef<HTMLDivElement>(null)
+  const dragHandleRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', h)
     return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  useEffect(() => {
+    const handle = dragHandleRef.current
+    const sheet  = sheetRef.current
+    if (!handle || !sheet) return
+    let startY = 0, dy = 0
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY; dy = 0
+      sheet.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      dy = Math.max(0, e.touches[0].clientY - startY)
+      sheet.style.transform = `translateY(${dy}px)`
+      e.preventDefault()
+    }
+    const onEnd = () => {
+      if (dy > 120) {
+        sheet.style.transition = 'transform 0.25s ease'
+        sheet.style.transform  = 'translateY(100%)'
+        setTimeout(onClose, 220)
+      } else {
+        sheet.style.transition = 'transform 0.25s ease'
+        sheet.style.transform  = 'translateY(0)'
+        dy = 0
+      }
+    }
+    handle.addEventListener('touchstart', onStart, { passive: true })
+    handle.addEventListener('touchmove',  onMove,  { passive: false })
+    handle.addEventListener('touchend',   onEnd,   { passive: true })
+    return () => {
+      handle.removeEventListener('touchstart', onStart)
+      handle.removeEventListener('touchmove',  onMove)
+      handle.removeEventListener('touchend',   onEnd)
+    }
   }, [onClose])
 
   const hasBase = baseTicker.length > 0
@@ -99,9 +111,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
       >
         {/* Drag zone: handle + header */}
         <div
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
+          ref={dragHandleRef}
           style={{ margin: '-28px -24px 0', padding: '28px 24px 0', touchAction: 'none' }}
         >
           <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />

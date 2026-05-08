@@ -314,21 +314,12 @@ function StatsGrid({ assetInfo, currentPrice }: {
   assetInfo: AssetInfo | null
   currentPrice: number
 }) {
-  const prevDayPx   = assetInfo?.prevDayPx ?? 0
-  const diff24h     = prevDayPx > 0 ? currentPrice - prevDayPx : 0
-  const pct24h      = prevDayPx > 0 ? (diff24h / prevDayPx) * 100 : 0
-  const up24h       = diff24h >= 0
-  const color24h    = up24h ? '#26ab83' : '#E84332'
-  const decimals    = priceDecimals(currentPrice || 1)
-  const { diffStr, pctStr } = formatChange(diff24h, pct24h, decimals)
-
   const volume24h    = assetInfo?.volume24h    ?? 0
   const openInterest = assetInfo?.openInterest ?? 0
   const funding      = assetInfo?.funding      ?? 0
   const fundingColor = funding >= 0 ? '#26ab83' : '#E84332'
 
   const stats = [
-    { label: '24H CHANGE', value: prevDayPx > 0 ? `${diffStr} (${pctStr})` : '—', color: color24h },
     { label: '24H VOLUME', value: volume24h > 0 ? formatVolume(volume24h) : '—', color: '#F0EDE6' },
     { label: 'OPEN INT',   value: openInterest > 0 ? formatVolume(openInterest) : '—', color: '#F0EDE6' },
     { label: 'FUNDING',    value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: fundingColor },

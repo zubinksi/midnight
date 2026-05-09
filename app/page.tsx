@@ -2,6 +2,17 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  DndContext, closestCenter,
+  PointerSensor, TouchSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DraggableAttributes } from '@dnd-kit/core'
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
@@ -70,11 +81,23 @@ export default function Home() {
     node.addEventListener('touchend',   onEnd,   { passive: true })
   }, [])
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
+  const [starredOrder, setStarredOrder]     = useState<string[]>(() => {
+    try {
+      const v = localStorage.getItem('neue-starred-order')
+      if (v) return JSON.parse(v) as string[]
+    } catch {}
+    return []
+  })
   const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
 
   const sessionLabel   = getNYSESessionLabel()
   const isMarketClosed = sessionLabel !== null
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 8 } }),
+  )
 
   useEffect(() => {
     if (!isMarketClosed || xyzAssets.length === 0) { setClosePrices({}); return }
@@ -150,6 +173,15 @@ export default function Home() {
       a.ticker.toLowerCase().includes(q) ||
       getAssetName(a.ticker).toLowerCase().includes(q)
     )
+    // Custom order for starred filter when not searching
+    if (categoryFilter === 'starred' && !q && starredOrder.length > 0) {
+      const orderMap = new Map(starredOrder.map((t, i) => [t, i]))
+      return [...filtered].sort((a, b) => {
+        const ai = orderMap.has(a.ticker) ? orderMap.get(a.ticker)! : Infinity
+        const bi = orderMap.has(b.ticker) ? orderMap.get(b.ticker)! : Infinity
+        return ai - bi
+      })
+    }
     return [...filtered].sort((a, b) => {
       const af = favorites.has(a.ticker) ? 0 : 1
       const bf = favorites.has(b.ticker) ? 0 : 1
@@ -165,7 +197,61 @@ export default function Home() {
       }
       return (b.volume24h ?? 0) - (a.volume24h ?? 0)
     })
-  }, [allAssets, categoryFilter, favorites, search, sortBy, closePrices, isMarketClosed])
+  }, [allAssets, categoryFilter, favorites, search, sortBy, closePrices, isMarketClosed, starredOrder])
+
+  const isDragMode = categoryFilter === 'starred' && !search.trim()
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const tickers    = displayAssets.map(a => a.ticker)
+    const oldIndex   = tickers.indexOf(active.id as string)
+    const newIndex   = tickers.indexOf(over.id as string)
+    if (oldIndex === -1 || newIndex === -1) return
+    const newOrder = arrayMove(tickers, oldIndex, newIndex)
+    setStarredOrder(newOrder)
+    try { localStorage.setItem('neue-starred-order', JSON.stringify(newOrder)) } catch {}
+  }
+
+  const assetList = loading ? (
+    <LoadingRows />
+  ) : error ? (
+    <ErrorState message={error} />
+  ) : displayAssets.length === 0 && search ? (
+    <div style={{ padding: '48px 0', textAlign: 'center' }}>
+      <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
+    </div>
+  ) : isDragMode ? (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={displayAssets.map(a => a.ticker)} strategy={verticalListSortingStrategy}>
+        {displayAssets.map(asset => (
+          <SortableAssetRow
+            key={asset.ticker}
+            asset={asset}
+            price={prices[asset.ticker] ?? asset.price}
+            starred
+            onToggleFavorite={toggleFavorite}
+            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+            closePrice={closePrices[asset.ticker]}
+            sessionLabel={sessionLabel}
+          />
+        ))}
+      </SortableContext>
+    </DndContext>
+  ) : (
+    displayAssets.map(asset => (
+      <AssetRow
+        key={asset.coin}
+        asset={asset}
+        price={prices[asset.ticker] ?? asset.price}
+        starred={favorites.has(asset.ticker)}
+        onToggleFavorite={toggleFavorite}
+        onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+        closePrice={closePrices[asset.ticker]}
+        sessionLabel={sessionLabel}
+      />
+    ))
+  )
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#080807', overflow: 'hidden' }}>
@@ -280,31 +366,8 @@ export default function Home() {
 
         {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-
-          {/* Asset list */}
           <div style={{ padding: '0 24px' }}>
-            {loading ? (
-              <LoadingRows />
-            ) : error ? (
-              <ErrorState message={error} />
-            ) : displayAssets.length === 0 && search ? (
-              <div style={{ padding: '48px 0', textAlign: 'center' }}>
-                <span style={{ ...S.label, color: '#2C2C2A' }}>NO RESULTS FOR "{search.toUpperCase()}"</span>
-              </div>
-            ) : (
-              displayAssets.map(asset => (
-                <AssetRow
-                  key={asset.coin}
-                  asset={asset}
-                  price={prices[asset.ticker] ?? asset.price}
-                  starred={favorites.has(asset.ticker)}
-                  onToggleFavorite={toggleFavorite}
-                  onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-                  closePrice={closePrices[asset.ticker]}
-                  sessionLabel={sessionLabel}
-                />
-              ))
-            )}
+            {assetList}
           </div>
           <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
         </div>
@@ -314,7 +377,9 @@ export default function Home() {
   )
 }
 
-function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePrice, sessionLabel }: {
+// ── Sortable wrapper (starred filter only) ────────────────────────────────────
+
+interface AssetRowProps {
   asset: { coin: string; ticker: string; prevDayPx: number }
   price: number
   starred: boolean
@@ -322,7 +387,31 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
   onNavigate: () => void
   closePrice?: number
   sessionLabel: 'AFTER HRS' | 'PRE-MKT' | null
-}) {
+  dragHandleListeners?: SyntheticListenerMap
+  dragHandleAttributes?: DraggableAttributes
+}
+
+function SortableAssetRow(props: Omit<AssetRowProps, 'dragHandleListeners' | 'dragHandleAttributes'>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.asset.ticker })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        zIndex: isDragging ? 1 : 0,
+        position: 'relative',
+      }}
+    >
+      <AssetRow {...props} dragHandleListeners={listeners} dragHandleAttributes={attributes} />
+    </div>
+  )
+}
+
+// ── Asset row ─────────────────────────────────────────────────────────────────
+
+function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePrice, sessionLabel, dragHandleListeners, dragHandleAttributes }: AssetRowProps) {
   const decimals = priceDecimals(price)
   const priceStr = formatPrice(price, decimals)
   const name     = getAssetName(asset.ticker)
@@ -344,6 +433,8 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
     ? `${icon} ${ahUp ? '+' : ''}${ahPct.toFixed(2)}%`
     : `${dayUp ? '+' : ''}${dayPct.toFixed(2)}%`
   const showBadge  = showAH || asset.prevDayPx > 0
+
+  const isDraggable = !!dragHandleListeners
 
   return (
     <div
@@ -382,9 +473,29 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
           </div>
         )}
       </div>
+      {isDraggable && (
+        <button
+          {...dragHandleListeners}
+          {...dragHandleAttributes}
+          onClick={e => e.stopPropagation()}
+          style={{
+            background: 'none', border: 'none', padding: '4px 0 4px 8px',
+            color: '#2C2C2A', cursor: 'grab', flexShrink: 0,
+            display: 'flex', alignItems: 'center', touchAction: 'none',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="3" y1="4" x2="11" y2="4" />
+            <line x1="3" y1="7" x2="11" y2="7" />
+            <line x1="3" y1="10" x2="11" y2="10" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
+
+// ── Skeletons / errors ────────────────────────────────────────────────────────
 
 function LoadingRows() {
   return (

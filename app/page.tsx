@@ -679,7 +679,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
           </svg>
         </button>
       ) : (
-        <div style={{ width: 30, flexShrink: 0 }} />
+        <div style={{ width: 22, flexShrink: 0 }} />
       )}
     </div>
   )

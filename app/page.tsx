@@ -448,21 +448,21 @@ export default function Home() {
         </div>
 
         {/* Sort icon row */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px 6px' }}>
-          <div>
-            <button
-              onClick={openSummary}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5 }}
-            >
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
-                  <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
-                </svg>
-                <span style={{ fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>SUMMARY</span>
-              </button>
-          </div>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+          <button
+            onClick={openSummary}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 10 }}
+          >
+            <span style={{ width: 28, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
+                <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
+              </svg>
+            </span>
+            <span style={{ fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>SUMMARY</span>
+          </button>
           <button
             onClick={() => setShowSortSheet(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <line x1="2" y1="3.5" x2="12" y2="3.5" />

@@ -26,7 +26,13 @@ export default function Home() {
   const { assets: cryptoAssets, loading: cryptoLoading }   = useCryptoAssets()
   const [clock, setClock]                   = useState(formatDate())
   const [search, setSearch]                 = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<FilterKey>('all')
+  const [categoryFilter, setCategoryFilter] = useState<FilterKey>(() => {
+    try {
+      const v = localStorage.getItem('neue-filter')
+      if (v && FILTERS.some(f => f.key === v)) return v as FilterKey
+    } catch {}
+    return 'all'
+  })
   const [sortBy, setSortBy]                 = useState<'volume' | 'price-desc' | 'price-asc'>(() => {
     try {
       const v = localStorage.getItem('neue-sort')
@@ -206,7 +212,7 @@ export default function Home() {
               return (
                 <button
                   key={f.key}
-                  onClick={() => setCategoryFilter(f.key)}
+                  onClick={() => { setCategoryFilter(f.key); try { localStorage.setItem('neue-filter', f.key) } catch {} }}
                   style={{
                     background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
                     borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',

@@ -279,7 +279,10 @@ export default function Home() {
       const pct = isMarketClosed && cp && cp !== 0
         ? (a.price - cp) / cp * 100
         : a.prevDayPx > 0 ? (a.price - a.prevDayPx) / a.prevDayPx * 100 : 0
-      return { ticker: a.ticker, category: a.category, pct, price: a.price, funding: a.funding }
+      const pctClose = isMarketClosed && cp && cp !== 0 && a.prevDayPx > 0
+        ? (cp - a.prevDayPx) / a.prevDayPx * 100
+        : undefined
+      return { ticker: a.ticker, category: a.category, pct, pctClose, price: a.price, funding: a.funding }
     }
 
     const assets  = starred.map(toSnapshot)

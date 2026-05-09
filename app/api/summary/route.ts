@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk'
 interface AssetSnapshot {
   ticker: string
   category: string
-  pct: number
+  pct: number        // after-hours/pre-mkt change vs close, or 24hr change during regular hours
+  pctClose?: number  // change at close vs prior open (only present when session is after-hours/pre-mkt)
   price: number
   funding?: number
 }
@@ -37,7 +38,7 @@ Rules:
 - If news headlines are provided, briefly mention the most relevant catalyst driving a notable move. Prefer concrete facts over vague references.
 - No disclaimers, no "it's worth noting", no "as of my knowledge", no hedging language.
 - Write in plain English, present tense, as if speaking to someone glancing at their phone.
-- If the market is after-hours or pre-market, frame changes relative to the prior close.`
+- When the session is after-hours or pre-market, each asset shows two changes: "close X%" is the regular-session return for the day, and "after hrs/pre-mkt X%" is the move since the close. Treat these as distinct — a strong close day with a flat after-hours is a good day, not a flat day.`
 
 async function fetchBraveNews(tickers: string[]): Promise<BraveNewsResult[]> {
   const apiKey = process.env.BRAVE_API_KEY
@@ -81,10 +82,14 @@ export async function POST(req: Request) {
 
   const watchlistLines = assets
     .map(a => {
+      const extSession = sessionLabel !== null && a.pctClose !== undefined
+      const changeStr = extSession
+        ? `close ${a.pctClose! >= 0 ? '+' : ''}${a.pctClose!.toFixed(2)}% | ${sessionLabel!.toLowerCase()} ${a.pct >= 0 ? '+' : ''}${a.pct.toFixed(2)}%`
+        : `${a.pct >= 0 ? '+' : ''}${a.pct.toFixed(2)}%`
       const fundingNote = a.funding !== undefined && a.category === 'crypto'
         ? ` | funding ${a.funding >= 0 ? '+' : ''}${(a.funding * 100).toFixed(4)}%/8hr`
         : ''
-      return `${a.ticker} (${a.category}): ${a.pct >= 0 ? '+' : ''}${a.pct.toFixed(2)}% @ $${a.price}${fundingNote}`
+      return `${a.ticker} (${a.category}): ${changeStr} @ $${a.price}${fundingNote}`
     })
     .join('\n')
 

@@ -615,15 +615,16 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
           </div>
         )}
       </div>
-      {isDraggable && (
+      {starred ? (
         <button
           {...dragHandleListeners}
           {...dragHandleAttributes}
           onClick={e => e.stopPropagation()}
           style={{
             background: 'none', border: 'none', padding: '4px 0 4px 8px',
-            color: '#2C2C2A', cursor: 'grab', flexShrink: 0,
-            display: 'flex', alignItems: 'center', touchAction: 'none',
+            color: '#2C2C2A', cursor: isDraggable ? 'grab' : 'default',
+            flexShrink: 0, display: 'flex', alignItems: 'center',
+            touchAction: isDraggable ? 'none' : 'auto',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -632,6 +633,8 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
             <line x1="3" y1="10" x2="11" y2="10" />
           </svg>
         </button>
+      ) : (
+        <div style={{ width: 30, flexShrink: 0 }} />
       )}
     </div>
   )

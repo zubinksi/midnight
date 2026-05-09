@@ -405,17 +405,15 @@ export default function Home() {
         {/* Sort icon row */}
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px 6px' }}>
           <div>
-            {categoryFilter === 'starred' && (
-              <button
-                onClick={fetchSummary}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5 }}
-              >
+            <button
+              onClick={fetchSummary}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5 }}
+            >
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
                   <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
                 </svg>
                 <span style={{ fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>SUMMARY</span>
               </button>
-            )}
           </div>
           <button
             onClick={() => setShowSortSheet(true)}

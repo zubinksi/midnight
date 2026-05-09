@@ -239,18 +239,34 @@ export default function Home() {
     })
   }, [allAssets, categoryFilter, favorites, search, sortBy, closePrices, isMarketClosed, starredOrder])
 
-  const isDragMode = categoryFilter === 'starred' && !search.trim()
+  const isDragMode = !search.trim()
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const tickers    = displayAssets.map(a => a.ticker)
-    const oldIndex   = tickers.indexOf(active.id as string)
-    const newIndex   = tickers.indexOf(over.id as string)
+
+    const starredInView = displayAssets.filter(a => favorites.has(a.ticker)).map(a => a.ticker)
+    const oldIndex = starredInView.indexOf(active.id as string)
+    const newIndex = starredInView.indexOf(over.id as string)
     if (oldIndex === -1 || newIndex === -1) return
-    const newOrder = arrayMove(tickers, oldIndex, newIndex)
-    setStarredOrder(newOrder)
-    try { localStorage.setItem('neue-starred-order', JSON.stringify(newOrder)) } catch {}
+
+    const reordered = arrayMove(starredInView, oldIndex, newIndex)
+
+    if (categoryFilter === 'starred') {
+      setStarredOrder(reordered)
+      try { localStorage.setItem('neue-starred-order', JSON.stringify(reordered)) } catch {}
+    } else {
+      // Splice reordered in-view tickers back into the full starredOrder
+      const inViewSet = new Set(starredInView)
+      let i = 0
+      const base = starredOrder.filter(t => favorites.has(t))
+      const newOrder = base.map(t => inViewSet.has(t) ? reordered[i++] : t)
+      // Add any starred tickers missing from starredOrder
+      const inOrderSet = new Set(newOrder)
+      for (const t of reordered) { if (!inOrderSet.has(t)) newOrder.push(t) }
+      setStarredOrder(newOrder)
+      try { localStorage.setItem('neue-starred-order', JSON.stringify(newOrder)) } catch {}
+    }
   }
 
   const SUMMARY_TTL_MS = 10 * 60 * 1000
@@ -325,13 +341,27 @@ export default function Home() {
     </div>
   ) : isDragMode ? (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={displayAssets.map(a => a.ticker)} strategy={verticalListSortingStrategy}>
-        {displayAssets.map(asset => (
+      <SortableContext
+        items={displayAssets.filter(a => favorites.has(a.ticker)).map(a => a.ticker)}
+        strategy={verticalListSortingStrategy}
+      >
+        {displayAssets.map(asset => favorites.has(asset.ticker) ? (
           <SortableAssetRow
             key={asset.ticker}
             asset={asset}
             price={prices[asset.ticker] ?? asset.price}
             starred
+            onToggleFavorite={toggleFavorite}
+            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+            closePrice={closePrices[asset.ticker]}
+            sessionLabel={sessionLabel}
+          />
+        ) : (
+          <AssetRow
+            key={asset.coin}
+            asset={asset}
+            price={prices[asset.ticker] ?? asset.price}
+            starred={false}
             onToggleFavorite={toggleFavorite}
             onNavigate={() => router.push(`/chart/${asset.ticker}`)}
             closePrice={closePrices[asset.ticker]}

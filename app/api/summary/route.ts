@@ -1,7 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-export const runtime = 'edge'
-
 interface AssetSnapshot {
   ticker: string
   category: string

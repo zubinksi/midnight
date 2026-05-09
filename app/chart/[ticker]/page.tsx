@@ -138,7 +138,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ? formatChange(atCloseDiff, atClosePct, decimals)
     : null
 
-  const showAtClose  = sessionLabel !== null && atCloseStr !== null && scrubPrice === null
+  const isPreIpo     = assetInfo?.category === 'pre-ipo'
+  const showAtClose  = sessionLabel !== null && atCloseStr !== null && scrubPrice === null && !isPreIpo
 
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
@@ -163,7 +164,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
           <button
-            onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50) }}
+            onClick={() => setShowSearch(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', lineHeight: 1, color: '#46443D' }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -181,6 +182,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
                 <div style={{ flex: 1, position: 'relative' }}>
                   <input
                     ref={searchInputRef}
+                    autoFocus
                     type="text"
                     placeholder="SEARCH MARKETS"
                     value={searchQuery}
@@ -244,7 +246,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
               </>
             )}
           </div>
-          {sessionLabel !== null && afterHrsStr !== null && (
+          {sessionLabel !== null && afterHrsStr !== null && !isPreIpo && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.diffStr}</span>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>

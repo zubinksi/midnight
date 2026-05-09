@@ -567,7 +567,7 @@ export default function Home() {
 // ── Sortable wrapper (starred filter only) ────────────────────────────────────
 
 interface AssetRowProps {
-  asset: { coin: string; ticker: string; prevDayPx: number }
+  asset: { coin: string; ticker: string; prevDayPx: number; category: string }
   price: number
   starred: boolean
   onToggleFavorite: (ticker: string) => void
@@ -603,7 +603,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
   const priceStr = formatPrice(price, decimals)
   const name     = getAssetName(asset.ticker)
 
-  const showAH  = sessionLabel !== null && closePrice !== undefined
+  const showAH  = sessionLabel !== null && closePrice !== undefined && asset.category !== 'pre-ipo'
   const ahDiff  = showAH ? price - closePrice! : 0
   const ahPct   = showAH && closePrice! !== 0 ? (ahDiff / closePrice!) * 100 : 0
   const ahUp    = ahDiff >= 0

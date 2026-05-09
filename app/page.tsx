@@ -183,9 +183,16 @@ export default function Home() {
       })
     }
     return [...filtered].sort((a, b) => {
-      const af = favorites.has(a.ticker) ? 0 : 1
-      const bf = favorites.has(b.ticker) ? 0 : 1
-      if (af !== bf) return af - bf
+      const af = favorites.has(a.ticker)
+      const bf = favorites.has(b.ticker)
+      if (af !== bf) return af ? -1 : 1
+      if (af && bf && starredOrder.length > 0) {
+        const ai = starredOrder.indexOf(a.ticker)
+        const bi = starredOrder.indexOf(b.ticker)
+        const aIdx = ai === -1 ? Infinity : ai
+        const bIdx = bi === -1 ? Infinity : bi
+        if (aIdx !== bIdx) return aIdx - bIdx
+      }
       if (sortBy === 'price-desc' || sortBy === 'price-asc') {
         const pct = (asset: typeof a) => {
           const cp = closePrices[asset.ticker]

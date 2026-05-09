@@ -52,6 +52,10 @@ export default function Home() {
     return 'volume'
   })
   const [showSortSheet, setShowSortSheet]   = useState(false)
+  const [showSummary, setShowSummary]       = useState(false)
+  const [summaryText, setSummaryText]       = useState('')
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryTime, setSummaryTime]       = useState<Date | null>(null)
   const sortSheetRef = useCallback((node: HTMLDivElement | null) => {
     if (!node) return
     let startY = 0, dy = 0
@@ -80,6 +84,35 @@ export default function Home() {
     node.addEventListener('touchmove',  onMove,  { passive: false })
     node.addEventListener('touchend',   onEnd,   { passive: true })
   }, [])
+  const summarySheetRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    let startY = 0, dy = 0
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY; dy = 0
+      node.style.animation = 'none'
+      node.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      dy = Math.max(0, e.touches[0].clientY - startY)
+      node.style.transform = `translateY(${dy}px)`
+      e.preventDefault()
+    }
+    const onEnd = () => {
+      if (dy > 120) {
+        node.style.transition = 'transform 0.25s ease'
+        node.style.transform  = 'translateY(100%)'
+        setTimeout(() => setShowSummary(false), 220)
+      } else {
+        node.style.transition = 'transform 0.25s ease'
+        node.style.transform  = 'translateY(0)'
+        dy = 0
+      }
+    }
+    node.addEventListener('touchstart', onStart, { passive: true })
+    node.addEventListener('touchmove',  onMove,  { passive: false })
+    node.addEventListener('touchend',   onEnd,   { passive: true })
+  }, [])
+
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [starredOrder, setStarredOrder]     = useState<string[]>(() => {
     try {
@@ -220,6 +253,53 @@ export default function Home() {
     try { localStorage.setItem('neue-starred-order', JSON.stringify(newOrder)) } catch {}
   }
 
+  const fetchSummary = async () => {
+    if (summaryLoading) return
+    setSummaryLoading(true)
+    setSummaryText('')
+    setShowSummary(true)
+
+    const starred = allAssets.filter(a => favorites.has(a.ticker))
+    if (starred.length === 0) { setSummaryLoading(false); return }
+
+    const toSnapshot = (a: typeof starred[0]) => {
+      const cp = closePrices[a.ticker]
+      const pct = isMarketClosed && cp && cp !== 0
+        ? (a.price - cp) / cp * 100
+        : a.prevDayPx > 0 ? (a.price - a.prevDayPx) / a.prevDayPx * 100 : 0
+      return { ticker: a.ticker, category: a.category, pct, price: a.price }
+    }
+
+    const assets  = starred.map(toSnapshot)
+    const anchors = ['SP500', 'BTC'].flatMap(t => {
+      const a = allAssets.find(x => x.ticker === t)
+      return a ? [toSnapshot(a)] : []
+    }).filter(a => !favorites.has(a.ticker))
+
+    try {
+      const res = await fetch('/api/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assets, anchors, sessionLabel }),
+      })
+      if (!res.ok || !res.body) throw new Error()
+      const reader = res.body.getReader()
+      const dec    = new TextDecoder()
+      let text = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        text += dec.decode(value, { stream: true })
+        setSummaryText(text)
+      }
+      setSummaryTime(new Date())
+    } catch {
+      setSummaryText('Unable to generate summary. Please try again.')
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
   const assetList = loading ? (
     <LoadingRows />
   ) : error ? (
@@ -323,7 +403,20 @@ export default function Home() {
         </div>
 
         {/* Sort icon row */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', padding: '6px 24px 6px' }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px 6px' }}>
+          <div>
+            {categoryFilter === 'starred' && (
+              <button
+                onClick={fetchSummary}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
+                  <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
+                </svg>
+                <span style={{ fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>SUMMARY</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={() => setShowSortSheet(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
@@ -367,6 +460,50 @@ export default function Home() {
                   {sortBy === opt.key && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83' }} />}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Summary bottom sheet */}
+        {showSummary && (
+          <div
+            onClick={() => setShowSummary(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000000BB', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' } as React.CSSProperties}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              ref={summarySheetRef}
+              className="slide-up"
+              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(36px, env(safe-area-inset-bottom))', touchAction: 'none' }}
+            >
+              <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
+                    <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
+                  </svg>
+                  <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>WATCHLIST SUMMARY</span>
+                </div>
+                {summaryTime && !summaryLoading && (
+                  <button
+                    onClick={fetchSummary}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
+                  >↻ REFRESH</button>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60 }}>
+                {summaryLoading && !summaryText ? (
+                  <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
+                ) : (
+                  summaryText
+                )}
+                {summaryLoading && summaryText && <span style={{ color: '#46443D' }}>▌</span>}
+              </div>
+              {summaryTime && !summaryLoading && (
+                <div style={{ marginTop: 16, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+                  {summaryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -93,7 +93,40 @@ function getLastNYSECloseUTC(): number | null {
   return null
 }
 
-// Fetches the price at the last NYSE close for xyz assets.
+// Finds the most recent NYSE open time (9:30 AM ET) as a UTC unix timestamp.
+function getLastNYSEOpenUTC(): number | null {
+  const offsetHours = getETOffsetHours()
+  const openHourUTC = 9 + offsetHours   // 9 AM ET in UTC
+  const now = Math.floor(Date.now() / 1000)
+  for (let i = 0; i < 7; i++) {
+    const d   = new Date((now - i * 86400) * 1000)
+    const dow = d.getUTCDay()
+    if (dow === 0 || dow === 6) continue
+    // 9:30 AM ET = openHourUTC hours + 30 minutes in UTC
+    const openUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), openHourUTC, 30, 0) / 1000
+    if (openUTC <= now) return openUTC
+  }
+  return null
+}
+
+// Fetches the opening price at the last NYSE market open (9:30 AM ET) for xyz assets.
+export async function fetchNYSEOpenPrice(coin: string): Promise<number | null> {
+  const openTime = getLastNYSEOpenUTC()
+  if (openTime === null) return null
+
+  const candles = await hlPost<Array<{ t: number; o: string }>>({
+    type: 'candleSnapshot',
+    req: { coin, interval: '15m', startTime: (openTime - 900) * 1000, endTime: (openTime + 900) * 1000 },
+  })
+
+  if (!Array.isArray(candles) || candles.length === 0) return null
+  const best = candles.reduce((a, b) =>
+    Math.abs(a.t / 1000 - openTime) <= Math.abs(b.t / 1000 - openTime) ? a : b
+  )
+  const price = parseFloat(best.o)
+  return isNaN(price) ? null : price
+}
+
 export async function fetchNYSEClosePrice(coin: string): Promise<number | null> {
   const closeTime = getLastNYSECloseUTC()
   if (closeTime === null) return null

@@ -253,6 +253,18 @@ export default function Home() {
     try { localStorage.setItem('neue-starred-order', JSON.stringify(newOrder)) } catch {}
   }
 
+  const SUMMARY_TTL_MS = 10 * 60 * 1000
+
+  const openSummary = () => {
+    if (summaryText && summaryTime && !summaryLoading &&
+        summaryText !== 'Unable to generate summary. Please try again.' &&
+        Date.now() - summaryTime.getTime() < SUMMARY_TTL_MS) {
+      setShowSummary(true)
+      return
+    }
+    fetchSummary()
+  }
+
   const fetchSummary = async () => {
     if (summaryLoading) return
     setSummaryLoading(true)
@@ -406,7 +418,7 @@ export default function Home() {
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px 6px' }}>
           <div>
             <button
-              onClick={fetchSummary}
+              onClick={openSummary}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 5 }}
             >
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">

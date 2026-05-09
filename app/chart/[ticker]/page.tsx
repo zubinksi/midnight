@@ -129,6 +129,17 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ? formatChange(afterHrsDiff, afterHrsPct, decimals)
     : null
 
+  const prevDayPx    = assetInfo?.prevDayPx ?? 0
+  const atCloseDiff  = closePrice !== null && prevDayPx > 0 ? closePrice - prevDayPx : null
+  const atClosePct   = atCloseDiff !== null && prevDayPx !== 0 ? (atCloseDiff / prevDayPx) * 100 : null
+  const atCloseUp    = (atCloseDiff ?? 0) >= 0
+  const atCloseColor = atCloseUp ? '#26ab83' : '#E84332'
+  const atCloseStr   = atCloseDiff !== null && atClosePct !== null
+    ? formatChange(atCloseDiff, atClosePct, decimals)
+    : null
+
+  const showAtClose  = sessionLabel !== null && atCloseStr !== null && scrubPrice === null
+
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
 
@@ -220,8 +231,18 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
-            <span style={{ color: changeColor }}>{diffStr}</span>
-            <span style={{ color: changeColor }}>{pctStr}</span>
+            {showAtClose ? (
+              <>
+                <span style={{ color: atCloseColor }}>{atCloseStr!.diffStr}</span>
+                <span style={{ color: atCloseColor }}>{atCloseStr!.pctStr}</span>
+                <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>AT CLOSE</span>
+              </>
+            ) : (
+              <>
+                <span style={{ color: changeColor }}>{diffStr}</span>
+                <span style={{ color: changeColor }}>{pctStr}</span>
+              </>
+            )}
           </div>
           {sessionLabel !== null && afterHrsStr !== null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>

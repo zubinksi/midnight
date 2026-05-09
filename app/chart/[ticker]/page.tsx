@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { AssetInfo } from '@/lib/assets'
 import { priceDecimals } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
-import { useAssetPrice, usePriceHistory, fetchNYSEClosePrice, fetchNYSEOpenPrice, getNYSESessionLabel, Timeframe } from '@/lib/hyperliquid'
+import { useAssetPrice, usePriceHistory, fetchNYSEClosePrice, fetchNYSEPrevClosePrice, getNYSESessionLabel, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
@@ -39,8 +39,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [scrubPrice, setScrubPrice]     = useState<number | null>(null)
   const [showCompare, setShowCompare]   = useState(false)
   const [starred, setStarred]           = useState(false)
-  const [closePrice, setClosePrice]     = useState<number | null>(null)
-  const [dayOpenPrice, setDayOpenPrice] = useState<number | null>(null)
+  const [closePrice, setClosePrice]       = useState<number | null>(null)
+  const [prevClosePrice, setPrevClosePrice] = useState<number | null>(null)
   const [showSearch, setShowSearch]     = useState(false)
   const [searchQuery, setSearchQuery]   = useState('')
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -107,14 +107,14 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const sessionLabel = getNYSESessionLabel()
 
   useEffect(() => {
-    if (!isXyz || sessionLabel === null) { setClosePrice(null); setDayOpenPrice(null); return }
+    if (!isXyz || sessionLabel === null) { setClosePrice(null); setPrevClosePrice(null); return }
     let cancelled = false
     fetchNYSEClosePrice(coin)
       .then(p => { if (!cancelled) setClosePrice(p) })
       .catch(() => { if (!cancelled) setClosePrice(null) })
-    fetchNYSEOpenPrice(coin)
-      .then(p => { if (!cancelled) setDayOpenPrice(p) })
-      .catch(() => { if (!cancelled) setDayOpenPrice(null) })
+    fetchNYSEPrevClosePrice(coin)
+      .then(p => { if (!cancelled) setPrevClosePrice(p) })
+      .catch(() => { if (!cancelled) setPrevClosePrice(null) })
     return () => { cancelled = true }
   }, [coin, isXyz, sessionLabel])
 
@@ -133,8 +133,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ? formatChange(afterHrsDiff, afterHrsPct, decimals)
     : null
 
-  const atCloseDiff  = closePrice !== null && dayOpenPrice !== null && dayOpenPrice > 0 ? closePrice - dayOpenPrice : null
-  const atClosePct   = atCloseDiff !== null && dayOpenPrice ? (atCloseDiff / dayOpenPrice) * 100 : null
+  const atCloseDiff  = closePrice !== null && prevClosePrice !== null && prevClosePrice > 0 ? closePrice - prevClosePrice : null
+  const atClosePct   = atCloseDiff !== null && prevClosePrice ? (atCloseDiff / prevClosePrice) * 100 : null
   const atCloseUp    = (atCloseDiff ?? 0) >= 0
   const atCloseColor = atCloseUp ? '#26ab83' : '#E84332'
   const atCloseStr   = atCloseDiff !== null && atClosePct !== null

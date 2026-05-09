@@ -448,7 +448,7 @@ export default function Home() {
         </div>
 
         {/* Sort icon row */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px' }}>
           <button
             onClick={openSummary}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 10 }}

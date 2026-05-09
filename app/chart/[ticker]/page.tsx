@@ -121,9 +121,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const changeColor   = windowUp ? '#26ab83' : '#E84332'
   const { diffStr, pctStr } = formatChange(windowDiff, windowPct, decimals)
 
-  // Gate after-hours on livePrice being available — avoids using the stale
-  // REST snapshot (assetInfo.price) which differs from the home page's live value.
-  const afterHrsDiff  = closePrice !== null && livePrice !== null ? livePrice - closePrice : null
+  const afterHrsDiff  = closePrice !== null && currentPrice > 0 ? currentPrice - closePrice : null
   const afterHrsPct   = afterHrsDiff !== null && closePrice !== 0 ? (afterHrsDiff / closePrice!) * 100 : null
   const afterHrsUp    = (afterHrsDiff ?? 0) >= 0
   const afterHrsColor = afterHrsUp ? '#26ab83' : '#E84332'

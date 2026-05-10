@@ -320,7 +320,7 @@ export default function Home() {
       const pctClose = isMarketClosed && cp && cp !== 0 && pcp && pcp !== 0
         ? (cp - pcp) / pcp * 100
         : undefined
-      return { ticker: a.ticker, category: a.category, pct, pctClose, price: a.price, funding: a.funding }
+      return { ticker: a.ticker, category: a.category, pct, pctClose, price: a.price, funding: a.funding, volume24h: a.volume24h, openInterest: a.openInterest }
     }
 
     const assets  = starred.map(toSnapshot)

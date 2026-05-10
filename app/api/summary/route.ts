@@ -48,6 +48,8 @@ Rules:
 - 52-week range context: note when an asset is near a 52W high or low if it adds meaning to the move.
 - 7-day trend: mention the 7D change if it tells a different story from today (e.g. today up but 7D still deep negative).
 - If a news headline or earnings result clearly explains a notable move, connect them directly.
+- If a macro event (CPI, FOMC, NFP) coincides with broad market moves, mention it as the likely driver.
+- For crypto moves, check the crypto news section for specific catalysts before attributing moves to positioning alone.
 - For crypto, report funding rates or open interest only when they are extreme or tell an interesting story.
 - Volume: mention if notably elevated relative to other assets on the watchlist — signals conviction.
 - Do not speculate about macro themes or cross-asset relationships. Stick to what the data shows.
@@ -126,6 +128,52 @@ async function fetch52WeekRanges(tickers: string[]): Promise<Record<string, { hi
   return out
 }
 
+async function fetchEconomicCalendar(): Promise<string[]> {
+  const apiKey = process.env.FINNHUB_API_KEY
+  if (!apiKey) return []
+  try {
+    const res = await fetch(
+      `https://finnhub.io/api/v1/calendar/economic?from=${dateStr(-2)}&to=${dateStr(1)}&token=${apiKey}`
+    )
+    if (!res.ok) return []
+    const data = await res.json() as { economicCalendar?: Array<{
+      event: string; country: string; impact: string
+      actual?: string; estimate?: string; prev?: string; unit?: string
+    }> }
+    return (data.economicCalendar ?? [])
+      .filter(e => e.country === 'US' && (e.impact === 'high' || e.impact === 'medium'))
+      .map(e => {
+        const parts = [e.event]
+        if (e.actual)   parts.push(`actual ${e.actual}${e.unit ?? ''}`)
+        if (e.estimate) parts.push(`est ${e.estimate}${e.unit ?? ''}`)
+        if (e.prev)     parts.push(`prev ${e.prev}${e.unit ?? ''}`)
+        return parts.join(', ')
+      })
+      .slice(0, 6)
+  } catch { return [] }
+}
+
+async function fetchCryptoNews(tickers: string[]): Promise<string[]> {
+  if (tickers.length === 0) return []
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/news?per_page=20', {
+      headers: { 'Accept': 'application/json' },
+    })
+    if (!res.ok) return []
+    const data = await res.json() as { data?: Array<{ title: string }> }
+    const items = data.data ?? []
+    // Prefer articles that mention one of our tickers, fall back to top general crypto news
+    const tickerLower = tickers.map(t => t.toLowerCase())
+    const relevant = items.filter(item =>
+      tickerLower.some(t => item.title.toLowerCase().includes(t))
+    )
+    const fallback = items.filter(item =>
+      !tickerLower.some(t => item.title.toLowerCase().includes(t))
+    )
+    return [...relevant, ...fallback].slice(0, 5).map(item => item.title)
+  } catch { return [] }
+}
+
 async function fetch7DChanges(assets: AssetSnapshot[]): Promise<Record<string, number>> {
   const out: Record<string, number> = {}
   const startTime = Date.now() - 7 * 86400 * 1000
@@ -155,10 +203,13 @@ export async function POST(req: Request) {
   if (!apiKey) return new Response('Missing API key', { status: 500 })
 
   const equityTickers = assets.filter(a => a.category !== 'crypto').map(a => a.ticker)
+  const cryptoTickers = assets.filter(a => a.category === 'crypto').map(a => a.ticker)
 
-  const [headlines, earnings, weekRanges, weekChanges] = await Promise.all([
+  const [headlines, earnings, macroEvents, cryptoNews, weekRanges, weekChanges] = await Promise.all([
     fetchFinnhubNews(equityTickers),
     fetchEarnings(equityTickers),
+    fetchEconomicCalendar(),
+    fetchCryptoNews(cryptoTickers),
     fetch52WeekRanges(equityTickers),
     fetch7DChanges(assets),
   ])
@@ -201,8 +252,16 @@ export async function POST(req: Request) {
     ? `\nRecent earnings:\n${earnings.map(e => `- ${e}`).join('\n')}`
     : ''
 
+  const macroSection = macroEvents.length > 0
+    ? `\nRecent US macro events:\n${macroEvents.map(e => `- ${e}`).join('\n')}`
+    : ''
+
   const newsSection = headlines.length > 0
-    ? `\nRecent news:\n${headlines.map(h => `- ${h}`).join('\n')}`
+    ? `\nRecent equity news:\n${headlines.map(h => `- ${h}`).join('\n')}`
+    : ''
+
+  const cryptoNewsSection = cryptoNews.length > 0
+    ? `\nRecent crypto news:\n${cryptoNews.map(h => `- ${h}`).join('\n')}`
     : ''
 
   const userMessage = `${session}
@@ -210,7 +269,7 @@ export async function POST(req: Request) {
 Watchlist:
 ${watchlistLines}
 
-Broader market context: ${anchorLines}${earningsSection}${newsSection}
+Broader market context: ${anchorLines}${earningsSection}${macroSection}${newsSection}${cryptoNewsSection}
 
 Write the summary now.`
 

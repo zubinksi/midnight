@@ -596,24 +596,27 @@ function renderSummaryText(
   onNavigate: (ticker: string) => void,
 ): React.ReactNode {
   if (!text || tickers.length === 0) return text
+  const clean = text.replace(/\*\*/g, '')
   const escaped = [...tickers].sort((a, b) => b.length - a.length)
     .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   const regex = new RegExp(`\\b(${escaped.join('|')})\\b`, 'g')
   const parts: React.ReactNode[] = []
   let last = 0, match: RegExpExecArray | null
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > last) parts.push(text.slice(last, match.index))
+  while ((match = regex.exec(clean)) !== null) {
+    if (match.index > last) parts.push(clean.slice(last, match.index))
     const t = match[1]
     parts.push(
       <button key={`${t}-${match.index}`} onClick={() => onNavigate(t)} style={{
-        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+        background: '#26ab8318', border: '1px solid #26ab8340',
+        borderRadius: 4, padding: '1px 6px', cursor: 'pointer',
         color: '#26ab83', fontFamily: 'inherit', fontSize: 'inherit',
         letterSpacing: 'inherit', lineHeight: 'inherit', fontWeight: 600,
+        verticalAlign: 'baseline',
       }}>{t}</button>
     )
     last = regex.lastIndex
   }
-  if (last < text.length) parts.push(text.slice(last))
+  if (last < clean.length) parts.push(clean.slice(last))
   return parts
 }
 

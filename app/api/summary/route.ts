@@ -54,6 +54,7 @@ Rules:
 - Volume: mention if notably elevated relative to other assets on the watchlist — signals conviction.
 - Do not speculate about macro themes or cross-asset relationships. Stick to what the data shows.
 - Use specific numbers always.
+- Plain text only. No markdown, no asterisks, no bold, no bullet points.
 - No disclaimers, no hedging language, no filler phrases.
 - Write in plain English, present tense, as if speaking to someone glancing at their phone.
 - When the session is after-hours or pre-market, each asset shows two changes: "close X%" is the regular-session return, "after hrs/pre-mkt X%" is the move since the close. Treat these as distinct.`
@@ -275,7 +276,7 @@ Write the summary now.`
 
   const stream = await client.messages.stream({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 150,
+    max_tokens: 220,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
   })

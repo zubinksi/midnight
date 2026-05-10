@@ -13,7 +13,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice } from '@/lib/hyperliquid'
+import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
 import { formatPrice, formatDate } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
@@ -121,7 +121,8 @@ export default function Home() {
     } catch {}
     return []
   })
-  const [closePrices, setClosePrices]       = useState<Record<string, number>>({})
+  const [closePrices, setClosePrices]         = useState<Record<string, number>>({})
+  const [prevClosePrices, setPrevClosePrices] = useState<Record<string, number>>({})
   const loading = xyzLoading || cryptoLoading
 
   const sessionLabel   = getNYSESessionLabel()
@@ -149,6 +150,26 @@ export default function Home() {
     })
     return () => { cancelled = true }
   }, [xyzAssets.length, isMarketClosed])
+
+  useEffect(() => {
+    if (!isMarketClosed || xyzAssets.length === 0) { setPrevClosePrices({}); return }
+    const starredXyz = xyzAssets.filter(a => favorites.has(a.ticker))
+    if (starredXyz.length === 0) return
+    let cancelled = false
+    Promise.all(
+      starredXyz.map(a =>
+        fetchNYSEPrevClosePrice(a.coin)
+          .then(p => ({ ticker: a.ticker, p }))
+          .catch(() => ({ ticker: a.ticker, p: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map: Record<string, number> = {}
+      for (const { ticker, p } of results) if (p !== null) map[ticker] = p
+      setPrevClosePrices(map)
+    })
+    return () => { cancelled = true }
+  }, [xyzAssets, isMarketClosed, favorites])
 
   useEffect(() => {
     const read = () => {
@@ -291,12 +312,13 @@ export default function Home() {
     if (starred.length === 0) { setSummaryLoading(false); return }
 
     const toSnapshot = (a: typeof starred[0]) => {
-      const cp = closePrices[a.ticker]
+      const cp  = closePrices[a.ticker]
+      const pcp = prevClosePrices[a.ticker]
       const pct = isMarketClosed && cp && cp !== 0
         ? (a.price - cp) / cp * 100
         : a.prevDayPx > 0 ? (a.price - a.prevDayPx) / a.prevDayPx * 100 : 0
-      const pctClose = isMarketClosed && cp && cp !== 0 && a.prevDayPx > 0
-        ? (cp - a.prevDayPx) / a.prevDayPx * 100
+      const pctClose = isMarketClosed && cp && cp !== 0 && pcp && pcp !== 0
+        ? (cp - pcp) / pcp * 100
         : undefined
       return { ticker: a.ticker, category: a.category, pct, pctClose, price: a.price, funding: a.funding }
     }

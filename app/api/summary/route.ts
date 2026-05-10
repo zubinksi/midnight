@@ -76,22 +76,32 @@ function dateStr(offsetDays = 0): string {
   return d.toISOString().split('T')[0]
 }
 
+// Significant move threshold for selective data fetching
+const MOVER_THRESHOLD = 1.5
+
+function significantPct(a: AssetSnapshot): number {
+  return Math.abs(a.pctClose !== undefined ? a.pctClose : a.pct)
+}
+
 async function fetchFinnhubNews(tickers: string[]): Promise<string[]> {
   const apiKey = process.env.FINNHUB_API_KEY
   if (!apiKey || tickers.length === 0) return []
   const from = dateStr(-3)
-  const to = dateStr(0)
+  const to   = dateStr(0)
   const all: { headline: string; datetime: number }[] = []
   await Promise.all(tickers.map(async ticker => {
     try {
-      const res = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${from}&to=${to}&token=${apiKey}`)
+      const res = await fetch(
+        `https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${from}&to=${to}&token=${apiKey}`,
+        { next: { revalidate: 1800 } }  // 30 min cache, shared across users
+      )
       if (!res.ok) return
       const items = (await res.json()) as FinnhubNewsItem[]
       if (Array.isArray(items))
         items.slice(0, 2).forEach(item => all.push({ headline: `[${ticker}] ${item.headline}`, datetime: item.datetime }))
     } catch {}
   }))
-  return all.sort((a, b) => b.datetime - a.datetime).slice(0, 8).map(h => h.headline)
+  return all.sort((a, b) => b.datetime - a.datetime).slice(0, 3).map(h => h.headline)
 }
 
 async function fetchEarnings(tickers: string[]): Promise<string[]> {
@@ -99,7 +109,10 @@ async function fetchEarnings(tickers: string[]): Promise<string[]> {
   if (!apiKey || tickers.length === 0) return []
   const tickerSet = new Set(tickers)
   try {
-    const res = await fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${dateStr(-5)}&to=${dateStr(1)}&token=${apiKey}`)
+    const res = await fetch(
+      `https://finnhub.io/api/v1/calendar/earnings?from=${dateStr(-5)}&to=${dateStr(1)}&token=${apiKey}`,
+      { next: { revalidate: 7200 } }  // 2 hr cache
+    )
     if (!res.ok) return []
     const data = (await res.json()) as FinnhubEarningsResponse
     return (data.earningsCalendar ?? [])
@@ -118,7 +131,10 @@ async function fetch52WeekRanges(tickers: string[]): Promise<Record<string, { hi
   const out: Record<string, { high: number; low: number }> = {}
   await Promise.all(tickers.map(async ticker => {
     try {
-      const res = await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${apiKey}`)
+      const res = await fetch(
+        `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${apiKey}`,
+        { next: { revalidate: 14400 } }  // 4 hr cache — 52W range barely changes
+      )
       if (!res.ok) return
       const data = (await res.json()) as FinnhubMetricResponse
       const high = data.metric?.['52WeekHigh']
@@ -134,7 +150,8 @@ async function fetchEconomicCalendar(): Promise<string[]> {
   if (!apiKey) return []
   try {
     const res = await fetch(
-      `https://finnhub.io/api/v1/calendar/economic?from=${dateStr(-2)}&to=${dateStr(1)}&token=${apiKey}`
+      `https://finnhub.io/api/v1/calendar/economic?from=${dateStr(-2)}&to=${dateStr(1)}&token=${apiKey}`,
+      { next: { revalidate: 7200 } }  // 2 hr cache
     )
     if (!res.ok) return []
     const data = await res.json() as { economicCalendar?: Array<{
@@ -150,7 +167,7 @@ async function fetchEconomicCalendar(): Promise<string[]> {
         if (e.prev)     parts.push(`prev ${e.prev}${e.unit ?? ''}`)
         return parts.join(', ')
       })
-      .slice(0, 6)
+      .slice(0, 3)
   } catch { return [] }
 }
 
@@ -159,19 +176,15 @@ async function fetchCryptoNews(tickers: string[]): Promise<string[]> {
   try {
     const res = await fetch('https://api.coingecko.com/api/v3/news?per_page=20', {
       headers: { 'Accept': 'application/json' },
+      next: { revalidate: 900 },  // 15 min cache
     })
     if (!res.ok) return []
     const data = await res.json() as { data?: Array<{ title: string }> }
     const items = data.data ?? []
-    // Prefer articles that mention one of our tickers, fall back to top general crypto news
     const tickerLower = tickers.map(t => t.toLowerCase())
-    const relevant = items.filter(item =>
-      tickerLower.some(t => item.title.toLowerCase().includes(t))
-    )
-    const fallback = items.filter(item =>
-      !tickerLower.some(t => item.title.toLowerCase().includes(t))
-    )
-    return [...relevant, ...fallback].slice(0, 5).map(item => item.title)
+    const relevant = items.filter(item => tickerLower.some(t => item.title.toLowerCase().includes(t)))
+    const fallback  = items.filter(item => !tickerLower.some(t => item.title.toLowerCase().includes(t)))
+    return [...relevant, ...fallback].slice(0, 3).map(item => item.title)
   } catch { return [] }
 }
 
@@ -180,6 +193,7 @@ async function fetch7DChanges(assets: AssetSnapshot[]): Promise<Record<string, n
   const startTime = Date.now() - 7 * 86400 * 1000
   await Promise.all(assets.map(async a => {
     try {
+      // Hyperliquid uses POST so Next.js fetch cache doesn't apply — calls are fast and free
       const res = await fetch('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,16 +217,19 @@ export async function POST(req: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return new Response('Missing API key', { status: 500 })
 
-  const equityTickers = assets.filter(a => a.category !== 'crypto').map(a => a.ticker)
-  const cryptoTickers = assets.filter(a => a.category === 'crypto').map(a => a.ticker)
+  // Only fetch enrichment data for assets that actually moved materially
+  const movers        = assets.filter(a => significantPct(a) >= MOVER_THRESHOLD)
+  const equityMovers  = movers.filter(a => a.category !== 'crypto').map(a => a.ticker)
+  const cryptoMovers  = movers.filter(a => a.category === 'crypto').map(a => a.ticker)
+  const allEquity     = assets.filter(a => a.category !== 'crypto').map(a => a.ticker)
 
   const [headlines, earnings, macroEvents, cryptoNews, weekRanges, weekChanges] = await Promise.all([
-    fetchFinnhubNews(equityTickers),
-    fetchEarnings(equityTickers),
-    fetchEconomicCalendar(),
-    fetchCryptoNews(cryptoTickers),
-    fetch52WeekRanges(equityTickers),
-    fetch7DChanges(assets),
+    fetchFinnhubNews(equityMovers),          // news only for movers
+    fetchEarnings(allEquity),                 // earnings for all equity (cheap, single call)
+    fetchEconomicCalendar(),                  // single call, 2hr cache
+    fetchCryptoNews(cryptoMovers),            // news only for crypto movers
+    fetch52WeekRanges(equityMovers),          // 52W only for movers, 4hr cache
+    fetch7DChanges(assets),                   // all assets — free Hyperliquid calls
   ])
 
   const client = new Anthropic({ apiKey })
@@ -249,34 +266,23 @@ export async function POST(req: Request) {
     .map(a => `${a.ticker}: ${a.pct >= 0 ? '+' : ''}${a.pct.toFixed(2)}%`)
     .join(', ')
 
-  const earningsSection = earnings.length > 0
-    ? `\nRecent earnings:\n${earnings.map(e => `- ${e}`).join('\n')}`
-    : ''
-
-  const macroSection = macroEvents.length > 0
-    ? `\nRecent US macro events:\n${macroEvents.map(e => `- ${e}`).join('\n')}`
-    : ''
-
-  const newsSection = headlines.length > 0
-    ? `\nRecent equity news:\n${headlines.map(h => `- ${h}`).join('\n')}`
-    : ''
-
-  const cryptoNewsSection = cryptoNews.length > 0
-    ? `\nRecent crypto news:\n${cryptoNews.map(h => `- ${h}`).join('\n')}`
-    : ''
+  const earningsSection  = earnings.length > 0  ? `\nRecent earnings:\n${earnings.map(e => `- ${e}`).join('\n')}`          : ''
+  const macroSection     = macroEvents.length > 0 ? `\nRecent US macro events:\n${macroEvents.map(e => `- ${e}`).join('\n')}` : ''
+  const newsSection      = headlines.length > 0  ? `\nRecent equity news:\n${headlines.map(h => `- ${h}`).join('\n')}`       : ''
+  const cryptoSection    = cryptoNews.length > 0  ? `\nRecent crypto news:\n${cryptoNews.map(h => `- ${h}`).join('\n')}`     : ''
 
   const userMessage = `${session}
 
 Watchlist:
 ${watchlistLines}
 
-Broader market context: ${anchorLines}${earningsSection}${macroSection}${newsSection}${cryptoNewsSection}
+Broader market context: ${anchorLines}${earningsSection}${macroSection}${newsSection}${cryptoSection}
 
 Write the summary now.`
 
   const stream = await client.messages.stream({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 220,
+    max_tokens: 180,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
   })

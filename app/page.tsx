@@ -559,8 +559,10 @@ export default function Home() {
               <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60 }}>
                 {summaryLoading && !summaryText ? (
                   <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
-                ) : (
+                ) : summaryLoading ? (
                   summaryText
+                ) : (
+                  renderSummaryText(summaryText, allAssets.map(a => a.ticker), t => { setShowSummary(false); router.push(`/chart/${t}`) })
                 )}
                 {summaryLoading && summaryText && <span style={{ color: '#46443D' }}>▌</span>}
               </div>
@@ -587,6 +589,33 @@ export default function Home() {
 }
 
 // ── Sortable wrapper (starred filter only) ────────────────────────────────────
+
+function renderSummaryText(
+  text: string,
+  tickers: string[],
+  onNavigate: (ticker: string) => void,
+): React.ReactNode {
+  if (!text || tickers.length === 0) return text
+  const escaped = [...tickers].sort((a, b) => b.length - a.length)
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const regex = new RegExp(`\\b(${escaped.join('|')})\\b`, 'g')
+  const parts: React.ReactNode[] = []
+  let last = 0, match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index))
+    const t = match[1]
+    parts.push(
+      <button key={`${t}-${match.index}`} onClick={() => onNavigate(t)} style={{
+        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+        color: '#26ab83', fontFamily: 'inherit', fontSize: 'inherit',
+        letterSpacing: 'inherit', lineHeight: 'inherit', fontWeight: 600,
+      }}>{t}</button>
+    )
+    last = regex.lastIndex
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts
+}
 
 interface AssetRowProps {
   asset: { coin: string; ticker: string; prevDayPx: number; category: string }

@@ -142,7 +142,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     : null
 
   const isPreIpo     = assetInfo?.category === 'pre-ipo'
-  const showAtClose  = sessionLabel !== null && atCloseStr !== null && scrubPrice === null && !isPreIpo
+  const showAtClose  = timeframe === '1D' && sessionLabel !== null && atCloseStr !== null && scrubPrice === null && !isPreIpo
 
   const handleScrub   = useCallback((p: number | null) => setScrubPrice(p), [])
   const assetName     = getAssetName(upperTicker)
@@ -249,7 +249,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
               </>
             )}
           </div>
-          {sessionLabel !== null && afterHrsStr !== null && !isPreIpo && (
+          {timeframe === '1D' && sessionLabel !== null && afterHrsStr !== null && !isPreIpo && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.diffStr}</span>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>

@@ -238,7 +238,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         ) : (
           <LivelineChart
             data={chartData}
-            value={displayEquity}
+            value={latestEquity}
             color={chartColor}
             loading={loading || chartData.length === 0}
             window={chartWindowSecs}

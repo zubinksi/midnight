@@ -83,17 +83,23 @@ function truncAddr(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
-function getBucket(portfolio: VaultDetail['portfolio'], name: string): PortfolioBucket | undefined {
-  return portfolio.find(([p]) => p === name)?.[1]
+function getBucket(portfolio: VaultDetail['portfolio'], ...names: string[]): PortfolioBucket | undefined {
+  for (const name of names) {
+    const found = portfolio.find(([p]) => p === name)?.[1]
+    if (found) return found
+  }
+  return undefined
 }
 
 function bucketToPoints(bucket: PortfolioBucket | undefined): LivelinePoint[] {
-  if (!bucket) return []
+  if (!bucket?.accountValueHistory?.length) return []
   return bucket.accountValueHistory
     .map(([t, v]) => {
-      const val = parseFloat(v)
+      const val = typeof v === 'number' ? v : parseFloat(v as string)
       if (!t || isNaN(val)) return null
-      return { time: Math.floor(t / 1000), value: val }
+      // Timestamps from HL are in milliseconds; convert to seconds for the chart
+      const time = t > 1e10 ? Math.floor(t / 1000) : Math.floor(t)
+      return { time, value: val }
     })
     .filter((p): p is LivelinePoint => p !== null)
 }
@@ -125,7 +131,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   // Build chart points from allTime bucket, filtered per selected window
   const allPoints = useMemo(() => {
     if (!vault) return []
-    const bucket = getBucket(vault.portfolio, 'allTime')
+    // Try both camelCase and snake_case period names
+    const bucket = getBucket(vault.portfolio, 'allTime', 'all_time')
     return bucketToPoints(bucket)
   }, [vault])
 
@@ -147,7 +154,6 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const handleScrub = useCallback((p: number | null) => setScrub(p), [])
 
   const apr         = (vault?.apr ?? 0) * 100
-  const followers   = vault?.followers?.length ?? 0
   const allTimePnl  = vault?.followers
     ?.find(f => f.user === 'Leader')?.allTimePnl ?? null
 
@@ -244,7 +250,6 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
           <div style={{ borderTop: '1px solid #1C1C1A', margin: '0 24px', padding: '28px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
             <StatCell label="AUM" value={tvl > 0 ? fmtTvl(tvl) : '—'} />
             <StatCell label="APR" value={`${apr >= 0 ? '+' : ''}${apr.toFixed(1)}%`} color={apr >= 0 ? '#26ab83' : '#E84332'} />
-            <StatCell label="FOLLOWERS" value={String(followers)} />
             {allTimePnl !== null && (
               <StatCell
                 label="ALL TIME PNL"

@@ -97,7 +97,18 @@ function bucketToPoints(bucket: PortfolioBucket | undefined): LivelinePoint[] {
     .map(([t, v]) => {
       const val = typeof v === 'number' ? v : parseFloat(v as string)
       if (!t || isNaN(val)) return null
-      // Timestamps from HL are in milliseconds; convert to seconds for the chart
+      const time = t > 1e10 ? Math.floor(t / 1000) : Math.floor(t)
+      return { time, value: val }
+    })
+    .filter((p): p is LivelinePoint => p !== null)
+}
+
+function pnlToPoints(bucket: PortfolioBucket | undefined): LivelinePoint[] {
+  if (!bucket?.pnlHistory?.length) return []
+  return bucket.pnlHistory
+    .map(([t, v]) => {
+      const val = typeof v === 'number' ? v : parseFloat(v as string)
+      if (!t || isNaN(val)) return null
       const time = t > 1e10 ? Math.floor(t / 1000) : Math.floor(t)
       return { time, value: val }
     })
@@ -113,7 +124,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(false)
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('30D')
-  const [scrubPrice, setScrub]    = useState<number | null>(null)
+  const [chartMode, setChartMode]  = useState<'tvl' | 'profit'>('tvl')
+  const [scrubPrice, setScrub]     = useState<number | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -128,13 +140,15 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
       .catch(() => { setError(true); setLoading(false) })
   }, [address])
 
-  // Build chart points from allTime bucket, filtered per selected window
-  const allPoints = useMemo(() => {
-    if (!vault) return []
-    // Try both camelCase and snake_case period names
-    const bucket = getBucket(vault.portfolio, 'allTime', 'all_time')
-    return bucketToPoints(bucket)
+  const allTimeBucket = useMemo(() => {
+    if (!vault) return undefined
+    return getBucket(vault.portfolio, 'allTime', 'all_time')
   }, [vault])
+
+  const allTvlPoints = useMemo(() => bucketToPoints(allTimeBucket), [allTimeBucket])
+  const allPnlPoints = useMemo(() => pnlToPoints(allTimeBucket),    [allTimeBucket])
+
+  const allPoints = chartMode === 'profit' ? allPnlPoints : allTvlPoints
 
   const chartData = useMemo(() => {
     const cfg = WINDOWS.find(w => w.label === timeWindow)
@@ -193,10 +207,10 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
           )}
         </div>
 
-        {/* Equity display */}
+        {/* Equity / PNL display */}
         <div style={{ padding: '20px 24px 0' }}>
           <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
-            {displayEquity > 0 ? fmtTvl(displayEquity) : '—'}
+            {displayEquity !== 0 ? (chartMode === 'profit' ? fmtUsd(displayEquity) : fmtTvl(displayEquity)) : '—'}
           </div>
           {!loading && !error && chartData.length > 0 && scrubPrice === null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
@@ -206,8 +220,29 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
           )}
         </div>
 
-        {/* Timeframe selector */}
-        <div style={{ margin: '12px 0 4px', padding: '0 24px' }}>
+        {/* Chart mode toggle + timeframe selector */}
+        <div style={{ margin: '12px 0 4px', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* TVL / Profit toggle */}
+          <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
+            {(['tvl', 'profit'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => { setChartMode(mode); setScrub(null) }}
+                style={{
+                  background: chartMode === mode ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  border: 'none', borderRadius: 4, padding: '3px 10px',
+                  fontSize: 11, lineHeight: '16px',
+                  fontFamily: 'Menlo,Monaco,monospace',
+                  color: chartMode === mode ? '#F0EDE6' : '#46443D',
+                  fontWeight: chartMode === mode ? 600 : 400,
+                  cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
+                  textTransform: 'uppercase',
+                }}
+              >{mode === 'tvl' ? 'TVL' : 'PROFIT'}</button>
+            ))}
+          </div>
+
+          {/* Timeframe selector */}
           <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
             {WINDOWS.map(w => {
               const active = timeWindow === w.label
@@ -255,8 +290,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         {/* Stats grid */}
         {!loading && !error && (
           <div style={{ borderTop: '1px solid #1C1C1A', margin: '0 24px', padding: '28px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
-            <StatCell label="AUM" value={tvl > 0 ? fmtTvl(tvl) : '—'} />
-            <StatCell label="APR" value={`${apr >= 0 ? '+' : ''}${apr.toFixed(1)}%`} color={apr >= 0 ? '#26ab83' : '#E84332'} />
+            <StatCell label="TVL" value={tvl > 0 ? fmtTvl(tvl) : '—'} />
+            <StatCell label="30D RETURN (APR)" value={`${apr >= 0 ? '+' : ''}${apr.toFixed(1)}%`} color={apr >= 0 ? '#26ab83' : '#E84332'} />
             {allTimePnl !== null && (
               <StatCell
                 label="ALL TIME PNL"

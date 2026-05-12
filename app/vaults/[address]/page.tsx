@@ -143,6 +143,12 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
     return allPoints.filter(p => p.time >= cutoff)
   }, [allPoints, timeWindow])
 
+  // Liveline defaults to a 30s window — pass the actual data span so it renders
+  const chartWindowSecs = useMemo(() => {
+    if (chartData.length < 2) return 30 * 86400
+    return chartData.at(-1)!.time - chartData[0].time
+  }, [chartData])
+
   const latestEquity = chartData.at(-1)?.value ?? 0
   const firstEquity  = chartData[0]?.value ?? latestEquity
   const windowDiff   = latestEquity - firstEquity
@@ -235,6 +241,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
             value={displayEquity}
             color={chartColor}
             loading={loading || chartData.length === 0}
+            window={chartWindowSecs}
             onScrub={handleScrub}
             formatTime={(t: number) => {
               const d = new Date(t * 1000)

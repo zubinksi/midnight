@@ -164,7 +164,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
 
         {/* Top bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
           <button
             onClick={() => setShowSearch(true)}

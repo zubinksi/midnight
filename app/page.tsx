@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
-import { formatPrice, formatDate } from '@/lib/format'
+import { formatPrice } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
@@ -35,7 +35,6 @@ export default function Home() {
   const router = useRouter()
   const { assets: xyzAssets, loading: xyzLoading, error } = useAssets()
   const { assets: cryptoAssets, loading: cryptoLoading }   = useCryptoAssets()
-  const [clock, setClock]                   = useState(formatDate())
   const [search, setSearch]                 = useState('')
   const [categoryFilter, setCategoryFilter] = useState<FilterKey>(() => {
     try {
@@ -208,11 +207,6 @@ export default function Home() {
   const xyzPrices    = useLivePrices(xyzTickers, xyzSeedPrices, 800)
   const cryptoPrices = useCryptoLivePrices(cryptoTickers, cryptoSeedPrices, 800)
   const prices       = useMemo(() => ({ ...xyzPrices, ...cryptoPrices }), [xyzPrices, cryptoPrices])
-
-  useEffect(() => {
-    const t = setInterval(() => setClock(formatDate()), 1000)
-    return () => clearInterval(t)
-  }, [])
 
   const displayAssets = useMemo(() => {
     let filtered = categoryFilter === 'all'
@@ -412,14 +406,7 @@ export default function Home() {
       <div style={{ maxWidth: 430, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* Fixed header */}
-        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'max(env(safe-area-inset-top), 56px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-              <span style={S.label}>LIVE · {loading ? '…' : `${allAssets.length} MARKETS`}</span>
-            </div>
-            <span style={S.label}>{clock}</span>
-          </div>
+        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 62px)' }}>
           <div style={{ marginBottom: 16 }}>
             <div style={S.hero}>24/7 Markets</div>
             <div style={S.hero}>on Hyperliquid.</div>

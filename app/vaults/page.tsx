@@ -6,46 +6,28 @@ import { useRouter } from 'next/navigation'
 // stats-data endpoint — the same one the HL app uses client-side
 const STATS_URL = 'https://stats-data.hyperliquid.xyz/Mainnet/vaults'
 
-// stats-data uses snake_case field names throughout
-interface RawPortfolioBucket {
-  // snake_case (stats-data)
-  pnl_history?: Array<[number, number]>
-  account_value_history?: Array<[number, number]>
-  // camelCase (info API fallback)
-  pnlHistory?: Array<[number, number]>
-  accountValueHistory?: Array<[number, number]>
+// Actual structure from stats-data.hyperliquid.xyz/Mainnet/vaults:
+// { apr: number, pnls: [["day", [str,...]], ["week",[...]], ["month",[...]], ...], summary: {...} }
+
+interface RawSummary {
+  // could be camelCase or snake_case
+  vaultAddress?: string
+  vault_address?: string
+  name?: string
+  leader?: string
+  tvl?: string | number
+  isClosed?: boolean
+  is_closed?: boolean
+  followers?: unknown[]
+  maxDrawdown?: number
+  max_drawdown?: number
 }
 
 interface RawVault {
-  // snake_case variants (stats-data)
-  vault_address?: string
-  is_closed?: boolean
-  create_time?: number
-  pnl_day?: number | string
-  pnl_week?: number | string
-  pnl_month?: number | string
-  pnl_all_time?: number | string
-  max_drawdown?: number
-  // camelCase variants (fallbacks)
-  vaultAddress?: string
-  isClosed?: boolean
-  maxDrawdown?: number
-  // shared fields (same in both)
-  name?: string
-  leader?: string
-  description?: string
   apr?: number | string
-  tvl?: string | number
-  portfolio?: {
-    // snake_case keys (stats-data)
-    day?:      RawPortfolioBucket
-    week?:     RawPortfolioBucket
-    month?:    RawPortfolioBucket
-    all_time?: RawPortfolioBucket
-    // camelCase key (info API fallback)
-    allTime?:  RawPortfolioBucket
-  }
-  followers?: unknown[]
+  // pnls is an array of [periodName, valuesArray] tuples
+  pnls?: Array<[string, string[]]>
+  summary?: RawSummary
 }
 
 export interface VaultSummary {
@@ -64,43 +46,35 @@ function safeNum(v: unknown): number {
   return 0
 }
 
-function lastVal(arr?: Array<[number, number]>): number {
-  if (!arr || arr.length === 0) return 0
-  const last = arr[arr.length - 1]
-  return Array.isArray(last) ? safeNum(last[1]) : 0
-}
-
-function bucketVal(b?: RawPortfolioBucket, key: 'pnl' | 'av' = 'av'): number {
-  if (!b) return 0
-  if (key === 'av') return lastVal(b.account_value_history ?? b.accountValueHistory)
-  return lastVal(b.pnl_history ?? b.pnlHistory)
+// pnls entries are [periodName, valuesArray] — last element of values is current cumulative PNL
+function pnlForPeriod(pnls: Array<[string, string[]]> | undefined, period: string): number {
+  if (!pnls) return 0
+  const entry = pnls.find(([p]) => p === period)
+  if (!entry || !entry[1] || entry[1].length === 0) return 0
+  return safeNum(entry[1][entry[1].length - 1])
 }
 
 function parseVaults(raw: RawVault[]): VaultSummary[] {
   return raw
     .map(v => {
-      const addr   = v.vault_address ?? v.vaultAddress ?? ''
-      const closed = v.is_closed     ?? v.isClosed     ?? false
+      const s = v.summary ?? {}
+      const addr   = s.vaultAddress ?? s.vault_address ?? ''
+      const closed = s.isClosed     ?? s.is_closed     ?? false
       if (closed || !addr) return null
 
-      const allTime = v.portfolio?.all_time ?? v.portfolio?.allTime
-      const month   = v.portfolio?.month
-
-      const tvl = safeNum(v.tvl)
-        || bucketVal(allTime, 'av')
-        || bucketVal(month,   'av')
+      const tvl = safeNum(s.tvl)
       if (tvl <= 0) return null
 
-      const monthPnl = safeNum(v.pnl_month) || bucketVal(month, 'pnl')
+      const monthPnl = pnlForPeriod(v.pnls, 'month')
 
       return {
         vaultAddress: addr,
-        name:         v.name ?? 'Unnamed Vault',
-        leader:       v.leader ?? '',
+        name:         s.name    ?? 'Unnamed Vault',
+        leader:       s.leader  ?? '',
         tvl,
         apr:          safeNum(v.apr),
         monthPnl,
-        followers:    Array.isArray(v.followers) ? v.followers.length : 0,
+        followers:    Array.isArray(s.followers) ? s.followers.length : 0,
       }
     })
     .filter((v): v is VaultSummary => v !== null)
@@ -138,8 +112,9 @@ export default function VaultsPage() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const first = data[0]
-          const keys = Object.keys(first)
-          setRawSample(`total=${data.length} keys=[${keys.join(',')}] sample=${JSON.stringify(first).slice(0, 200)}`)
+          const topKeys = Object.keys(first)
+          const summaryKeys = first.summary ? Object.keys(first.summary) : []
+          setRawSample(`total=${data.length} topKeys=[${topKeys}] summaryKeys=[${summaryKeys}] sample=${JSON.stringify(first.summary).slice(0, 200)}`)
         }
         setVaults(parseVaults(data))
         setLoading(false)

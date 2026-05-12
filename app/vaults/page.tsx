@@ -6,17 +6,28 @@ import { useRouter } from 'next/navigation'
 // stats-data endpoint — the same one the HL app uses client-side
 const STATS_URL = 'https://stats-data.hyperliquid.xyz/Mainnet/vaults'
 
+// stats-data uses snake_case field names
 interface RawVault {
-  vaultAddress: string
+  // snake_case variants
+  vault_address?: string
+  is_closed?: boolean
+  create_time?: number
+  pnl_day?: number | string
+  pnl_week?: number | string
+  pnl_month?: number | string
+  pnl_all_time?: number | string
+  // camelCase variants (fallbacks)
+  vaultAddress?: string
+  isClosed?: boolean
+  // shared fields
   name?: string
   leader?: string
   description?: string
-  isClosed?: boolean
-  apr?: number
+  apr?: number | string
   tvl?: string | number
   maxDrawdown?: number
   portfolio?: {
-    day?:     { pnlHistory?: Array<[number, number]> }
+    day?:     { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
     week?:    { pnlHistory?: Array<[number, number]> }
     month?:   { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
     allTime?: { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
@@ -48,22 +59,31 @@ function lastVal(arr?: Array<[number, number]>): number {
 
 function parseVaults(raw: RawVault[]): VaultSummary[] {
   return raw
-    .filter(v => !v.isClosed && v.vaultAddress)
     .map(v => {
+      // handle both snake_case (stats-data) and camelCase (info API)
+      const addr   = v.vault_address ?? v.vaultAddress ?? ''
+      const closed = v.is_closed     ?? v.isClosed     ?? false
+      if (closed || !addr) return null
+
       const tvl = safeNum(v.tvl)
         || lastVal(v.portfolio?.allTime?.accountValueHistory)
         || lastVal(v.portfolio?.month?.accountValueHistory)
+      if (tvl <= 0) return null
+
+      const monthPnl = safeNum(v.pnl_month)
+        || lastVal(v.portfolio?.month?.pnlHistory)
+
       return {
-        vaultAddress: v.vaultAddress,
+        vaultAddress: addr,
         name:         v.name ?? 'Unnamed Vault',
         leader:       v.leader ?? '',
         tvl,
         apr:          safeNum(v.apr),
-        monthPnl:     lastVal(v.portfolio?.month?.pnlHistory),
+        monthPnl,
         followers:    Array.isArray(v.followers) ? v.followers.length : 0,
       }
     })
-    .filter(v => v.tvl > 0)
+    .filter((v): v is VaultSummary => v !== null)
     .sort((a, b) => b.tvl - a.tvl)
     .slice(0, 200)
 }
@@ -90,11 +110,17 @@ export default function VaultsPage() {
   const [sortBy, setSortBy]     = useState<SortKey>('tvl')
   const [showSort, setShowSort] = useState(false)
 
+  const [rawSample, setRawSample] = useState<string>('')
+
   useEffect(() => {
     fetch(STATS_URL)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<RawVault[]> })
-      .then(data => { setVaults(parseVaults(data)); setLoading(false) })
-      .catch(() => { setError(true); setLoading(false) })
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setRawSample(JSON.stringify(data[0]).slice(0, 300))
+        setVaults(parseVaults(data))
+        setLoading(false)
+      })
+      .catch(err => { setRawSample(String(err)); setError(true); setLoading(false) })
   }, [])
 
   const sorted = useMemo(() => {
@@ -181,8 +207,15 @@ export default function VaultsPage() {
                 <span style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULTS</span>
               </div>
             ) : sorted.length === 0 ? (
-              <div style={{ padding: '48px 0', textAlign: 'center' }}>
-                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>NO VAULTS FOUND</span>
+              <div style={{ padding: '24px 0' }}>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>NO VAULTS FOUND</span>
+                </div>
+                {rawSample && (
+                  <div style={{ fontSize: 9, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>
+                    {rawSample}
+                  </div>
+                )}
               </div>
             ) : (
               sorted.map(vault => (

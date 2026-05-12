@@ -2,7 +2,71 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { VaultSummary } from '@/app/api/vaults/route'
+
+// stats-data endpoint — the same one the HL app uses client-side
+const STATS_URL = 'https://stats-data.hyperliquid.xyz/Mainnet/vaults'
+
+interface RawVault {
+  vaultAddress: string
+  name?: string
+  leader?: string
+  description?: string
+  isClosed?: boolean
+  apr?: number
+  tvl?: string | number
+  maxDrawdown?: number
+  portfolio?: {
+    day?:     { pnlHistory?: Array<[number, number]> }
+    week?:    { pnlHistory?: Array<[number, number]> }
+    month?:   { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+    allTime?: { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+  }
+  followers?: unknown[]
+}
+
+export interface VaultSummary {
+  vaultAddress: string
+  name: string
+  leader: string
+  tvl: number
+  apr: number
+  monthPnl: number
+  followers: number
+}
+
+function safeNum(v: unknown): number {
+  if (typeof v === 'number' && !isNaN(v)) return v
+  if (typeof v === 'string') { const n = parseFloat(v); return isNaN(n) ? 0 : n }
+  return 0
+}
+
+function lastVal(arr?: Array<[number, number]>): number {
+  if (!arr || arr.length === 0) return 0
+  const last = arr[arr.length - 1]
+  return Array.isArray(last) ? safeNum(last[1]) : 0
+}
+
+function parseVaults(raw: RawVault[]): VaultSummary[] {
+  return raw
+    .filter(v => !v.isClosed && v.vaultAddress)
+    .map(v => {
+      const tvl = safeNum(v.tvl)
+        || lastVal(v.portfolio?.allTime?.accountValueHistory)
+        || lastVal(v.portfolio?.month?.accountValueHistory)
+      return {
+        vaultAddress: v.vaultAddress,
+        name:         v.name ?? 'Unnamed Vault',
+        leader:       v.leader ?? '',
+        tvl,
+        apr:          safeNum(v.apr),
+        monthPnl:     lastVal(v.portfolio?.month?.pnlHistory),
+        followers:    Array.isArray(v.followers) ? v.followers.length : 0,
+      }
+    })
+    .filter(v => v.tvl > 0)
+    .sort((a, b) => b.tvl - a.tvl)
+    .slice(0, 200)
+}
 
 type SortKey = 'apr' | 'tvl' | 'monthPnl'
 
@@ -22,14 +86,15 @@ export default function VaultsPage() {
   const router = useRouter()
   const [vaults, setVaults]     = useState<VaultSummary[]>([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(false)
   const [sortBy, setSortBy]     = useState<SortKey>('tvl')
   const [showSort, setShowSort] = useState(false)
 
   useEffect(() => {
-    fetch('/api/vaults')
-      .then(r => r.json() as Promise<VaultSummary[]>)
-      .then(data => { setVaults(data); setLoading(false) })
-      .catch(() => setLoading(false))
+    fetch(STATS_URL)
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<RawVault[]> })
+      .then(data => { setVaults(parseVaults(data)); setLoading(false) })
+      .catch(() => { setError(true); setLoading(false) })
   }, [])
 
   const sorted = useMemo(() => {
@@ -61,7 +126,7 @@ export default function VaultsPage() {
         {/* Sort row */}
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px' }}>
           <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-            {loading ? '…' : `${vaults.length} VAULTS`}
+            {loading ? '…' : error ? 'ERROR' : `${vaults.length} VAULTS`}
           </span>
           <button
             onClick={() => setShowSort(true)}
@@ -111,6 +176,10 @@ export default function VaultsPage() {
           <div style={{ padding: '0 24px' }}>
             {loading ? (
               <VaultLoadingRows />
+            ) : error ? (
+              <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                <span style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULTS</span>
+              </div>
             ) : sorted.length === 0 ? (
               <div style={{ padding: '48px 0', textAlign: 'center' }}>
                 <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>NO VAULTS FOUND</span>

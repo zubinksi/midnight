@@ -4,7 +4,31 @@ import { useState, useEffect, useMemo, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import LivelineChart from '@/components/LivelineChart'
 import type { LivelinePoint } from '@/lib/hyperliquid'
-import type { VaultDetail, VaultPosition } from '@/app/api/vaults/[address]/route'
+export interface VaultPosition {
+  coin: string
+  szi: string
+  entryPx: string
+  positionValue: string
+  unrealizedPnl: string
+  returnOnEquity: string
+  liquidationPx: string | null
+  leverage: { type: string; value: number }
+  marginUsed?: string
+}
+
+export interface VaultDetail {
+  name: string
+  leader: string
+  description?: string
+  portfolio: Array<[number, { accountValue: string }]>
+  openPositions: VaultPosition[]
+  summary?: { vaultAddress: string; tvl: number; apr: number; maxDrawdown: number; followers: number }
+  tvl?: string | number
+  pnl?: string
+  maxDrawdown?: number
+  apr?: number
+  followers?: Array<{ user: string; vaultEquity: string; pnl: string }>
+}
 
 type Window = '7D' | '30D' | '3M' | 'ALL'
 
@@ -60,7 +84,12 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const [scrubPrice, setScrub]  = useState<number | null>(null)
 
   useEffect(() => {
-    fetch(`/api/vaults/${address}`)
+    // Fetch directly client-side — avoids server-side IP restrictions on HL APIs
+    fetch('https://api.hyperliquid.xyz/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'vaultDetails', vaultAddress: address }),
+    })
       .then(r => { if (!r.ok) throw new Error(); return r.json() as Promise<VaultDetail> })
       .then(d => { setVault(d); setLoading(false) })
       .catch(() => { setError(true); setLoading(false) })

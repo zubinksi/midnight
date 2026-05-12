@@ -143,8 +143,8 @@ export default function VaultsPage() {
         {/* Header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 62px)' }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={S.hero}>Hyperliquid</div>
-            <div style={S.hero}>Vaults.</div>
+            <div style={S.hero}>Custom Vaults</div>
+            <div style={{ ...S.hero, color: '#46443D' }}>On Hyperliquid.</div>
           </div>
         </div>
 

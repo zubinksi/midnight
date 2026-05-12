@@ -4,40 +4,64 @@ import { useState, useEffect, useMemo, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import LivelineChart from '@/components/LivelineChart'
 import type { LivelinePoint } from '@/lib/hyperliquid'
-export interface VaultPosition {
-  coin: string
-  szi: string
-  entryPx: string
-  positionValue: string
-  unrealizedPnl: string
-  returnOnEquity: string
-  liquidationPx: string | null
-  leverage: { type: string; value: number }
-  marginUsed?: string
+
+// Actual vaultDetails response shape (from Hyperliquid info API)
+interface PortfolioBucket {
+  accountValueHistory: Array<[number, string]>
+  pnlHistory: Array<[number, string]>
+  vlm: string
 }
 
-export interface VaultDetail {
+interface VaultDetail {
   name: string
   leader: string
   description?: string
-  portfolio: Array<[number, { accountValue: string }]>
-  openPositions: VaultPosition[]
-  summary?: { vaultAddress: string; tvl: number; apr: number; maxDrawdown: number; followers: number }
-  tvl?: string | number
-  pnl?: string
-  maxDrawdown?: number
-  apr?: number
-  followers?: Array<{ user: string; vaultEquity: string; pnl: string }>
+  apr: number
+  // portfolio is an array of [periodName, bucketData] tuples
+  portfolio: Array<[string, PortfolioBucket]>
+  followers: Array<{ user: string; vaultEquity: string; pnl: string; allTimePnl: string }>
+  maxDistributable: number
+  maxWithdrawable: number
+  isClosed: boolean
 }
 
-type Window = '7D' | '30D' | '3M' | 'ALL'
+// clearinghouseState response for open positions
+interface RawPosition {
+  position: {
+    coin: string
+    szi: string
+    entryPx: string
+    positionValue: string
+    unrealizedPnl: string
+    returnOnEquity: string
+    liquidationPx: string | null
+    leverage: { type: string; value: number }
+  }
+}
 
-const WINDOWS: { label: Window; days: number | null }[] = [
+interface ClearinghouseState {
+  assetPositions: RawPosition[]
+  marginSummary?: { accountValue: string }
+}
+
+type TimeWindow = '7D' | '30D' | '3M' | 'ALL'
+
+const WINDOWS: { label: TimeWindow; days: number | null }[] = [
   { label: '7D',  days: 7 },
   { label: '30D', days: 30 },
   { label: '3M',  days: 90 },
   { label: 'ALL', days: null },
 ]
+
+const HL_INFO = 'https://api.hyperliquid.xyz/info'
+
+function hlPost<T>(body: unknown): Promise<T> {
+  return fetch(HL_INFO, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<T> })
+}
 
 function fmtTvl(v: number): string {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
@@ -59,16 +83,17 @@ function truncAddr(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
-function parsePortfolio(raw: VaultDetail['portfolio']): LivelinePoint[] {
-  if (!Array.isArray(raw)) return []
-  return raw
-    .map(entry => {
-      const t = Array.isArray(entry) ? entry[0] : (entry as Record<string, number>).t
-      const obj = Array.isArray(entry) ? entry[1] : (entry as Record<string, unknown>)
-      const av = (obj as Record<string, string>)?.accountValue
-      const v = parseFloat(av ?? '0')
-      if (!t || isNaN(v)) return null
-      return { time: Math.floor((t as number) / 1000), value: v }
+function getBucket(portfolio: VaultDetail['portfolio'], name: string): PortfolioBucket | undefined {
+  return portfolio.find(([p]) => p === name)?.[1]
+}
+
+function bucketToPoints(bucket: PortfolioBucket | undefined): LivelinePoint[] {
+  if (!bucket) return []
+  return bucket.accountValueHistory
+    .map(([t, v]) => {
+      const val = parseFloat(v)
+      if (!t || isNaN(val)) return null
+      return { time: Math.floor(t / 1000), value: val }
     })
     .filter((p): p is LivelinePoint => p !== null)
 }
@@ -77,27 +102,34 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const { address } = use(params)
   const router = useRouter()
 
-  const [vault, setVault]       = useState<VaultDetail | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(false)
-  const [timeWindow, setTimeWindow] = useState<Window>('30D')
-  const [scrubPrice, setScrub]  = useState<number | null>(null)
+  const [vault, setVault]         = useState<VaultDetail | null>(null)
+  const [positions, setPositions] = useState<RawPosition[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(false)
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>('30D')
+  const [scrubPrice, setScrub]    = useState<number | null>(null)
 
   useEffect(() => {
-    // Fetch directly client-side — avoids server-side IP restrictions on HL APIs
-    fetch('https://api.hyperliquid.xyz/info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'vaultDetails', vaultAddress: address }),
-    })
-      .then(r => { if (!r.ok) throw new Error(); return r.json() as Promise<VaultDetail> })
-      .then(d => { setVault(d); setLoading(false) })
+    Promise.all([
+      hlPost<VaultDetail>({ type: 'vaultDetails', vaultAddress: address }),
+      hlPost<ClearinghouseState>({ type: 'clearinghouseState', user: address }),
+    ])
+      .then(([detail, ch]) => {
+        setVault(detail)
+        setPositions(ch.assetPositions ?? [])
+        setLoading(false)
+      })
       .catch(() => { setError(true); setLoading(false) })
   }, [address])
 
-  const allPoints  = useMemo(() => parsePortfolio(vault?.portfolio ?? []), [vault])
+  // Build chart points from allTime bucket, filtered per selected window
+  const allPoints = useMemo(() => {
+    if (!vault) return []
+    const bucket = getBucket(vault.portfolio, 'allTime')
+    return bucketToPoints(bucket)
+  }, [vault])
 
-  const chartData  = useMemo(() => {
+  const chartData = useMemo(() => {
     const cfg = WINDOWS.find(w => w.label === timeWindow)
     if (!cfg || cfg.days === null || allPoints.length === 0) return allPoints
     const cutoff = (Date.now() / 1000) - cfg.days * 86400
@@ -110,19 +142,20 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const windowPct    = firstEquity > 0 ? (windowDiff / firstEquity) * 100 : 0
   const windowUp     = windowDiff >= 0
   const chartColor   = windowUp ? '#26ab83' : '#E84332'
-
   const displayEquity = scrubPrice ?? latestEquity
 
   const handleScrub = useCallback((p: number | null) => setScrub(p), [])
 
-  const summary = vault?.summary
-  const tvl         = summary?.tvl ?? (typeof vault?.tvl === 'number' ? vault.tvl : parseFloat(String(vault?.tvl ?? 0)))
-  const apr         = summary?.apr ?? vault?.apr ?? 0
-  const maxDrawdown = summary?.maxDrawdown ?? vault?.maxDrawdown ?? 0
-  const followers   = summary?.followers ?? (vault?.followers?.length ?? 0)
-  const pnl         = parseFloat(vault?.pnl ?? '0')
+  const apr         = (vault?.apr ?? 0) * 100
+  const followers   = vault?.followers?.length ?? 0
+  const allTimePnl  = vault?.followers
+    ?.find(f => f.user === 'Leader')?.allTimePnl ?? null
 
-  const positions: VaultPosition[] = vault?.openPositions ?? []
+  // Sum followers' vaultEquity as AUM
+  const tvl = useMemo(() => {
+    if (!vault) return 0
+    return vault.followers.reduce((sum, f) => sum + parseFloat(f.vaultEquity || '0'), 0)
+  }, [vault])
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -209,11 +242,16 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         {/* Stats grid */}
         {!loading && !error && (
           <div style={{ borderTop: '1px solid #1C1C1A', margin: '0 24px', padding: '28px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
-            <StatCell label="AUM" value={fmtTvl(tvl)} />
-            <StatCell label="APR" value={`${(apr * 100).toFixed(1)}%`} color={(apr * 100) >= 0 ? '#26ab83' : '#E84332'} />
-            <StatCell label="MAX DRAWDOWN" value={`${(maxDrawdown * 100).toFixed(1)}%`} color="#E84332" />
+            <StatCell label="AUM" value={tvl > 0 ? fmtTvl(tvl) : '—'} />
+            <StatCell label="APR" value={`${apr >= 0 ? '+' : ''}${apr.toFixed(1)}%`} color={apr >= 0 ? '#26ab83' : '#E84332'} />
             <StatCell label="FOLLOWERS" value={String(followers)} />
-            {pnl !== 0 && <StatCell label="ALL TIME PNL" value={fmtUsd(pnl)} color={pnl >= 0 ? '#26ab83' : '#E84332'} />}
+            {allTimePnl !== null && (
+              <StatCell
+                label="ALL TIME PNL"
+                value={fmtUsd(parseFloat(allTimePnl))}
+                color={parseFloat(allTimePnl) >= 0 ? '#26ab83' : '#E84332'}
+              />
+            )}
           </div>
         )}
 
@@ -221,7 +259,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         {!loading && !error && positions.length > 0 && (
           <div style={{ padding: '0 24px' }}>
             <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 12 }}>OPEN POSITIONS</div>
-            {positions.map((pos, i) => {
+            {positions.map((entry, i) => {
+              const pos    = entry.position
               const size   = parseFloat(pos.szi)
               const isLong = size >= 0
               const uPnl   = parseFloat(pos.unrealizedPnl)
@@ -280,7 +319,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         )}
 
         {!loading && !error && positions.length === 0 && (
-          <div style={{ padding: '24px 24px', borderTop: '1px solid #1C1C1A', margin: '0 0' }}>
+          <div style={{ padding: '24px 24px', borderTop: '1px solid #1C1C1A' }}>
             <div style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', textAlign: 'center' }}>NO OPEN POSITIONS</div>
           </div>
         )}

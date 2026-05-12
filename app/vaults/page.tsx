@@ -6,9 +6,18 @@ import { useRouter } from 'next/navigation'
 // stats-data endpoint — the same one the HL app uses client-side
 const STATS_URL = 'https://stats-data.hyperliquid.xyz/Mainnet/vaults'
 
-// stats-data uses snake_case field names
+// stats-data uses snake_case field names throughout
+interface RawPortfolioBucket {
+  // snake_case (stats-data)
+  pnl_history?: Array<[number, number]>
+  account_value_history?: Array<[number, number]>
+  // camelCase (info API fallback)
+  pnlHistory?: Array<[number, number]>
+  accountValueHistory?: Array<[number, number]>
+}
+
 interface RawVault {
-  // snake_case variants
+  // snake_case variants (stats-data)
   vault_address?: string
   is_closed?: boolean
   create_time?: number
@@ -16,21 +25,25 @@ interface RawVault {
   pnl_week?: number | string
   pnl_month?: number | string
   pnl_all_time?: number | string
+  max_drawdown?: number
   // camelCase variants (fallbacks)
   vaultAddress?: string
   isClosed?: boolean
-  // shared fields
+  maxDrawdown?: number
+  // shared fields (same in both)
   name?: string
   leader?: string
   description?: string
   apr?: number | string
   tvl?: string | number
-  maxDrawdown?: number
   portfolio?: {
-    day?:     { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
-    week?:    { pnlHistory?: Array<[number, number]> }
-    month?:   { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
-    allTime?: { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+    // snake_case keys (stats-data)
+    day?:      RawPortfolioBucket
+    week?:     RawPortfolioBucket
+    month?:    RawPortfolioBucket
+    all_time?: RawPortfolioBucket
+    // camelCase key (info API fallback)
+    allTime?:  RawPortfolioBucket
   }
   followers?: unknown[]
 }
@@ -57,21 +70,28 @@ function lastVal(arr?: Array<[number, number]>): number {
   return Array.isArray(last) ? safeNum(last[1]) : 0
 }
 
+function bucketVal(b?: RawPortfolioBucket, key: 'pnl' | 'av' = 'av'): number {
+  if (!b) return 0
+  if (key === 'av') return lastVal(b.account_value_history ?? b.accountValueHistory)
+  return lastVal(b.pnl_history ?? b.pnlHistory)
+}
+
 function parseVaults(raw: RawVault[]): VaultSummary[] {
   return raw
     .map(v => {
-      // handle both snake_case (stats-data) and camelCase (info API)
       const addr   = v.vault_address ?? v.vaultAddress ?? ''
       const closed = v.is_closed     ?? v.isClosed     ?? false
       if (closed || !addr) return null
 
+      const allTime = v.portfolio?.all_time ?? v.portfolio?.allTime
+      const month   = v.portfolio?.month
+
       const tvl = safeNum(v.tvl)
-        || lastVal(v.portfolio?.allTime?.accountValueHistory)
-        || lastVal(v.portfolio?.month?.accountValueHistory)
+        || bucketVal(allTime, 'av')
+        || bucketVal(month,   'av')
       if (tvl <= 0) return null
 
-      const monthPnl = safeNum(v.pnl_month)
-        || lastVal(v.portfolio?.month?.pnlHistory)
+      const monthPnl = safeNum(v.pnl_month) || bucketVal(month, 'pnl')
 
       return {
         vaultAddress: addr,
@@ -116,7 +136,11 @@ export default function VaultsPage() {
     fetch(STATS_URL)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<RawVault[]> })
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) setRawSample(JSON.stringify(data[0]).slice(0, 300))
+        if (Array.isArray(data) && data.length > 0) {
+          const first = data[0]
+          const keys = Object.keys(first)
+          setRawSample(`total=${data.length} keys=[${keys.join(',')}] sample=${JSON.stringify(first).slice(0, 200)}`)
+        }
         setVaults(parseVaults(data))
         setLoading(false)
       })

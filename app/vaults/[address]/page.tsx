@@ -44,15 +44,6 @@ interface ClearinghouseState {
   marginSummary?: { accountValue: string }
 }
 
-type TimeWindow = '7D' | '30D' | '3M' | 'ALL'
-
-const WINDOWS: { label: TimeWindow; days: number | null }[] = [
-  { label: '7D',  days: 7 },
-  { label: '30D', days: 30 },
-  { label: '3M',  days: 90 },
-  { label: 'ALL', days: null },
-]
-
 const HL_INFO = 'https://api.hyperliquid.xyz/info'
 
 function hlPost<T>(body: unknown): Promise<T> {
@@ -123,7 +114,6 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const [positions, setPositions] = useState<RawPosition[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(false)
-  const [timeWindow, setTimeWindow] = useState<TimeWindow>('30D')
   const [chartMode, setChartMode]  = useState<'tvl' | 'profit'>('tvl')
   const [scrubPrice, setScrub]     = useState<number | null>(null)
 
@@ -148,14 +138,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
   const allTvlPoints = useMemo(() => bucketToPoints(allTimeBucket), [allTimeBucket])
   const allPnlPoints = useMemo(() => pnlToPoints(allTimeBucket),    [allTimeBucket])
 
-  const allPoints = chartMode === 'profit' ? allPnlPoints : allTvlPoints
-
-  const chartData = useMemo(() => {
-    const cfg = WINDOWS.find(w => w.label === timeWindow)
-    if (!cfg || cfg.days === null || allPoints.length === 0) return allPoints
-    const cutoff = (Date.now() / 1000) - cfg.days * 86400
-    return allPoints.filter(p => p.time >= cutoff)
-  }, [allPoints, timeWindow])
+  const chartData = chartMode === 'profit' ? allPnlPoints : allTvlPoints
 
   // Liveline defaults to a 30s window — pass the actual data span so it renders
   const chartWindowSecs = useMemo(() => {
@@ -212,7 +195,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
           <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayEquity !== 0 ? (chartMode === 'profit' ? fmtUsd(displayEquity) : fmtTvl(displayEquity)) : '—'}
           </div>
-          {!loading && !error && chartData.length > 0 && scrubPrice === null && (
+          {!loading && !error && chartData.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ color: chartColor }}>{fmtUsd(windowDiff)}</span>
               <span style={{ color: chartColor }}>{windowUp ? '+' : ''}{windowPct.toFixed(2)}%</span>
@@ -220,9 +203,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
           )}
         </div>
 
-        {/* Chart mode toggle + timeframe selector */}
-        <div style={{ margin: '12px 0 4px', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* TVL / Profit toggle */}
+        {/* Chart mode toggle */}
+        <div style={{ margin: '12px 0 4px', padding: '0 24px' }}>
           <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
             {(['tvl', 'profit'] as const).map(mode => (
               <button
@@ -240,28 +222,6 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
                 }}
               >{mode === 'tvl' ? 'TVL' : 'PROFIT'}</button>
             ))}
-          </div>
-
-          {/* Timeframe selector */}
-          <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
-            {WINDOWS.map(w => {
-              const active = timeWindow === w.label
-              return (
-                <button
-                  key={w.label}
-                  onClick={() => setTimeWindow(w.label)}
-                  style={{
-                    background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                    border: 'none', borderRadius: 4, padding: '3px 10px',
-                    fontSize: 11, lineHeight: '16px',
-                    fontFamily: 'Menlo,Monaco,monospace',
-                    color: active ? '#F0EDE6' : '#46443D',
-                    fontWeight: active ? 600 : 400,
-                    cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
-                  }}
-                >{w.label}</button>
-              )
-            })}
           </div>
         </div>
 

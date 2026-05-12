@@ -101,7 +101,7 @@ export default function VaultsPage() {
   const [vaults, setVaults]     = useState<VaultSummary[]>([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(false)
-  const [sortBy, setSortBy]     = useState<SortKey>('tvl')
+  const [sortBy, setSortBy]     = useState<SortKey>('monthPnl')
   const [showSort, setShowSort] = useState(false)
 
   const [rawSample, setRawSample] = useState<string>('')

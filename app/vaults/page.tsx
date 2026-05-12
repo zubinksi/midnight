@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import type { VaultSummary } from '@/app/api/vaults/route'
 
-type SortKey = 'apr' | 'tvl' | 'drawdown'
+type SortKey = 'apr' | 'tvl' | 'monthPnl'
 
 function fmtTvl(v: number): string {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
@@ -35,15 +35,15 @@ export default function VaultsPage() {
   const sorted = useMemo(() => {
     return [...vaults].sort((a, b) => {
       if (sortBy === 'apr')      return b.apr - a.apr
-      if (sortBy === 'drawdown') return b.maxDrawdown - a.maxDrawdown  // less negative = better
+      if (sortBy === 'monthPnl') return b.monthPnl - a.monthPnl
       return b.tvl - a.tvl
     })
   }, [vaults, sortBy])
 
   const sortLabels: Record<SortKey, string> = {
-    apr:      '30D RETURN',
+    apr:      'APR',
     tvl:      'AUM',
-    drawdown: 'DRAWDOWN',
+    monthPnl: '30D PNL',
   }
 
   return (
@@ -92,7 +92,7 @@ export default function VaultsPage() {
             >
               <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
               <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>
-              {(['tvl', 'apr', 'drawdown'] as SortKey[]).map(key => (
+              {(['tvl', 'apr', 'monthPnl'] as SortKey[]).map(key => (
                 <button
                   key={key}
                   onClick={() => { setSortBy(key); setShowSort(false) }}
@@ -134,15 +134,23 @@ export default function VaultsPage() {
   )
 }
 
+function fmtPnl(v: number): string {
+  const abs = Math.abs(v)
+  const sign = v >= 0 ? '+' : '-'
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`
+  return `${sign}$${abs.toFixed(0)}`
+}
+
 function VaultRow({ vault, sortBy, onClick }: { vault: VaultSummary; sortBy: SortKey; onClick: () => void }) {
-  const aprPct = vault.apr * 100
-  const aprUp  = aprPct >= 0
-  const ddPct  = vault.maxDrawdown * 100
+  const aprPct   = vault.apr * 100
+  const aprUp    = aprPct >= 0
+  const monthUp  = vault.monthPnl >= 0
 
   const badge = sortBy === 'apr'
     ? { label: `${aprUp ? '+' : ''}${aprPct.toFixed(1)}%`, color: aprUp ? '#26ab83' : '#E84332', bg: aprUp ? '#26ab8322' : '#E8433218' }
-    : sortBy === 'drawdown'
-    ? { label: `${ddPct.toFixed(1)}%`, color: '#E84332', bg: '#E8433218' }
+    : sortBy === 'monthPnl'
+    ? { label: fmtPnl(vault.monthPnl), color: monthUp ? '#26ab83' : '#E84332', bg: monthUp ? '#26ab8322' : '#E8433218' }
     : null
 
   return (
@@ -177,7 +185,7 @@ function VaultRow({ vault, sortBy, onClick }: { vault: VaultSummary; sortBy: Sor
               fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
               fontVariantNumeric: 'tabular-nums', color: aprUp ? '#26ab83' : '#E84332',
               background: aprUp ? '#26ab8322' : '#E8433218',
-            }}>{aprUp ? '+' : ''}{aprPct.toFixed(1)}%</span>
+            }}>{aprUp ? '+' : ''}{aprPct.toFixed(1)}% APR</span>
           </div>
         )}
       </div>

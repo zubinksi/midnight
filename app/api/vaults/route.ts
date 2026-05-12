@@ -1,47 +1,101 @@
 import { NextResponse } from 'next/server'
 
-const HL_API = 'https://api.hyperliquid.xyz/info'
+const STATS_URL = 'https://stats-data.hyperliquid.xyz/Mainnet/vaults'
 
-async function hlPost<T>(body: unknown, revalidate = 300): Promise<T> {
-  const res = await fetch(HL_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    next: { revalidate },
-  })
-  if (!res.ok) throw new Error(`HL ${res.status}`)
-  return res.json() as Promise<T>
+// Shape returned by the stats-data endpoint
+interface StatsVault {
+  vaultAddress: string
+  name: string
+  leader: string
+  description?: string
+  isClosed?: boolean
+  apr: number
+  // pnl history arrays for different windows
+  portfolio?: {
+    day?:     { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+    week?:    { pnlHistory?: Array<[number, number]> }
+    month?:   { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+    allTime?: { pnlHistory?: Array<[number, number]>; accountValueHistory?: Array<[number, number]> }
+  }
+  followers?: unknown[]
+  // TVL may come in as a string or number
+  tvl?: string | number
+  maxDrawdown?: number
 }
 
 export interface VaultSummary {
   vaultAddress: string
   name: string
   leader: string
-  description?: string
+  description: string
   tvl: number
   apr: number
   maxDrawdown: number
   followers: number
-  isClosed?: boolean
-  allTimePnl?: number
+  allTimePnl: number
+  dayPnl: number
+  weekPnl: number
+  monthPnl: number
+}
+
+function safeNum(v: unknown): number {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return parseFloat(v) || 0
+  return 0
+}
+
+// Extract last pnl value from a pnlHistory array (each entry is [timestamp, cumPnl])
+function lastPnl(arr?: Array<[number, number]>): number {
+  if (!arr || arr.length === 0) return 0
+  const last = arr[arr.length - 1]
+  return Array.isArray(last) ? (last[1] ?? 0) : 0
+}
+
+// Approximate TVL from last accountValueHistory entry
+function lastAV(arr?: Array<[number, number]>): number {
+  if (!arr || arr.length === 0) return 0
+  const last = arr[arr.length - 1]
+  return Array.isArray(last) ? (last[1] ?? 0) : 0
 }
 
 export async function GET() {
   try {
-    const data = await hlPost<VaultSummary[]>({ type: 'vaultSummaries' })
-    const vaults = Array.isArray(data)
-      ? data.filter(v => !v.isClosed).map(v => ({
+    const res = await fetch(STATS_URL, {
+      next: { revalidate: 300 },  // 5 min server cache
+    })
+    if (!res.ok) throw new Error(`stats-data ${res.status}`)
+
+    const data = (await res.json()) as StatsVault[]
+    if (!Array.isArray(data)) throw new Error('unexpected shape')
+
+    const vaults: VaultSummary[] = data
+      .filter(v => !v.isClosed && v.vaultAddress)
+      .map(v => {
+        const p = v.portfolio
+        const tvl = safeNum(v.tvl) || lastAV(p?.allTime?.accountValueHistory) || lastAV(p?.month?.accountValueHistory)
+        const allTimePnl = lastPnl(p?.allTime?.pnlHistory)
+        const monthPnl   = lastPnl(p?.month?.pnlHistory)
+        const weekPnl    = lastPnl(p?.week?.pnlHistory)
+        const dayPnl     = lastPnl(p?.day?.pnlHistory)
+        return {
           vaultAddress: v.vaultAddress,
-          name: v.name ?? 'Unnamed Vault',
-          leader: v.leader ?? '',
-          description: v.description ?? '',
-          tvl: typeof v.tvl === 'number' ? v.tvl : parseFloat(String(v.tvl ?? 0)),
-          apr: typeof v.apr === 'number' ? v.apr : parseFloat(String(v.apr ?? 0)),
-          maxDrawdown: typeof v.maxDrawdown === 'number' ? v.maxDrawdown : parseFloat(String(v.maxDrawdown ?? 0)),
-          followers: v.followers ?? 0,
-          allTimePnl: v.allTimePnl ?? 0,
-        }))
-      : []
+          name:         v.name ?? 'Unnamed Vault',
+          leader:       v.leader ?? '',
+          description:  v.description ?? '',
+          tvl,
+          apr:          safeNum(v.apr),
+          maxDrawdown:  safeNum(v.maxDrawdown),
+          followers:    Array.isArray(v.followers) ? v.followers.length : 0,
+          allTimePnl,
+          monthPnl,
+          weekPnl,
+          dayPnl,
+        }
+      })
+      .filter(v => v.tvl > 0)
+      .sort((a, b) => b.tvl - a.tvl)
+      .slice(0, 200)  // cap at top 200 by TVL to keep response lean
+
     return NextResponse.json(vaults, {
       headers: { 'Cache-Control': 'public, s-maxage=300' },
     })

@@ -302,7 +302,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
               return `${months[d.getMonth()]} ${d.getDate()}`
             } : undefined}
             padding={{ left: 24 }}
-            referenceLine={closePrice !== null && sessionLabel !== null ? { value: closePrice, label: 'CLOSE' } : undefined}
+            referenceLine={closePrice !== null && sessionLabel !== null ? { value: closePrice } : undefined}
           />
         </div>
 

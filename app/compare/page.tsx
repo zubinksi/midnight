@@ -37,6 +37,11 @@ export default function ComparePage() {
       fetch('/api/assets').then(r => r.json() as Promise<AssetInfo[]>),
       fetch('/api/crypto').then(r => r.json() as Promise<AssetInfo[]>),
     ]).then(([xyz, crypto]) => setAssets([...xyz, ...crypto])).catch(() => {})
+
+    // Refresh saved list when user navigates back to this page
+    const onVisible = () => { if (document.visibilityState === 'visible') setSaved(loadSaved()) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   const filtered = useMemo(() => {
@@ -59,17 +64,6 @@ export default function ComparePage() {
   const viewChart = () => {
     if (!canCompare) return
     router.push(`/compare/${selected.join('_')}`)
-  }
-
-  const saveCompare = () => {
-    if (!canCompare) return
-    const key = [...selected].sort().join('_')
-    const next = [
-      { tickers: selected, savedAt: Date.now() },
-      ...loadSaved().filter(s => [...s.tickers].sort().join('_') !== key),
-    ].slice(0, 20)
-    writeSaved(next)
-    setSaved(next)
   }
 
   const removeSaved = (idx: number) => {
@@ -161,12 +155,12 @@ export default function ComparePage() {
             </div>
           )}
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 40 }}>
+          {/* Action button */}
+          <div style={{ marginBottom: 40 }}>
             <button
               onClick={viewChart}
               style={{
-                flex: 1, border: 'none', borderRadius: 10, padding: 14,
+                width: '100%', border: 'none', borderRadius: 10, padding: 14,
                 cursor: canCompare ? 'pointer' : 'default',
                 fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
                 background: canCompare ? '#26ab83' : '#1C1C1A',
@@ -176,18 +170,6 @@ export default function ComparePage() {
             >
               {canCompare ? `VIEW CHART · ${selected.length}` : 'VIEW CHART —'}
             </button>
-            <button
-              onClick={saveCompare}
-              title="Save comparison"
-              style={{
-                flexShrink: 0, border: 'none', borderRadius: 10, padding: '14px 18px',
-                cursor: canCompare ? 'pointer' : 'default',
-                fontFamily: 'Menlo,Monaco,monospace', fontSize: 16,
-                background: '#1C1C1A',
-                color: canCompare ? '#F0C84A' : '#2C2C2A',
-                transition: 'color 0.15s',
-              }}
-            >★</button>
           </div>
 
           {/* Saved section */}

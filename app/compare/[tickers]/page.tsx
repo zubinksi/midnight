@@ -2,15 +2,6 @@
 
 import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-
-const STORAGE_KEY = 'neue-saved-compares'
-interface SavedCompare { tickers: string[]; savedAt: number }
-function loadSaved(): SavedCompare[] {
-  try { const v = localStorage.getItem(STORAGE_KEY); return v ? JSON.parse(v) : [] } catch { return [] }
-}
-function writeSaved(list: SavedCompare[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)) } catch {}
-}
 import dynamic from 'next/dynamic'
 import type { LivelineSeries } from 'liveline'
 import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
@@ -20,6 +11,15 @@ import { COMPARE_COLORS } from '@/components/CompareModal'
 import { getAssetName } from '@/lib/assetNames'
 
 const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
+
+const STORAGE_KEY = 'neue-saved-compares'
+interface SavedCompare { tickers: string[]; savedAt: number }
+function loadSaved(): SavedCompare[] {
+  try { const v = localStorage.getItem(STORAGE_KEY); return v ? JSON.parse(v) : [] } catch { return [] }
+}
+function writeSaved(list: SavedCompare[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)) } catch {}
+}
 
 const WINDOW_SECS: Partial<Record<Timeframe, number>> = {
   '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
@@ -56,21 +56,11 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const [mounted, setMounted]       = useState(false)
   const [starred, setStarred]       = useState(false)
 
+  // Sync starred state from localStorage on mount
   useEffect(() => {
     const key = [...tickers].sort().join('_')
-    const isStarred = loadSaved().some(s => [...s.tickers].sort().join('_') === key)
-    setStarred(isStarred)
-  }, [raw])
-
-  const toggleStar = useCallback(() => {
-    const key = [...tickers].sort().join('_')
-    const current = loadSaved()
-    const exists  = current.some(s => [...s.tickers].sort().join('_') === key)
-    const next    = exists
-      ? current.filter(s => [...s.tickers].sort().join('_') !== key)
-      : [{ tickers, savedAt: Date.now() }, ...current].slice(0, 20)
-    writeSaved(next)
-    setStarred(!exists)
+    setStarred(loadSaved().some(s => [...s.tickers].sort().join('_') === key))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw])
 
   useEffect(() => setMounted(true), [])
@@ -106,6 +96,18 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coinMap, timeframe, raw])
+
+  const toggleStar = useCallback(() => {
+    const key     = [...tickers].sort().join('_')
+    const current = loadSaved()
+    const exists  = current.some(s => [...s.tickers].sort().join('_') === key)
+    const next    = exists
+      ? current.filter(s => [...s.tickers].sort().join('_') !== key)
+      : [{ tickers, savedAt: Date.now() }, ...current].slice(0, 20)
+    writeSaved(next)
+    setStarred(!exists)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw])
 
   const primaryData  = seriesData[tickers[0]] ?? []
   const primaryValue = primaryData.at(-1)?.value ?? 0
@@ -164,15 +166,9 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           })}
         </div>
 
-        {/* Time window selector — matches Liveline's native window button style */}
+        {/* Time window selector */}
         <div style={{ padding: '20px 24px 0' }}>
-          <div style={{
-            display: 'inline-flex',
-            gap: 2,
-            background: 'rgba(255,255,255,0.03)',
-            borderRadius: 6,
-            padding: 2,
-          }}>
+          <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
             {WINDOWS.map(w => {
               const active = timeframe === w.tf
               return (
@@ -180,18 +176,13 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
                   key={w.tf}
                   onClick={() => setTimeframe(w.tf)}
                   style={{
-                    position: 'relative',
                     background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '3px 10px',
-                    fontSize: 11,
-                    lineHeight: '16px',
+                    border: 'none', borderRadius: 4, padding: '3px 10px',
+                    fontSize: 11, lineHeight: '16px',
                     fontFamily: 'Menlo,Monaco,monospace',
                     color: active ? '#F0EDE6' : '#46443D',
                     fontWeight: active ? 600 : 400,
-                    cursor: 'pointer',
-                    transition: 'color 0.2s, background 0.15s',
+                    cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
                   }}
                 >{w.label}</button>
               )
@@ -235,7 +226,6 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
 
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
-
     </div>
   )
 }

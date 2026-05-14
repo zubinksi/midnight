@@ -1,7 +1,16 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+
+const STORAGE_KEY = 'neue-saved-compares'
+interface SavedCompare { tickers: string[]; savedAt: number }
+function loadSaved(): SavedCompare[] {
+  try { const v = localStorage.getItem(STORAGE_KEY); return v ? JSON.parse(v) : [] } catch { return [] }
+}
+function writeSaved(list: SavedCompare[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)) } catch {}
+}
 import dynamic from 'next/dynamic'
 import type { LivelineSeries } from 'liveline'
 import type { LivelinePoint, Timeframe } from '@/lib/hyperliquid'
@@ -45,6 +54,24 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
   const [seriesData, setSeriesData] = useState<Record<string, LivelinePoint[]>>({})
   const [loading, setLoading]       = useState(true)
   const [mounted, setMounted]       = useState(false)
+  const [starred, setStarred]       = useState(false)
+
+  useEffect(() => {
+    const key = [...tickers].sort().join('_')
+    const isStarred = loadSaved().some(s => [...s.tickers].sort().join('_') === key)
+    setStarred(isStarred)
+  }, [raw])
+
+  const toggleStar = useCallback(() => {
+    const key = [...tickers].sort().join('_')
+    const current = loadSaved()
+    const exists  = current.some(s => [...s.tickers].sort().join('_') === key)
+    const next    = exists
+      ? current.filter(s => [...s.tickers].sort().join('_') !== key)
+      : [{ tickers, savedAt: Date.now() }, ...current].slice(0, 20)
+    writeSaved(next)
+    setStarred(!exists)
+  }, [raw])
 
   useEffect(() => setMounted(true), [])
 
@@ -99,17 +126,21 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
 
         {/* Top bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(env(safe-area-inset-top), 56px) 24px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button
             onClick={() => {
               try {
                 const fromSameOrigin = document.referrer && new URL(document.referrer).origin === window.location.origin
                 if (fromSameOrigin) { router.back(); return }
               } catch {}
-              router.push('/')
+              router.push('/compare')
             }}
             style={S.backBtn}
           >←</button>
+          <button
+            onClick={toggleStar}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: starred ? '#F0C84A' : '#2C2C2A', padding: '4px 0', lineHeight: 1, transition: 'color 0.15s' }}
+          >★</button>
         </div>
 
         {/* Legend */}

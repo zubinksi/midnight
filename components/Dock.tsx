@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 
 export default function Dock() {
   const pathname = usePathname()
-  const isVaults = pathname?.startsWith('/vaults')
+  const isCompare = pathname?.startsWith('/compare')
 
   return (
     <div style={{
@@ -35,7 +35,7 @@ export default function Dock() {
           width: 'calc(50% - 4px)',
           background: '#1C1C1A',
           borderRadius: 18,
-          transform: isVaults ? 'translateX(calc(100% + 2px))' : 'translateX(0)',
+          transform: isCompare ? 'translateX(calc(100% + 2px))' : 'translateX(0)',
           transition: 'transform 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
           pointerEvents: 'none',
         }} />
@@ -48,7 +48,7 @@ export default function Dock() {
             fontSize: 11,
             fontFamily: 'Menlo,Monaco,monospace',
             letterSpacing: '0.08em',
-            color: !isVaults ? '#F0EDE6' : '#46443D',
+            color: !isCompare ? '#F0EDE6' : '#46443D',
             textDecoration: 'none',
             textAlign: 'center',
             transition: 'color 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -56,7 +56,7 @@ export default function Dock() {
           }}
         >MARKETS</Link>
         <Link
-          href="/vaults"
+          href="/compare"
           style={{
             position: 'relative',
             padding: '6px 22px',
@@ -64,13 +64,13 @@ export default function Dock() {
             fontSize: 11,
             fontFamily: 'Menlo,Monaco,monospace',
             letterSpacing: '0.08em',
-            color: isVaults ? '#F0EDE6' : '#46443D',
+            color: isCompare ? '#F0EDE6' : '#46443D',
             textDecoration: 'none',
             textAlign: 'center',
             transition: 'color 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
             whiteSpace: 'nowrap',
           }}
-        >VAULTS</Link>
+        >COMPARE</Link>
       </div>
     </div>
   )

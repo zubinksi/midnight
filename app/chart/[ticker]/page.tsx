@@ -253,8 +253,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.diffStr}</span>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>
-              <span style={{ fontSize: 11 }}>{sessionLabel === 'PRE-MKT' ? '☀️' : '🌙'}</span>
-              <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>{sessionLabel} ON HYPERLIQUID</span>
+              <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>SINCE CLOSE</span>
             </div>
           )}
         </div>

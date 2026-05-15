@@ -26,13 +26,14 @@ const TF_SECS: Partial<Record<Timeframe, number>> = {
   '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
 }
 
-// Liveline internal layout constants (grid=true, padding.left=20)
+// Liveline internal layout constants — badge=true (default), padding.left=20
 const PAD_TOP   = 12
 const PAD_BTM   = 28
 const PAD_LEFT  = 20
-const PAD_RIGHT = 54  // defaultRight when grid=true
+const PAD_RIGHT = 80  // defaultRight when badge=true (Liveline default)
 const CHART_H   = 200
 const DRAW_H    = CHART_H - PAD_TOP - PAD_BTM  // 160
+const WIN_BUFFER = 0.05  // Liveline WINDOW_BUFFER constant
 
 interface Props {
   ticker: string
@@ -72,20 +73,26 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const decimals  = priceDecimals(currentPrice)
   const assetName = getAssetName(ticker)
 
-  // Annotation: x/y computed against the VISIBLE window, matching Liveline exactly
+  // Annotation: replicate Liveline's exact window/range math
   const annotation = postDate && data.length > 1
     ? (() => {
         const ts = new Date(postDate).getTime() / 1000
-        const t1 = data.at(-1)!.time
 
-        // Visible window boundaries
-        const visibleStart = chartWindow != null ? t1 - chartWindow : data[0].time
-        if (ts < visibleStart || ts > t1) return null
+        // Liveline computes edges from real Date.now(), not last data point
+        const now        = Date.now() / 1000
+        const window     = chartWindow ?? (data.at(-1)!.time - data[0].time)
+        const rightEdge  = now + window * WIN_BUFFER
+        const leftEdge   = rightEdge - window
 
-        const xPct = (ts - visibleStart) / (t1 - visibleStart)
+        if (ts < leftEdge || ts > rightEdge) return null
 
-        // Only consider visible points for range (matching Liveline's computeRange)
-        const visible = data.filter(p => p.time >= visibleStart)
+        const xPct = (ts - leftEdge) / (rightEdge - leftEdge)
+
+        // Filter to visible points (matching Liveline's visible array)
+        const visible = data.filter(p => p.time >= leftEdge)
+        if (visible.length === 0) return null
+
+        // Replicate computeRange: 12% margin on raw min/max
         let rawMin = currentPrice, rawMax = currentPrice
         for (const p of visible) {
           if (p.value < rawMin) rawMin = p.value
@@ -96,7 +103,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const yMin     = rawMin - margin
         const yMax     = rawMax + margin
 
-        // Closest visible data point → y pixel
+        // Closest visible point to ts → y pixel
         let closest = visible[0]
         let bestDist = Infinity
         for (const p of visible) {

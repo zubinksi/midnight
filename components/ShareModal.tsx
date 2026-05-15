@@ -101,10 +101,13 @@ async function applyDuotone(
 }
 
 // Draw a simplified chart line on canvas for the camera viewfinder overlay
+// topFrac/bottomFrac constrain the line to a vertical band within the canvas
 function drawLineOverlay(
   canvas: HTMLCanvasElement,
   data: LivelinePoint[],
   color: string,
+  topFrac = 0,
+  bottomFrac = 1,
 ) {
   const ctx = canvas.getContext('2d')!
   const W = canvas.width, H = canvas.height
@@ -117,6 +120,9 @@ function drawLineOverlay(
   const range = maxV - minV || 1
   const padY = 0.12
 
+  const bandTop = topFrac * H
+  const bandH   = (bottomFrac - topFrac) * H
+
   ctx.strokeStyle = color
   ctx.lineWidth = 2.5
   ctx.lineCap = 'round'
@@ -127,7 +133,8 @@ function drawLineOverlay(
   ctx.beginPath()
   data.forEach((p, i) => {
     const x = (i / (data.length - 1)) * W
-    const y = H * (1 - padY) - ((p.value - minV) / range) * H * (1 - 2 * padY)
+    const normY = (1 - padY) - ((p.value - minV) / range) * (1 - 2 * padY)
+    const y = bandTop + normY * bandH
     if (i === 0) { ctx.moveTo(x, y) } else { ctx.lineTo(x, y) }
   })
   ctx.stroke()
@@ -185,6 +192,15 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     return () => obs.disconnect()
   }, [])
 
+  // Re-measure chartAreaTop when postDate changes: adding/removing the annotation row
+  // changes the header height and therefore chartAreaRef's offsetTop, but ResizeObserver
+  // only fires on size changes of chartAreaRef itself, not position changes.
+  useEffect(() => {
+    const el = chartAreaRef.current
+    if (!el) return
+    setChartAreaTop(el.offsetTop)
+  }, [postDate])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -216,7 +232,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         canvas.width = canvas.clientWidth
         canvas.height = canvas.clientHeight
       }
-      drawLineOverlay(canvas, data, cardChangeColor)
+      // Draw chart line in the band matching where the chart sits in the share card
+      // Card: ~30% header → chart occupies ~30%–85% of card height
+      drawLineOverlay(canvas, data, cardChangeColor, 0.30, 0.78)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)

@@ -76,20 +76,23 @@ async function applyDuotone(
 
       const out = ctx.createImageData(targetW, targetH)
       const [hr, hg, hb] = hexToRgb(highlightHex)
-      const threshold = 0.18
+      // Hard cutoff only for near-black pixels; mid-tones get a low floor alpha
+      // so dark indoor photos still show clearly. Gamma < 1 boosts mid-tones.
+      const blackCut = 0.04
+      const maxAlpha = 155
+      const gamma    = 0.65
 
       for (let i = 0; i < pixels.length; i += 4) {
         const lum = (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]) / 255
-        if (lum < threshold) {
-          out.data[i + 3] = 0  // transparent
+        if (lum < blackCut) {
+          out.data[i + 3] = 0
           continue
         }
-        const t = (lum - threshold) / (1 - threshold)
-        const smooth = t * t * (3 - 2 * t)  // smoothstep
+        const t = (lum - blackCut) / (1 - blackCut)
         out.data[i]     = hr
         out.data[i + 1] = hg
         out.data[i + 2] = hb
-        out.data[i + 3] = Math.round(smooth * 130)  // max ~0.51 opacity
+        out.data[i + 3] = Math.round(Math.pow(t, gamma) * maxAlpha)
       }
 
       ctx.putImageData(out, 0, 0)

@@ -64,17 +64,50 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const decimals  = priceDecimals(currentPrice)
   const assetName = getAssetName(ticker)
 
-  // Annotation: position fraction across chart (0–1), accounting for left padding
-  const annotationPct = postDate && data.length > 1
+  // Chart layout constants matching Liveline internals (grid=true, padding.left=20)
+  const CHART_H   = 200
+  const PAD_TOP   = 12
+  const PAD_BTM   = 28
+  const PAD_LEFT  = 20
+  const PAD_RIGHT = 54  // defaultRight when grid=true
+  const DRAW_H    = CHART_H - PAD_TOP - PAD_BTM  // 160
+
+  // Annotation geometry — computed from data min/max + Liveline's 12% margin
+  const annotation = postDate && data.length > 1
     ? (() => {
         const ts = new Date(postDate).getTime() / 1000
-        const pct = (ts - data[0].time) / (data.at(-1)!.time - data[0].time)
-        return Math.max(0.01, Math.min(0.99, pct))
+        const t0  = data[0].time
+        const t1  = data.at(-1)!.time
+        const xPct = (ts - t0) / (t1 - t0)
+        if (xPct < 0 || xPct > 1) return null
+
+        // Find closest data point to get the y value
+        let closest = data[0]
+        let bestDist = Math.abs(data[0].time - ts)
+        for (const p of data) {
+          const d = Math.abs(p.time - ts)
+          if (d < bestDist) { bestDist = d; closest = p }
+        }
+
+        // Replicate Liveline's computeRange (marginFactor = 0.12)
+        const vals    = data.map(p => p.value)
+        const rawMin  = Math.min(...vals, currentPrice)
+        const rawMax  = Math.max(...vals, currentPrice)
+        const rawRange = rawMax - rawMin
+        const margin  = rawRange * 0.12
+        const yMin    = rawMin - margin
+        const yMax    = rawMax + margin
+        const yRange  = yMax - yMin
+
+        const yPct  = (closest.value - yMin) / yRange   // 0=bottom, 1=top
+        const yPx   = PAD_TOP + DRAW_H * (1 - yPct)     // px from top of chart div
+
+        return { xPct, yPx, value: closest.value }
       })()
     : null
 
-  // Callout flips to left side when annotation is in right 45% of chart
-  const calloutLeft = annotationPct !== null && annotationPct > 0.55
+  // Callout flips to left when dot is in right half
+  const calloutLeft = annotation !== null && annotation.xPct > 0.55
 
   const download = async () => {
     if (!cardRef.current || downloading) return
@@ -154,22 +187,30 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               />
             )}
 
-            {/* Annotation vertical line + callout */}
-            {annotationPct !== null && (
-              <div style={{
-                position: 'absolute', top: 0, bottom: 0, pointerEvents: 'none',
-                left: `calc(20px + ${annotationPct} * (100% - 40px))`,
-                width: 1,
-                background: '#F0C84A',
-                opacity: 0.8,
-              }}>
+            {/* Annotation dot + callout */}
+            {annotation !== null && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                {/* Dot on the chart line */}
+                <div style={{
+                  position: 'absolute',
+                  width: 10, height: 10,
+                  borderRadius: '50%',
+                  background: '#F0C84A',
+                  border: '2px solid #080807',
+                  // x: PAD_LEFT + xPct * drawableW − halfDot
+                  left: `calc(${PAD_LEFT}px + ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) - 5px)`,
+                  top: annotation.yPx - 5,
+                  boxShadow: '0 0 6px rgba(240,200,74,0.5)',
+                }} />
+
+                {/* Callout */}
                 {(postText || postDate) && (
                   <div style={{
                     position: 'absolute',
-                    top: 10,
+                    top: Math.max(8, annotation.yPx - 60),
                     ...(calloutLeft
-                      ? { right: 8, left: 'auto' }
-                      : { left: 8, right: 'auto' }),
+                      ? { right: `calc(100% - ${PAD_LEFT}px - ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) + 10px)` }
+                      : { left: `calc(${PAD_LEFT}px + ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) + 10px)` }),
                     maxWidth: 130,
                     background: 'rgba(8,8,7,0.92)',
                     border: '1px solid #46443D',

@@ -38,7 +38,8 @@ const DRAW_H     = CHART_H - PAD_TOP - PAD_BTM
 const WIN_BUFFER = 0.015
 const CARD_BG    = '#161614'
 
-// Halftone: sample grid cells, draw brightness-scaled dots on card background
+// Halftone: transparent-background PNG of brightness-scaled dots.
+// Placed over the chart, transparent gaps let the chart show through.
 async function applyHalftone(src: string, targetW: number, targetH: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -66,10 +67,9 @@ async function applyHalftone(src: string, targetW: number, targetH: number): Pro
       outC.width = targetW
       outC.height = targetH
       const ctx = outC.getContext('2d')!
-      ctx.fillStyle = CARD_BG
-      ctx.fillRect(0, 0, targetW, targetH)
+      // Transparent background — chart shows through wherever there's no dot
 
-      const cellSize = 8
+      const cellSize = 10
       for (let cy = 0; cy < targetH; cy += cellSize) {
         for (let cx = 0; cx < targetW; cx += cellSize) {
           let brightness = 0, count = 0
@@ -84,9 +84,10 @@ async function applyHalftone(src: string, targetW: number, targetH: number): Pro
           }
           brightness = brightness / count / 255
 
-          const r = brightness * cellSize * 0.58
-          if (r < 0.5) continue
-          ctx.fillStyle = 'rgba(240,237,230,0.88)'
+          const r = brightness * cellSize * 0.56
+          if (r < 0.6) continue
+          // Dots brightest at peak; slightly less opaque so chart line reads through
+          ctx.fillStyle = `rgba(240,237,230,${0.55 + brightness * 0.35})`
           ctx.beginPath()
           ctx.arc(cx + cellSize / 2, cy + cellSize / 2, r, 0, Math.PI * 2)
           ctx.fill()
@@ -158,7 +159,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       const src = ev.target?.result as string
       setDithering(true)
       try {
-        const result = await applyHalftone(src, 800, 400)
+        const result = await applyHalftone(src, 800, 400)  // 4:1 ratio matches CHART_H display area
         setDitheredUrl(result)
       } catch {
         setDitheredUrl(null)
@@ -296,7 +297,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             )}
           </div>
 
-          {/* Chart */}
+          {/* Chart — dithered photo overlays as transparent PNG so chart shows through gaps */}
           <div ref={chartAreaRef} style={{ position: 'relative' }}>
             {mounted && (
               <Liveline
@@ -319,6 +320,20 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 style={{ width: '100%', height: CHART_H }}
               />
             )}
+            {/* Halftone photo: transparent-bg PNG floats over chart; dots form portrait */}
+            {ditheredUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={ditheredUrl}
+                alt=""
+                style={{
+                  position: 'absolute', inset: 0,
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
             {annotation !== null && (
               <div style={{
                 position: 'absolute',
@@ -333,31 +348,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               }} />
             )}
           </div>
-
-          {/* Dithered photo section */}
-          {ditheredUrl && (
-            <>
-              {/* Diagonal stripe separator */}
-              <div style={{
-                height: 10,
-                background: 'repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 4px)',
-              }} />
-              <div style={{ position: 'relative' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ditheredUrl}
-                  alt=""
-                  style={{ display: 'block', width: '100%', height: 200, objectFit: 'cover' }}
-                />
-                {/* Fade from card bg into photo at top */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: 40,
-                  background: `linear-gradient(to bottom, ${CARD_BG}, transparent)`,
-                  pointerEvents: 'none',
-                }} />
-              </div>
-            </>
-          )}
 
           {/* Footer */}
           <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

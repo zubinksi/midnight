@@ -128,7 +128,7 @@ function drawLineOverlay(
   data.forEach((p, i) => {
     const x = (i / (data.length - 1)) * W
     const y = H * (1 - padY) - ((p.value - minV) / range) * H * (1 - 2 * padY)
-    if (i === 0) ctx.moveTo(x, y) else ctx.lineTo(x, y)
+    if (i === 0) { ctx.moveTo(x, y) } else { ctx.lineTo(x, y) }
   })
   ctx.stroke()
 }

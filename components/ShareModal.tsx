@@ -293,7 +293,8 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const decimals  = priceDecimals(currentPrice)
   const assetName = getAssetName(ticker)
 
-  const annotation = postDate && data.length > 1 && chartContainerW > 0
+  // annotation: dot position requires chartContainerW (layout); pct/label don't
+  const annotationForPct = postDate && data.length > 1
     ? (() => {
         const ts   = new Date(postDate).getTime() / 1000
         const now  = Date.now() / 1000
@@ -301,11 +302,28 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const rightEdge = now + win * WIN_BUFFER
         const leftEdge  = rightEdge - win
         if (ts < leftEdge || ts > rightEdge) return null
+        const visible = data.filter(p => p.time >= leftEdge)
+        if (visible.length === 0) return null
+        let closest = visible[0], bestDist = Infinity
+        for (const p of visible) {
+          const d = Math.abs(p.time - ts)
+          if (d < bestDist) { bestDist = d; closest = p }
+        }
+        return { closestValue: closest.value }
+      })()
+    : null
+
+  const annotation = annotationForPct && chartContainerW > 0
+    ? (() => {
+        const ts   = new Date(postDate).getTime() / 1000
+        const now  = Date.now() / 1000
+        const win  = chartWindow ?? (data.at(-1)!.time - data[0].time)
+        const rightEdge = now + win * WIN_BUFFER
+        const leftEdge  = rightEdge - win
         const chartW = chartContainerW - PAD_LEFT - PAD_RIGHT
         const xPct   = (ts - leftEdge) / (rightEdge - leftEdge)
         const dotX   = PAD_LEFT + xPct * chartW
         const visible = data.filter(p => p.time >= leftEdge)
-        if (visible.length === 0) return null
         let rawMin = currentPrice, rawMax = currentPrice
         for (const p of visible) {
           if (p.value < rawMin) rawMin = p.value
@@ -315,14 +333,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const margin   = rawRange * 0.12
         const yMin     = rawMin - margin
         const yMax     = rawMax + margin
-        let closest = visible[0], bestDist = Infinity
-        for (const p of visible) {
-          const d = Math.abs(p.time - ts)
-          if (d < bestDist) { bestDist = d; closest = p }
-        }
-        const yPct = (closest.value - yMin) / (yMax - yMin)
+        const yPct = (annotationForPct.closestValue - yMin) / (yMax - yMin)
         const dotY = PAD_TOP + DRAW_H * (1 - yPct)
-        return { dotX, dotY, closestValue: closest.value }
+        return { dotX, dotY, closestValue: annotationForPct.closestValue }
       })()
     : null
 
@@ -354,7 +367,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     ? new Date(postDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
-  const annotationPrice  = annotation?.closestValue ?? null
+  const annotationPrice  = annotationForPct?.closestValue ?? null
   const annotationPct    = annotationPrice !== null && annotationPrice > 0
     ? ((currentPrice - annotationPrice) / annotationPrice) * 100
     : null
@@ -449,7 +462,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             </div>
 
             {/* Chart */}
-            <div ref={chartAreaRef} style={{ position: 'relative', zIndex: 1 }}>
+            <div ref={chartAreaRef} style={{ position: 'relative', zIndex: 3 }}>
               {mounted && (
                 <Liveline
                   data={data}

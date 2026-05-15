@@ -76,7 +76,7 @@ async function applyDuotone(
 
       const out = ctx.createImageData(targetW, targetH)
       const [hr, hg, hb] = hexToRgb(highlightHex)
-      const threshold = 0.25
+      const threshold = 0.18
 
       for (let i = 0; i < pixels.length; i += 4) {
         const lum = (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]) / 255
@@ -89,7 +89,7 @@ async function applyDuotone(
         out.data[i]     = hr
         out.data[i + 1] = hg
         out.data[i + 2] = hb
-        out.data[i + 3] = Math.round(smooth * 185)  // max ~0.72 opacity
+        out.data[i + 3] = Math.round(smooth * 130)  // max ~0.51 opacity
       }
 
       ctx.putImageData(out, 0, 0)

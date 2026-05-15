@@ -111,7 +111,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       })()
     : null
 
-  const download = async () => {
+  const share = async () => {
     if (!cardRef.current || downloading) return
     setDownloading(true)
     try {
@@ -122,10 +122,22 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         useCORS: true,
         logging: false,
       })
-      const url = canvas.toDataURL('image/png')
+      const filename = `${ticker}-${timeframe.toLowerCase()}.png`
+      if (navigator.share && navigator.canShare) {
+        const blob = await new Promise<Blob>((res, rej) =>
+          canvas.toBlob(b => b ? res(b) : rej(), 'image/png')
+        )
+        const file = new File([blob], filename, { type: 'image/png' })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: `${ticker} ${pctStr}` })
+          setDownloading(false)
+          return
+        }
+      }
+      // Fallback: direct download
       const a   = document.createElement('a')
-      a.href     = url
-      a.download = `${ticker}-${timeframe.toLowerCase()}.png`
+      a.href     = canvas.toDataURL('image/png')
+      a.download = filename
       a.click()
     } catch {}
     setDownloading(false)
@@ -282,9 +294,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           />
         </div>
 
-        {/* Download */}
+        {/* Share */}
         <button
-          onClick={download}
+          onClick={share}
           disabled={downloading}
           style={{
             width: '100%', border: 'none', borderRadius: 10, padding: 14,
@@ -296,7 +308,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             transition: 'background 0.15s, color 0.15s',
           }}
         >
-          {downloading ? 'GENERATING…' : 'DOWNLOAD IMAGE'}
+          {downloading ? 'GENERATING…' : 'SHARE IMAGE'}
         </button>
 
       </div>

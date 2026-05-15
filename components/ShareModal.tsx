@@ -180,7 +180,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         </div>
 
         {/* ── Card preview (captured by html2canvas) ── */}
-        <div ref={cardRef} style={{ background: '#0B0B09', border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24 }}>
+        <div ref={cardRef} style={{ background: '#161614', border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
 
           {/* Card header */}
           <div style={{ padding: '0 20px 16px' }}>
@@ -199,7 +199,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             {annotationLabel && (
               <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: '#F0C84A' }}>Since {annotationLabel}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#F0C84A', fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
                   {annotationPctStr && (
                     <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
                   )}
@@ -244,7 +244,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 width: 10, height: 10,
                 borderRadius: '50%',
                 background: '#F0C84A',
-                border: '2px solid #0B0B09',
+                border: '2px solid #161614',
                 boxShadow: '0 0 6px rgba(240,200,74,0.5)',
                 pointerEvents: 'none',
                 left: annotation.dotX - 5,

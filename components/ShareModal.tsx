@@ -38,8 +38,10 @@ const DRAW_H     = CHART_H - PAD_TOP - PAD_BTM
 const WIN_BUFFER = 0.015
 const CARD_BG    = '#161614'
 
-// Halftone: transparent-background PNG of brightness-scaled dots.
-// Placed over the chart, transparent gaps let the chart show through.
+// Halftone: transparent-background PNG — only bright areas get dots.
+// Dark pixels (card bg, chart bg, photo background) stay fully transparent so
+// the chart line and text show through cleanly. Dots form the portrait in
+// highlight areas only.
 async function applyHalftone(src: string, targetW: number, targetH: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -67,9 +69,10 @@ async function applyHalftone(src: string, targetW: number, targetH: number): Pro
       outC.width = targetW
       outC.height = targetH
       const ctx = outC.getContext('2d')!
-      // Transparent background — chart shows through wherever there's no dot
+      // Fully transparent background — no dots in dark areas
 
       const cellSize = 10
+      const threshold = 0.30  // below this brightness: no dot → chart/text shows through
       for (let cy = 0; cy < targetH; cy += cellSize) {
         for (let cx = 0; cx < targetW; cx += cellSize) {
           let brightness = 0, count = 0
@@ -83,11 +86,12 @@ async function applyHalftone(src: string, targetW: number, targetH: number): Pro
             }
           }
           brightness = brightness / count / 255
+          if (brightness < threshold) continue  // dark areas: fully transparent
 
-          const r = brightness * cellSize * 0.56
-          if (r < 0.6) continue
-          // Dots brightest at peak; slightly less opaque so chart line reads through
-          ctx.fillStyle = `rgba(240,237,230,${0.55 + brightness * 0.35})`
+          const t = (brightness - threshold) / (1 - threshold)  // remap to 0–1
+          const r = t * cellSize * 0.56
+          if (r < 0.5) continue
+          ctx.fillStyle = `rgba(240,237,230,${0.50 + t * 0.38})`
           ctx.beginPath()
           ctx.arc(cx + cellSize / 2, cy + cellSize / 2, r, 0, Math.PI * 2)
           ctx.fill()
@@ -159,7 +163,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       const src = ev.target?.result as string
       setDithering(true)
       try {
-        const result = await applyHalftone(src, 800, 400)  // 4:1 ratio matches CHART_H display area
+        const result = await applyHalftone(src, 800, 800)  // square covers full card aspect ratio
         setDitheredUrl(result)
       } catch {
         setDitheredUrl(null)
@@ -264,7 +268,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         </div>
 
         {/* ── Card preview ── */}
-        <div ref={cardRef} style={{ background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+        <div ref={cardRef} style={{ position: 'relative', background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
 
           {/* Header */}
           <div style={{ padding: '0 20px 16px' }}>
@@ -297,7 +301,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             )}
           </div>
 
-          {/* Chart — dithered photo overlays as transparent PNG so chart shows through gaps */}
+          {/* Chart */}
           <div ref={chartAreaRef} style={{ position: 'relative' }}>
             {mounted && (
               <Liveline
@@ -310,7 +314,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 badge={false}
                 momentum={false}
                 loading={loading || data.length === 0}
-                lineWidth={1.5}
+                lineWidth={ditheredUrl ? 2.5 : 1.5}
                 window={chartWindow}
                 padding={{ left: PAD_LEFT }}
                 formatTime={timeframe !== '1D' ? (t: number) => {
@@ -318,20 +322,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   return `${MONTHS[d.getMonth()]} ${d.getDate()}`
                 } : undefined}
                 style={{ width: '100%', height: CHART_H }}
-              />
-            )}
-            {/* Halftone photo: transparent-bg PNG floats over chart; dots form portrait */}
-            {ditheredUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={ditheredUrl}
-                alt=""
-                style={{
-                  position: 'absolute', inset: 0,
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  pointerEvents: 'none',
-                }}
               />
             )}
             {annotation !== null && (
@@ -343,6 +333,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 border: `2px solid ${CARD_BG}`,
                 boxShadow: '0 0 6px rgba(240,200,74,0.5)',
                 pointerEvents: 'none',
+                zIndex: 11,
                 left: annotation.dotX - 5,
                 top:  annotation.dotY - 5,
               }} />
@@ -354,6 +345,22 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
           </div>
+
+          {/* Halftone overlay — covers full card; transparent gaps let chart + text show through */}
+          {ditheredUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ditheredUrl}
+              alt=""
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover',
+                pointerEvents: 'none',
+                zIndex: 10,
+              }}
+            />
+          )}
         </div>
 
         {/* Time window */}

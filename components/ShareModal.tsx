@@ -165,6 +165,13 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
 
+  // Derive pct change from loaded candle window so it tracks the timeframe selector
+  const cardPct = data.length > 1 && currentPrice > 0 && data[0].value > 0
+    ? ((currentPrice - data[0].value) / data[0].value) * 100
+    : null
+  const cardPctStr      = cardPct !== null ? `${cardPct >= 0 ? '+' : ''}${cardPct.toFixed(2)}%` : pctStr
+  const cardChangeColor = cardPct !== null ? (cardPct >= 0 ? '#26ab83' : '#E84332') : changeColor
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -208,12 +215,12 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         canvas.width = canvas.clientWidth
         canvas.height = canvas.clientHeight
       }
-      drawLineOverlay(canvas, data, changeColor)
+      drawLineOverlay(canvas, data, cardChangeColor)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [cameraActive, data, changeColor])
+  }, [cameraActive, data, cardChangeColor])
 
   // Stop camera if modal closes
   useEffect(() => () => {
@@ -256,7 +263,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     stopCamera()
     setProcessing(true)
     try {
-      const result = await applyDuotone(canvas.toDataURL('image/jpeg', 0.92), 800, 800, changeColor)
+      const result = await applyDuotone(canvas.toDataURL("image/jpeg", 0.92), 800, 800, cardChangeColor)
       setDuotoneUrl(result)
     } catch {}
     setProcessing(false)
@@ -271,7 +278,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       const src = ev.target?.result as string
       setProcessing(true)
       try {
-        const result = await applyDuotone(src, 800, 800, changeColor)
+        const result = await applyDuotone(src, 800, 800, cardChangeColor)
         setDuotoneUrl(result)
       } catch {}
       setProcessing(false)
@@ -330,7 +337,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const blob = await new Promise<Blob>((res, rej) => canvas.toBlob(b => b ? res(b) : rej(), 'image/png'))
         const file = new File([blob], filename, { type: 'image/png' })
         if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: `${ticker} ${pctStr}` })
+          await navigator.share({ files: [file], title: `${ticker} ${cardPctStr}` })
           setDownloading(false)
           return
         }
@@ -390,7 +397,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 24px 24px', background: 'linear-gradient(transparent, rgba(0,0,0,0.65))' }}>
               <div style={{ fontFamily: 'Menlo,Monaco,monospace', display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6' }}>{ticker}</span>
-                <span style={{ fontSize: 16, color: changeColor, fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+                <span style={{ fontSize: 16, color: cardChangeColor, fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
               </div>
             </div>
             {/* Shutter */}
@@ -421,7 +428,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
                 </span>
                 {!annotationLabel && (
-                  <span style={{ fontSize: 15, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+                  <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
                 )}
               </div>
               {annotationLabel && (
@@ -447,7 +454,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 <Liveline
                   data={data}
                   value={currentPrice}
-                  color={changeColor}
+                  color={cardChangeColor}
                   theme="dark"
                   fill
                   grid

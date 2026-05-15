@@ -9,6 +9,7 @@ import { useAssetPrice, usePriceHistory, fetchNYSEClosePrice, fetchNYSEPrevClose
 import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
+import ShareModal from '@/components/ShareModal'
 
 const WINDOWS: { label: string; tf: Timeframe }[] = [
   { label: '1D',  tf: '1D' },
@@ -38,6 +39,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [timeframe, setTimeframe]       = useState<Timeframe>('1D')
   const [scrubPrice, setScrubPrice]     = useState<number | null>(null)
   const [showCompare, setShowCompare]   = useState(false)
+  const [showShare, setShowShare]       = useState(false)
   const [starred, setStarred]           = useState(false)
   const [closePrice, setClosePrice]       = useState<number | null>(null)
   const [prevClosePrice, setPrevClosePrice] = useState<number | null>(null)
@@ -304,8 +306,9 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Action buttons */}
-        <div style={{ padding: '16px 24px 0' }}>
-          <button onClick={() => setShowCompare(true)} style={S.compareBtn}>COMPARE ⇄</button>
+        <div style={{ padding: '16px 24px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={() => setShowCompare(true)} style={S.actionBtn}>COMPARE ⇄</button>
+          <button onClick={() => setShowShare(true)}   style={S.actionBtn}>SHARE ↗</button>
         </div>
 
         {/* Stats */}
@@ -314,6 +317,18 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ padding: '0 24px 40px' }} />
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
+
+      {showShare && (
+        <ShareModal
+          ticker={upperTicker}
+          assetInfo={assetInfo}
+          currentPrice={currentPrice}
+          changeColor={changeColor}
+          pctStr={pctStr}
+          coin={coin}
+          onClose={() => setShowShare(false)}
+        />
+      )}
 
       {showCompare && (
         <CompareModal
@@ -362,5 +377,5 @@ function StatsGrid({ assetInfo, currentPrice }: {
 
 const S = {
   backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  compareBtn: { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
+  actionBtn:  { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
 }

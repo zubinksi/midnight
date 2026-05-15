@@ -167,10 +167,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const annotationPctStr = annotationPct !== null
     ? `${annotationPct >= 0 ? '+' : ''}${annotationPct.toFixed(2)}%`
     : null
-  const annotationPriceStr = annotationPrice !== null
-    ? formatPrice(annotationPrice, priceDecimals(annotationPrice))
-    : null
-
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#080807', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
       <div style={{ maxWidth: 430, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 16px) 24px calc(max(env(safe-area-inset-bottom), 32px) + 16px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -195,12 +191,13 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               <span style={{ fontSize: 34, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
                 {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
               </span>
-              <span style={{ fontSize: 14, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+              {!annotationLabel && (
+                <span style={{ fontSize: 14, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+              )}
             </div>
             {annotationLabel && (
               <div style={{ marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 8px' }}>
                 <span style={{ fontSize: 11, color: '#F0C84A' }}>{annotationLabel}</span>
-                {annotationPriceStr && <span style={{ fontSize: 11, color: '#F0EDE6', fontVariantNumeric: 'tabular-nums' }}>{annotationPriceStr}</span>}
                 {annotationPctStr && (
                   <span style={{ fontSize: 11, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
                 )}
@@ -315,6 +312,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   borderBottom: '1px solid #1C1C1A', padding: '6px 0',
                   color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
                   outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
+                  textAlign: 'left',
                 } as React.CSSProperties}
               />
               <textarea

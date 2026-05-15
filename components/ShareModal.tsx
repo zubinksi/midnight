@@ -26,6 +26,14 @@ const TF_SECS: Partial<Record<Timeframe, number>> = {
   '1D': 86400, '7D': 604800, '1M': 2592000, '3M': 7776000, '6M': 15552000,
 }
 
+// Liveline internal layout constants (grid=true, padding.left=20)
+const PAD_TOP   = 12
+const PAD_BTM   = 28
+const PAD_LEFT  = 20
+const PAD_RIGHT = 54  // defaultRight when grid=true
+const CHART_H   = 200
+const DRAW_H    = CHART_H - PAD_TOP - PAD_BTM  // 160
+
 interface Props {
   ticker: string
   assetInfo: AssetInfo | null
@@ -37,13 +45,13 @@ interface Props {
 }
 
 export default function ShareModal({ ticker, assetInfo, currentPrice, changeColor, pctStr, coin, onClose }: Props) {
-  const cardRef    = useRef<HTMLDivElement>(null)
-  const [timeframe, setTimeframe]   = useState<Timeframe>('1M')
-  const [data, setData]             = useState<LivelinePoint[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [mounted, setMounted]       = useState(false)
-  const [postText, setPostText]     = useState('')
-  const [postDate, setPostDate]     = useState('')
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [timeframe, setTimeframe]     = useState<Timeframe>('1M')
+  const [data, setData]               = useState<LivelinePoint[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [mounted, setMounted]         = useState(false)
+  const [postText, setPostText]       = useState('')
+  const [postDate, setPostDate]       = useState('')
   const [downloading, setDownloading] = useState(false)
 
   useEffect(() => setMounted(true), [])
@@ -64,50 +72,44 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const decimals  = priceDecimals(currentPrice)
   const assetName = getAssetName(ticker)
 
-  // Chart layout constants matching Liveline internals (grid=true, padding.left=20)
-  const CHART_H   = 200
-  const PAD_TOP   = 12
-  const PAD_BTM   = 28
-  const PAD_LEFT  = 20
-  const PAD_RIGHT = 54  // defaultRight when grid=true
-  const DRAW_H    = CHART_H - PAD_TOP - PAD_BTM  // 160
-
-  // Annotation geometry — computed from data min/max + Liveline's 12% margin
+  // Annotation: x/y computed against the VISIBLE window, matching Liveline exactly
   const annotation = postDate && data.length > 1
     ? (() => {
         const ts = new Date(postDate).getTime() / 1000
-        const t0  = data[0].time
-        const t1  = data.at(-1)!.time
-        const xPct = (ts - t0) / (t1 - t0)
-        if (xPct < 0 || xPct > 1) return null
+        const t1 = data.at(-1)!.time
 
-        // Find closest data point to get the y value
-        let closest = data[0]
-        let bestDist = Math.abs(data[0].time - ts)
-        for (const p of data) {
+        // Visible window boundaries
+        const visibleStart = chartWindow != null ? t1 - chartWindow : data[0].time
+        if (ts < visibleStart || ts > t1) return null
+
+        const xPct = (ts - visibleStart) / (t1 - visibleStart)
+
+        // Only consider visible points for range (matching Liveline's computeRange)
+        const visible = data.filter(p => p.time >= visibleStart)
+        let rawMin = currentPrice, rawMax = currentPrice
+        for (const p of visible) {
+          if (p.value < rawMin) rawMin = p.value
+          if (p.value > rawMax) rawMax = p.value
+        }
+        const rawRange = rawMax - rawMin
+        const margin   = rawRange * 0.12
+        const yMin     = rawMin - margin
+        const yMax     = rawMax + margin
+
+        // Closest visible data point → y pixel
+        let closest = visible[0]
+        let bestDist = Infinity
+        for (const p of visible) {
           const d = Math.abs(p.time - ts)
           if (d < bestDist) { bestDist = d; closest = p }
         }
 
-        // Replicate Liveline's computeRange (marginFactor = 0.12)
-        const vals    = data.map(p => p.value)
-        const rawMin  = Math.min(...vals, currentPrice)
-        const rawMax  = Math.max(...vals, currentPrice)
-        const rawRange = rawMax - rawMin
-        const margin  = rawRange * 0.12
-        const yMin    = rawMin - margin
-        const yMax    = rawMax + margin
-        const yRange  = yMax - yMin
+        const yPct = (closest.value - yMin) / (yMax - yMin)
+        const yPx  = PAD_TOP + DRAW_H * (1 - yPct)
 
-        const yPct  = (closest.value - yMin) / yRange   // 0=bottom, 1=top
-        const yPx   = PAD_TOP + DRAW_H * (1 - yPct)     // px from top of chart div
-
-        return { xPct, yPx, value: closest.value }
+        return { xPct, yPx }
       })()
     : null
-
-  // Callout flips to left when dot is in right half
-  const calloutLeft = annotation !== null && annotation.xPct > 0.55
 
   const download = async () => {
     if (!cardRef.current || downloading) return
@@ -129,6 +131,10 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     setDownloading(false)
   }
 
+  const annotationLabel = postDate
+    ? new Date(postDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#080807', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
       <div style={{ maxWidth: 430, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 16px) 24px calc(max(env(safe-area-inset-bottom), 32px) + 16px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -143,7 +149,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           <div style={{ width: 32 }} />
         </div>
 
-        {/* ── Card preview ── captured by html2canvas ── */}
+        {/* ── Card preview (captured by html2canvas) ── */}
         <div ref={cardRef} style={{
           background: '#080807',
           border: '1px solid #1C1C1A',
@@ -163,9 +169,18 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               </span>
               <span style={{ fontSize: 14, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
             </div>
+            {/* Annotation label — fixed under price, same yellow as dot */}
+            {annotationLabel && (
+              <div style={{ marginTop: 6, fontSize: 11, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.4 }}>
+                {annotationLabel}
+                {postText && (
+                  <span style={{ color: '#46443D' }}> · {postText.length > 80 ? postText.slice(0, 80) + '…' : postText}</span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Chart + annotation overlay */}
+          {/* Chart + dot overlay */}
           <div style={{ position: 'relative' }}>
             {mounted && (
               <Liveline
@@ -178,59 +193,28 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 loading={loading || data.length === 0}
                 lineWidth={1.5}
                 window={chartWindow}
-                padding={{ left: 20 }}
+                padding={{ left: PAD_LEFT }}
                 formatTime={timeframe !== '1D' ? (t: number) => {
                   const d = new Date(t * 1000)
                   return `${MONTHS[d.getMonth()]} ${d.getDate()}`
                 } : undefined}
-                style={{ width: '100%', height: 200 }}
+                style={{ width: '100%', height: CHART_H }}
               />
             )}
 
-            {/* Annotation dot + callout */}
+            {/* Yellow dot on the chart line */}
             {annotation !== null && (
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                {/* Dot on the chart line */}
-                <div style={{
-                  position: 'absolute',
-                  width: 10, height: 10,
-                  borderRadius: '50%',
-                  background: '#F0C84A',
-                  border: '2px solid #080807',
-                  // x: PAD_LEFT + xPct * drawableW − halfDot
-                  left: `calc(${PAD_LEFT}px + ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) - 5px)`,
-                  top: annotation.yPx - 5,
-                  boxShadow: '0 0 6px rgba(240,200,74,0.5)',
-                }} />
-
-                {/* Callout */}
-                {(postText || postDate) && (
-                  <div style={{
-                    position: 'absolute',
-                    top: Math.max(8, annotation.yPx - 60),
-                    ...(calloutLeft
-                      ? { right: `calc(100% - ${PAD_LEFT}px - ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) + 10px)` }
-                      : { left: `calc(${PAD_LEFT}px + ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) + 10px)` }),
-                    maxWidth: 130,
-                    background: 'rgba(8,8,7,0.92)',
-                    border: '1px solid #46443D',
-                    borderRadius: 6,
-                    padding: '6px 8px',
-                    fontSize: 10,
-                    color: '#F0EDE6',
-                    fontFamily: 'Menlo,Monaco,monospace',
-                    lineHeight: 1.45,
-                    wordBreak: 'break-word',
-                  } as React.CSSProperties}>
-                    {postText && <div>{postText.slice(0, 120)}{postText.length > 120 ? '…' : ''}</div>}
-                    {postDate && (
-                      <div style={{ color: '#46443D', marginTop: postText ? 4 : 0, fontSize: 9 }}>
-                        {new Date(postDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <div style={{
+                position: 'absolute',
+                width: 10, height: 10,
+                borderRadius: '50%',
+                background: '#F0C84A',
+                border: '2px solid #080807',
+                boxShadow: '0 0 6px rgba(240,200,74,0.5)',
+                pointerEvents: 'none',
+                left: `calc(${PAD_LEFT}px + ${annotation.xPct} * (100% - ${PAD_LEFT + PAD_RIGHT}px) - 5px)`,
+                top: annotation.yPx - 5,
+              }} />
             )}
           </div>
 
@@ -265,10 +249,10 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           </div>
         </div>
 
-        {/* Post annotation */}
+        {/* Timestamp input */}
         <div>
           <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>
-            POST ANNOTATION <span style={{ color: '#2C2C2A' }}>· OPTIONAL</span>
+            ADD TIMESTAMP <span style={{ color: '#2C2C2A' }}>· OPTIONAL</span>
           </div>
           <input
             type="datetime-local"

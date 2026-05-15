@@ -162,6 +162,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const [processing, setProcessing]     = useState(false)
   const [downloading, setDownloading]   = useState(false)
   const [chartContainerW, setChartContainerW] = useState(0)
+  const [chartAreaTop, setChartAreaTop]       = useState(0)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
 
@@ -177,7 +178,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
-    const update = () => setChartContainerW(el.clientWidth)
+    const update = () => { setChartContainerW(el.clientWidth); setChartAreaTop(el.offsetTop) }
     update()
     const obs = new ResizeObserver(update)
     obs.observe(el)
@@ -483,7 +484,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             </div>
 
             {/* Chart */}
-            <div ref={chartAreaRef} style={{ position: 'relative', zIndex: 3 }}>
+            <div ref={chartAreaRef} style={{ position: 'relative' }}>
               {mounted && (
                 <Liveline
                   data={data}
@@ -505,14 +506,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{ width: '100%', height: CHART_H }}
                 />
               )}
-              {annotation !== null && (
-                <div style={{
-                  position: 'absolute', width: 10, height: 10, borderRadius: '50%',
-                  background: '#F0C84A', border: `2px solid ${CARD_BG}`,
-                  boxShadow: '0 0 6px rgba(240,200,74,0.5)', pointerEvents: 'none',
-                  zIndex: 2, left: annotation.dotX - 5, top: annotation.dotY - 5,
-                }} />
-              )}
             </div>
 
             {/* Footer */}
@@ -532,10 +525,25 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   width: '100%', height: '100%',
                   objectFit: 'cover',
                   pointerEvents: 'none',
-                  zIndex: 2,
                   mixBlendMode: 'screen',
                 }}
               />
+            )}
+
+            {/* Annotation dot — last child so it's always above duotone regardless of stacking context.
+                Top is chartAreaTop (offsetTop of chart within card) + dotY within the chart. */}
+            {annotation !== null && (
+              <div style={{
+                position: 'absolute',
+                width: 10, height: 10,
+                borderRadius: '50%',
+                background: '#F0C84A',
+                border: `2px solid ${CARD_BG}`,
+                boxShadow: '0 0 6px rgba(240,200,74,0.5)',
+                pointerEvents: 'none',
+                left: annotation.dotX - 5,
+                top: chartAreaTop + annotation.dotY - 5,
+              }} />
             )}
           </div>
         )}

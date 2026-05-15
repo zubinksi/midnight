@@ -238,20 +238,17 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
             {showAtClose ? (
               <>
-                <span style={{ color: atCloseColor }}>{atCloseStr!.diffStr}</span>
                 <span style={{ color: atCloseColor }}>{atCloseStr!.pctStr}</span>
                 <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>AT CLOSE</span>
               </>
             ) : (
               <>
-                <span style={{ color: changeColor }}>{diffStr}</span>
                 <span style={{ color: changeColor }}>{pctStr}</span>
               </>
             )}
           </div>
           {timeframe === '1D' && sessionLabel !== null && afterHrsStr !== null && !isPreIpo && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
-              <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.diffStr}</span>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>
               <span style={{ fontSize: 11 }}>{sessionLabel === 'PRE-MKT' ? '☀️' : '🌙'}</span>
               <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>SINCE CLOSE</span>

@@ -50,6 +50,7 @@ interface Props {
 export default function ShareModal({ ticker, assetInfo, currentPrice, changeColor, pctStr, coin, onClose }: Props) {
   const cardRef         = useRef<HTMLDivElement>(null)
   const chartAreaRef    = useRef<HTMLDivElement>(null)
+  const dateInputRef    = useRef<HTMLInputElement>(null)
   const [timeframe, setTimeframe]       = useState<Timeframe>('1M')
   const [data, setData]                 = useState<LivelinePoint[]>([])
   const [loading, setLoading]           = useState(true)
@@ -179,29 +180,35 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         </div>
 
         {/* ── Card preview (captured by html2canvas) ── */}
-        <div ref={cardRef} style={{ background: '#080807', border: '1px solid #1C1C1A', borderRadius: 16, overflow: 'hidden', paddingTop: 20 }}>
+        <div ref={cardRef} style={{ background: '#0B0B09', border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24 }}>
 
           {/* Card header */}
-          <div style={{ padding: '0 20px 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>{ticker}</span>
-              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+          <div style={{ padding: '0 20px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
+              <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <span style={{ fontSize: 34, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+              <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
                 {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
               </span>
               {!annotationLabel && (
-                <span style={{ fontSize: 14, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+                <span style={{ fontSize: 15, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
               )}
             </div>
             {annotationLabel && (
-              <div style={{ marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 8px' }}>
-                <span style={{ fontSize: 11, color: '#F0C84A' }}>Since {annotationLabel}</span>
-                {annotationPctStr && (
-                  <span style={{ fontSize: 11, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+              <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: '#F0C84A' }}>Since {annotationLabel}</span>
+                  {annotationPctStr && (
+                    <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+                  )}
+                </div>
+                {postText && (
+                  <div style={{ fontSize: 11, color: '#6C6A60', lineHeight: 1.4 }}>
+                    {postText.length > 100 ? postText.slice(0, 100) + '…' : postText}
+                  </div>
                 )}
-                {postText && <span style={{ fontSize: 10, color: '#46443D' }}>{postText.length > 80 ? postText.slice(0, 80) + '…' : postText}</span>}
               </div>
             )}
           </div>
@@ -237,7 +244,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 width: 10, height: 10,
                 borderRadius: '50%',
                 background: '#F0C84A',
-                border: '2px solid #080807',
+                border: '2px solid #0B0B09',
                 boxShadow: '0 0 6px rgba(240,200,74,0.5)',
                 pointerEvents: 'none',
                 left: annotation.dotX - 5,
@@ -248,8 +255,8 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
 
           {/* Card footer */}
           <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>neue.markets</span>
-            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>{timeframe}</span>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
           </div>
         </div>
 
@@ -303,18 +310,24 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
                 >REMOVE</button>
               </div>
-              <input
-                type="datetime-local"
-                value={postDate}
-                onChange={e => setPostDate(e.target.value)}
-                style={{
-                  width: '100%', background: 'transparent', border: 'none',
-                  borderBottom: '1px solid #1C1C1A', padding: '6px 0',
-                  color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
-                  outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
-                  textAlign: 'left', WebkitAppearance: 'none', appearance: 'none',
-                } as React.CSSProperties}
-              />
+              {/* Hidden native input — triggers OS date picker; styled label below handles display */}
+              <div style={{ position: 'relative', borderBottom: '1px solid #1C1C1A', paddingBottom: 6 }}>
+                <div style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', padding: '6px 0 0', pointerEvents: 'none' }}>
+                  {postDate
+                    ? new Date(postDate).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : <span style={{ color: '#46443D' }}>Select date & time</span>}
+                </div>
+                <input
+                  ref={dateInputRef}
+                  type="datetime-local"
+                  value={postDate}
+                  onChange={e => setPostDate(e.target.value)}
+                  style={{
+                    position: 'absolute', inset: 0, opacity: 0,
+                    width: '100%', height: '100%', cursor: 'pointer',
+                  } as React.CSSProperties}
+                />
+              </div>
               <textarea
                 placeholder="POST TEXT (OPTIONAL)"
                 value={postText}

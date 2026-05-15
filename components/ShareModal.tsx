@@ -32,110 +32,73 @@ const TF_SECS: Partial<Record<Timeframe, number>> = {
 const PAD_TOP    = 12
 const PAD_BTM    = 28
 const PAD_LEFT   = 20
-const PAD_RIGHT  = 54   // badge=false → grid path → 54
+const PAD_RIGHT  = 54
 const CHART_H    = 200
-const DRAW_H     = CHART_H - PAD_TOP - PAD_BTM  // 160
-const WIN_BUFFER = 0.015 // WINDOW_BUFFER_NO_BADGE
+const DRAW_H     = CHART_H - PAD_TOP - PAD_BTM
+const WIN_BUFFER = 0.015
+const CARD_BG    = '#161614'
 
-interface ShareTheme {
-  id: string
-  name: string
-  cardBg: string
-  cardBorder: string
-  textPrimary: string
-  textSecondary: string
-  textMuted: string
-  annotationColor: string
-  positiveColor: string
-  negativeColor: string
-  chartColor: string | null  // null = inherit asset changeColor
-  livelineTheme: 'dark' | 'light'
-  showGrid: boolean
-  dotBorder: string
+// Halftone: sample grid cells, draw brightness-scaled dots on card background
+async function applyHalftone(src: string, targetW: number, targetH: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      // Cover-crop to target aspect ratio
+      const srcAspect = img.naturalWidth / img.naturalHeight
+      const dstAspect = targetW / targetH
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight
+      if (srcAspect > dstAspect) {
+        sw = img.naturalHeight * dstAspect
+        sx = (img.naturalWidth - sw) / 2
+      } else {
+        sh = img.naturalWidth / dstAspect
+        sy = (img.naturalHeight - sh) / 2
+      }
+
+      const sampleC = document.createElement('canvas')
+      sampleC.width = targetW
+      sampleC.height = targetH
+      const sCtx = sampleC.getContext('2d')!
+      sCtx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH)
+      const pixels = sCtx.getImageData(0, 0, targetW, targetH).data
+
+      const outC = document.createElement('canvas')
+      outC.width = targetW
+      outC.height = targetH
+      const ctx = outC.getContext('2d')!
+      ctx.fillStyle = CARD_BG
+      ctx.fillRect(0, 0, targetW, targetH)
+
+      const cellSize = 8
+      for (let cy = 0; cy < targetH; cy += cellSize) {
+        for (let cx = 0; cx < targetW; cx += cellSize) {
+          let brightness = 0, count = 0
+          const cw = Math.min(cellSize, targetW - cx)
+          const ch = Math.min(cellSize, targetH - cy)
+          for (let py = cy; py < cy + ch; py++) {
+            for (let px = cx; px < cx + cw; px++) {
+              const i = (py * targetW + px) * 4
+              brightness += 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]
+              count++
+            }
+          }
+          brightness = brightness / count / 255
+
+          const r = brightness * cellSize * 0.58
+          if (r < 0.5) continue
+          ctx.fillStyle = 'rgba(240,237,230,0.88)'
+          ctx.beginPath()
+          ctx.arc(cx + cellSize / 2, cy + cellSize / 2, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      resolve(outC.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = src
+  })
 }
-
-const THEMES: ShareTheme[] = [
-  {
-    id: 'dark',
-    name: 'Dark',
-    cardBg: '#161614',
-    cardBorder: '#2C2C2A',
-    textPrimary: '#F0EDE6',
-    textSecondary: '#5C5A53',
-    textMuted: '#46443D',
-    annotationColor: '#F0C84A',
-    positiveColor: '#26ab83',
-    negativeColor: '#E84332',
-    chartColor: null,
-    livelineTheme: 'dark',
-    showGrid: true,
-    dotBorder: '#161614',
-  },
-  {
-    id: 'light',
-    name: 'Light',
-    cardBg: '#FAFAF8',
-    cardBorder: '#E0DDD6',
-    textPrimary: '#1A1A18',
-    textSecondary: '#6C6A60',
-    textMuted: '#9C9A90',
-    annotationColor: '#B8860B',
-    positiveColor: '#16896A',
-    negativeColor: '#C0321F',
-    chartColor: null,
-    livelineTheme: 'light',
-    showGrid: true,
-    dotBorder: '#FAFAF8',
-  },
-  {
-    id: 'terminal',
-    name: 'Terminal',
-    cardBg: '#060C06',
-    cardBorder: '#1A3A1A',
-    textPrimary: '#00FF41',
-    textSecondary: '#00B32C',
-    textMuted: '#006614',
-    annotationColor: '#FFFF00',
-    positiveColor: '#00FF41',
-    negativeColor: '#FF3300',
-    chartColor: '#00FF41',
-    livelineTheme: 'dark',
-    showGrid: true,
-    dotBorder: '#060C06',
-  },
-  {
-    id: 'midnight',
-    name: 'Midnight',
-    cardBg: '#0D1523',
-    cardBorder: '#1E2D45',
-    textPrimary: '#E8F0FE',
-    textSecondary: '#7A9CC8',
-    textMuted: '#3A5070',
-    annotationColor: '#F0C84A',
-    positiveColor: '#34C78A',
-    negativeColor: '#FF6B6B',
-    chartColor: null,
-    livelineTheme: 'dark',
-    showGrid: true,
-    dotBorder: '#0D1523',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    cardBg: '#111110',
-    cardBorder: 'transparent',
-    textPrimary: '#F0EDE6',
-    textSecondary: '#4A4844',
-    textMuted: '#2C2A28',
-    annotationColor: '#F0C84A',
-    positiveColor: '#26ab83',
-    negativeColor: '#E84332',
-    chartColor: null,
-    livelineTheme: 'dark',
-    showGrid: false,
-    dotBorder: '#111110',
-  },
-]
 
 interface Props {
   ticker: string
@@ -151,19 +114,21 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const cardRef         = useRef<HTMLDivElement>(null)
   const chartAreaRef    = useRef<HTMLDivElement>(null)
   const dateInputRef    = useRef<HTMLInputElement>(null)
+  const photoInputRef   = useRef<HTMLInputElement>(null)
+
   const [timeframe, setTimeframe]       = useState<Timeframe>('1M')
-  const [theme, setTheme]               = useState<ShareTheme>(THEMES[0])
   const [data, setData]                 = useState<LivelinePoint[]>([])
   const [loading, setLoading]           = useState(true)
   const [mounted, setMounted]           = useState(false)
   const [postText, setPostText]         = useState('')
   const [postDate, setPostDate]         = useState('')
+  const [ditheredUrl, setDitheredUrl]   = useState<string | null>(null)
+  const [dithering, setDithering]       = useState(false)
   const [downloading, setDownloading]   = useState(false)
   const [chartContainerW, setChartContainerW] = useState(0)
 
   useEffect(() => setMounted(true), [])
 
-  // Measure the actual rendered chart container width for pixel-accurate dot positioning
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
@@ -183,6 +148,26 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     return () => { cancelled = true }
   }, [coin, timeframe])
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset input so same file can be re-selected after remove
+    e.target.value = ''
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const src = ev.target?.result as string
+      setDithering(true)
+      try {
+        const result = await applyHalftone(src, 800, 400)
+        setDitheredUrl(result)
+      } catch {
+        setDitheredUrl(null)
+      }
+      setDithering(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const chartWindow = timeframe === 'ALL' && data.length > 1
     ? Math.ceil((data.at(-1)!.time - data[0].time) * 1.02)
     : TF_SECS[timeframe]
@@ -190,15 +175,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const decimals  = priceDecimals(currentPrice)
   const assetName = getAssetName(ticker)
 
-  // Map asset change color to theme's positive/negative color
-  const isPositiveChange  = changeColor !== '#E84332'
-  const themeChangeColor  = isPositiveChange ? theme.positiveColor : theme.negativeColor
-  const chartLineColor    = theme.chartColor ?? changeColor
-
-  // Annotation position — uses Liveline's exact window math for badge=false, momentum=false:
-  //   rightEdge = Date.now()/1000 + windowSecs * 0.015
-  //   leftEdge  = rightEdge - windowSecs
-  //   toX(t) = PAD_LEFT + (t - leftEdge) / windowSecs * (containerW - PAD_LEFT - PAD_RIGHT)
+  // Annotation position — Liveline exact window math for badge=false, momentum=false
   const annotation = postDate && data.length > 1 && chartContainerW > 0
     ? (() => {
         const ts   = new Date(postDate).getTime() / 1000
@@ -212,7 +189,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const xPct   = (ts - leftEdge) / (rightEdge - leftEdge)
         const dotX   = PAD_LEFT + xPct * chartW
 
-        // Y: replicate computeRange on visible data (12% margin)
         const visible = data.filter(p => p.time >= leftEdge)
         if (visible.length === 0) return null
 
@@ -244,7 +220,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     setDownloading(true)
     try {
       const { default: html2canvas } = await import('html2canvas')
-      const canvas   = await html2canvas(cardRef.current, { backgroundColor: theme.cardBg, scale: 2, useCORS: true, logging: false })
+      const canvas   = await html2canvas(cardRef.current, { backgroundColor: CARD_BG, scale: 2, useCORS: true, logging: false })
       const filename = `${ticker}-${timeframe.toLowerCase()}.png`
       if (navigator.share && navigator.canShare) {
         const blob = await new Promise<Blob>((res, rej) => canvas.toBlob(b => b ? res(b) : rej(), 'image/png'))
@@ -286,33 +262,33 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           <div style={{ width: 32 }} />
         </div>
 
-        {/* ── Card preview (captured by html2canvas) ── */}
-        <div ref={cardRef} style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+        {/* ── Card preview ── */}
+        <div ref={cardRef} style={{ background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
 
-          {/* Card header */}
+          {/* Header */}
           <div style={{ padding: '0 20px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
-              <span style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
+              <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <span style={{ fontSize: 36, fontWeight: 700, color: theme.textPrimary, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+              <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
                 {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
               </span>
               {!annotationLabel && (
-                <span style={{ fontSize: 15, color: themeChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
+                <span style={{ fontSize: 15, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
               )}
             </div>
             {annotationLabel && (
               <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: theme.annotationColor, fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#F0C84A', fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
                   {annotationPctStr && (
-                    <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? theme.positiveColor : theme.negativeColor, fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
                   )}
                 </div>
                 {postText && (
-                  <div style={{ fontSize: 11, color: theme.textSecondary, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 11, color: '#6C6A60', lineHeight: 1.4 }}>
                     {postText.length > 100 ? postText.slice(0, 100) + '…' : postText}
                   </div>
                 )}
@@ -320,16 +296,16 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             )}
           </div>
 
-          {/* Chart — badge=false, momentum=false for fixed, predictable layout constants */}
+          {/* Chart */}
           <div ref={chartAreaRef} style={{ position: 'relative' }}>
             {mounted && (
               <Liveline
                 data={data}
                 value={currentPrice}
-                color={chartLineColor}
-                theme={theme.livelineTheme}
+                color={changeColor}
+                theme="dark"
                 fill
-                grid={theme.showGrid}
+                grid
                 badge={false}
                 momentum={false}
                 loading={loading || data.length === 0}
@@ -343,16 +319,14 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                 style={{ width: '100%', height: CHART_H }}
               />
             )}
-
-            {/* Yellow dot at annotation position (pixel-accurate) */}
             {annotation !== null && (
               <div style={{
                 position: 'absolute',
                 width: 10, height: 10,
                 borderRadius: '50%',
-                background: theme.annotationColor,
-                border: `2px solid ${theme.dotBorder}`,
-                boxShadow: `0 0 6px ${theme.annotationColor}80`,
+                background: '#F0C84A',
+                border: `2px solid ${CARD_BG}`,
+                boxShadow: '0 0 6px rgba(240,200,74,0.5)',
                 pointerEvents: 'none',
                 left: annotation.dotX - 5,
                 top:  annotation.dotY - 5,
@@ -360,10 +334,35 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             )}
           </div>
 
-          {/* Card footer */}
+          {/* Dithered photo section */}
+          {ditheredUrl && (
+            <>
+              {/* Diagonal stripe separator */}
+              <div style={{
+                height: 10,
+                background: 'repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 4px)',
+              }} />
+              <div style={{ position: 'relative' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={ditheredUrl}
+                  alt=""
+                  style={{ display: 'block', width: '100%', height: 200, objectFit: 'cover' }}
+                />
+                {/* Fade from card bg into photo at top */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: 40,
+                  background: `linear-gradient(to bottom, ${CARD_BG}, transparent)`,
+                  pointerEvents: 'none',
+                }} />
+              </div>
+            </>
+          )}
+
+          {/* Footer */}
           <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: theme.textMuted, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
-            <span style={{ fontSize: 10, color: theme.textMuted, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
           </div>
         </div>
 
@@ -387,67 +386,49 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           </div>
         </div>
 
-        {/* Theme selector */}
+        {/* Photo */}
         <div>
-          <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>THEME</div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-            {THEMES.map(t => {
-              const active = theme.id === t.id
-              return (
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            style={{ display: 'none' }}
+          />
+          {!ditheredUrl ? (
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={dithering}
+              style={{
+                width: '100%', background: 'none',
+                border: '1px solid #2C2C2A', borderRadius: 10,
+                padding: '12px 16px', cursor: dithering ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                letterSpacing: '0.06em', color: dithering ? '#2C2C2A' : '#46443D',
+              }}
+            >
+              <span>{dithering ? 'PROCESSING…' : '+ ADD PHOTO'}</span>
+              <span style={{ fontSize: 10, color: '#2C2C2A' }}>OPTIONAL</span>
+            </button>
+          ) : (
+            <div style={{ border: '1px solid #2C2C2A', borderRadius: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>PHOTO ADDED</span>
+              <div style={{ display: 'flex', gap: 12 }}>
                 <button
-                  key={t.id}
-                  onClick={() => setTheme(t)}
-                  style={{
-                    flexShrink: 0,
-                    width: 68,
-                    background: 'none',
-                    border: `1px solid ${active ? '#F0EDE6' : '#2C2C2A'}`,
-                    borderRadius: 8,
-                    padding: '8px 0 7px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 7,
-                    transition: 'border-color 0.15s',
-                  }}
-                >
-                  {/* Mini card preview */}
-                  <div style={{
-                    width: 44, height: 28,
-                    background: t.cardBg,
-                    borderRadius: 4,
-                    border: `1px solid ${t.cardBorder === 'transparent' ? 'rgba(255,255,255,0.06)' : t.cardBorder}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}>
-                    {/* Simulated chart squiggle */}
-                    <svg width="44" height="28" viewBox="0 0 44 28" style={{ position: 'absolute', inset: 0 }}>
-                      <polyline
-                        points="2,22 8,16 14,18 20,10 26,13 32,8 40,5"
-                        fill="none"
-                        stroke={t.chartColor ?? t.positiveColor}
-                        strokeWidth="1.5"
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                        opacity="0.85"
-                      />
-                    </svg>
-                  </div>
-                  <span style={{
-                    fontSize: 9,
-                    fontFamily: 'Menlo,Monaco,monospace',
-                    color: active ? '#F0EDE6' : '#46443D',
-                    letterSpacing: '0.06em',
-                    transition: 'color 0.15s',
-                  }}>{t.name.toUpperCase()}</span>
-                </button>
-              )
-            })}
-          </div>
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                >CHANGE</button>
+                <button
+                  onClick={() => setDitheredUrl(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                >REMOVE</button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Timestamp — button that expands to inputs */}
+        {/* Timestamp */}
         <div>
           {!postDate ? (
             <button
@@ -477,7 +458,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
                 >REMOVE</button>
               </div>
-              {/* Hidden native input — triggers OS date picker; styled div handles display */}
               <div style={{ position: 'relative', borderBottom: '1px solid #1C1C1A', paddingBottom: 6 }}>
                 <div style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', padding: '6px 0 0', pointerEvents: 'none' }}>
                   {postDate
@@ -489,10 +469,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   type="datetime-local"
                   value={postDate}
                   onChange={e => setPostDate(e.target.value)}
-                  style={{
-                    position: 'absolute', inset: 0, opacity: 0,
-                    width: '100%', height: '100%', cursor: 'pointer',
-                  } as React.CSSProperties}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' } as React.CSSProperties}
                 />
               </div>
               <textarea

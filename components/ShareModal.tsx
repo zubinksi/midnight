@@ -401,27 +401,48 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               muted
               style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }}
             />
-            {/* Chart line overlay */}
+
+            {/* Chart line — fills full view */}
             <canvas
               ref={overlayCanvasRef}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
             />
-            {/* Stats ghost */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 24px 24px', background: 'linear-gradient(transparent, rgba(0,0,0,0.65))' }}>
-              <div style={{ fontFamily: 'Menlo,Monaco,monospace', display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6' }}>{ticker}</span>
-                <span style={{ fontSize: 16, color: cardChangeColor, fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
+
+            {/* Header overlay — mirrors card header, dark gradient behind */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              padding: '20px 20px 48px',
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, transparent 100%)',
+              pointerEvents: 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
+                <span style={{ fontSize: 12, color: 'rgba(240,237,230,0.45)', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                  {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
+                </span>
+                <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
               </div>
             </div>
-            {/* Shutter */}
-            <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
+
+            {/* Shutter — anchored at bottom, clear of all text */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              padding: '40px 0 28px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)',
+              display: 'flex', justifyContent: 'center', alignItems: 'center',
+            }}>
               <button
                 onClick={capturePhoto}
                 style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.95)',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer', boxShadow: '0 0 0 4px rgba(255,255,255,0.2)',
+                  width: 68, height: 68, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '3px solid rgba(255,255,255,0.35)',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 0 5px rgba(255,255,255,0.15)',
+                  flexShrink: 0,
                 }}
               />
             </div>

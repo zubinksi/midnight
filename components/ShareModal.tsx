@@ -128,7 +128,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const yPct = (closest.value - yMin) / (yMax - yMin)
         const dotY = PAD_TOP + DRAW_H * (1 - yPct)  // px from chart container top (dot center)
 
-        return { dotX, dotY }
+        return { dotX, dotY, closestValue: closest.value }
       })()
     : null
 
@@ -160,6 +160,17 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     ? new Date(postDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
+  const annotationPrice = annotation?.closestValue ?? null
+  const annotationPct   = annotationPrice !== null && annotationPrice > 0
+    ? ((currentPrice - annotationPrice) / annotationPrice) * 100
+    : null
+  const annotationPctStr = annotationPct !== null
+    ? `${annotationPct >= 0 ? '+' : ''}${annotationPct.toFixed(2)}%`
+    : null
+  const annotationPriceStr = annotationPrice !== null
+    ? formatPrice(annotationPrice, priceDecimals(annotationPrice))
+    : null
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#080807', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
       <div style={{ maxWidth: 430, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 16px) 24px calc(max(env(safe-area-inset-bottom), 32px) + 16px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -187,9 +198,13 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               <span style={{ fontSize: 14, color: changeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{pctStr}</span>
             </div>
             {annotationLabel && (
-              <div style={{ marginTop: 6, fontSize: 11, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.4 }}>
-                {annotationLabel}
-                {postText && <span style={{ color: '#46443D' }}> · {postText.length > 80 ? postText.slice(0, 80) + '…' : postText}</span>}
+              <div style={{ marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 8px' }}>
+                <span style={{ fontSize: 11, color: '#F0C84A' }}>{annotationLabel}</span>
+                {annotationPriceStr && <span style={{ fontSize: 11, color: '#F0EDE6', fontVariantNumeric: 'tabular-nums' }}>{annotationPriceStr}</span>}
+                {annotationPctStr && (
+                  <span style={{ fontSize: 11, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+                )}
+                {postText && <span style={{ fontSize: 10, color: '#46443D' }}>{postText.length > 80 ? postText.slice(0, 80) + '…' : postText}</span>}
               </div>
             )}
           </div>
@@ -261,37 +276,62 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           </div>
         </div>
 
-        {/* Timestamp input */}
+        {/* Timestamp — button that expands to inputs */}
         <div>
-          <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>
-            ADD TIMESTAMP <span style={{ color: '#2C2C2A' }}>· OPTIONAL</span>
-          </div>
-          <input
-            type="datetime-local"
-            value={postDate}
-            onChange={e => setPostDate(e.target.value)}
-            style={{
-              width: '100%', background: 'transparent', border: 'none',
-              borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-              color: postDate ? '#F0EDE6' : '#2C2C2A',
-              fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
-              outline: 'none', boxSizing: 'border-box', marginBottom: 12,
-              colorScheme: 'dark',
-            } as React.CSSProperties}
-          />
-          <textarea
-            placeholder="POST TEXT"
-            value={postText}
-            onChange={e => setPostText(e.target.value)}
-            rows={3}
-            style={{
-              width: '100%', background: 'transparent', border: 'none',
-              borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-              color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
-              letterSpacing: '0.04em', outline: 'none', resize: 'none',
-              boxSizing: 'border-box',
-            } as React.CSSProperties}
-          />
+          {!postDate ? (
+            <button
+              onClick={() => {
+                const now = new Date()
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+                setPostDate(now.toISOString().slice(0, 16))
+              }}
+              style={{
+                width: '100%', background: 'none',
+                border: '1px solid #2C2C2A', borderRadius: 10,
+                padding: '12px 16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                letterSpacing: '0.06em', color: '#46443D',
+              }}
+            >
+              <span>+ ADD TIMESTAMP</span>
+              <span style={{ fontSize: 10, color: '#2C2C2A' }}>OPTIONAL</span>
+            </button>
+          ) : (
+            <div style={{ border: '1px solid #2C2C2A', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>TIMESTAMP</span>
+                <button
+                  onClick={() => { setPostDate(''); setPostText('') }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                >REMOVE</button>
+              </div>
+              <input
+                type="datetime-local"
+                value={postDate}
+                onChange={e => setPostDate(e.target.value)}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none',
+                  borderBottom: '1px solid #1C1C1A', padding: '6px 0',
+                  color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                  outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
+                } as React.CSSProperties}
+              />
+              <textarea
+                placeholder="POST TEXT (OPTIONAL)"
+                value={postText}
+                onChange={e => setPostText(e.target.value)}
+                rows={2}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none',
+                  borderBottom: '1px solid #1C1C1A', padding: '6px 0',
+                  color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                  letterSpacing: '0.04em', outline: 'none', resize: 'none',
+                  boxSizing: 'border-box',
+                } as React.CSSProperties}
+              />
+            </div>
+          )}
         </div>
 
         {/* Share */}

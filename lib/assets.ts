@@ -25,7 +25,7 @@ const COMMODITIES = new Set([
 
 const FX = new Set(['JPY', 'EUR'])
 
-const PRE_IPO = new Set(['CBRS'])
+const PRE_IPO = new Set<string>([])
 
 // Rename certain API tickers to a display ticker (ticker stays for routing,
 // coin ID stays for API calls — only the shown ticker text changes).

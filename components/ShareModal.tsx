@@ -197,7 +197,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             </div>
             {annotationLabel && (
               <div style={{ marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 8px' }}>
-                <span style={{ fontSize: 11, color: '#F0C84A' }}>{annotationLabel}</span>
+                <span style={{ fontSize: 11, color: '#F0C84A' }}>Since {annotationLabel}</span>
                 {annotationPctStr && (
                   <span style={{ fontSize: 11, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
                 )}
@@ -312,7 +312,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   borderBottom: '1px solid #1C1C1A', padding: '6px 0',
                   color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
                   outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
-                  textAlign: 'left',
+                  textAlign: 'left', WebkitAppearance: 'none', appearance: 'none',
                 } as React.CSSProperties}
               />
               <textarea

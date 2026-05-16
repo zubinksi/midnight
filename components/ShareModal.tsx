@@ -35,6 +35,12 @@ const DRAW_H     = CHART_H - PAD_TOP - PAD_BTM
 const WIN_BUFFER = 0.015
 const CARD_BG    = '#161614'
 
+// Alt layout 1: no grid (right pad drops to 12), chart height halved
+const ALT1_CHART_H   = 100
+const ALT1_PAD_RIGHT = 12
+const ALT1_DRAW_H    = ALT1_CHART_H - PAD_TOP - PAD_BTM
+const LAYOUT_COUNT   = 2
+
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace('#', ''), 16)
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
@@ -161,6 +167,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const videoRef          = useRef<HTMLVideoElement>(null)
   const overlayCanvasRef  = useRef<HTMLCanvasElement>(null)
   const rafRef            = useRef<number>(0)
+  const touchStartXRef    = useRef<number>(0)
 
   const [timeframe, setTimeframe]       = useState<Timeframe>('1M')
   const [data, setData]                 = useState<LivelinePoint[]>([])
@@ -168,8 +175,10 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   const [mounted, setMounted]           = useState(false)
   const [postText, setPostText]         = useState('')
   const [postDate, setPostDate]         = useState('')
-  const [duotoneUrl, setDuotoneUrl]     = useState<string | null>(null)
-  const [processing, setProcessing]     = useState(false)
+  const [duotoneUrl, setDuotoneUrl]         = useState<string | null>(null)
+  const [originalPhotoUrl, setOriginalPhotoUrl] = useState<string | null>(null)
+  const [cardLayout, setCardLayout]         = useState(0)
+  const [processing, setProcessing]         = useState(false)
   const [downloading, setDownloading]   = useState(false)
   const [chartContainerW, setChartContainerW] = useState(0)
   const [chartAreaTop, setChartAreaTop]       = useState(0)
@@ -287,7 +296,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     stopCamera()
     setProcessing(true)
     try {
-      const result = await applyDuotone(canvas.toDataURL("image/jpeg", 0.92), 800, 800, cardChangeColor)
+      const jpeg = canvas.toDataURL("image/jpeg", 0.92)
+      const result = await applyDuotone(jpeg, 800, 800, cardChangeColor)
+      setOriginalPhotoUrl(jpeg)
       setDuotoneUrl(result)
     } catch {}
     setProcessing(false)
@@ -303,6 +314,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       setProcessing(true)
       try {
         const result = await applyDuotone(src, 800, 800, cardChangeColor)
+        setOriginalPhotoUrl(src)
         setDuotoneUrl(result)
       } catch {}
       setProcessing(false)
@@ -337,6 +349,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
       })()
     : null
 
+  const activePadRight = cardLayout === 1 ? ALT1_PAD_RIGHT : PAD_RIGHT
+  const activeDRAW_H   = cardLayout === 1 ? ALT1_DRAW_H   : DRAW_H
+
   const annotation = annotationForPct && chartContainerW > 0
     ? (() => {
         const ts   = new Date(postDate).getTime() / 1000
@@ -344,7 +359,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const win  = chartWindow ?? (data.at(-1)!.time - data[0].time)
         const rightEdge = now + win * WIN_BUFFER
         const leftEdge  = rightEdge - win
-        const chartW = chartContainerW - PAD_LEFT - PAD_RIGHT
+        const chartW = chartContainerW - PAD_LEFT - activePadRight
         const xPct   = (ts - leftEdge) / (rightEdge - leftEdge)
         const dotX   = PAD_LEFT + xPct * chartW
         const visible = data.filter(p => p.time >= leftEdge)
@@ -358,7 +373,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         const yMin     = rawMin - margin
         const yMax     = rawMax + margin
         const yPct = (annotationForPct.closestValue - yMin) / (yMax - yMin)
-        const dotY = PAD_TOP + DRAW_H * (1 - yPct)
+        const dotY = PAD_TOP + activeDRAW_H * (1 - yPct)
         return { dotX, dotY, closestValue: annotationForPct.closestValue }
       })()
     : null
@@ -479,101 +494,159 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           </div>
         ) : (
           /* ── Card preview ── */
-          <div ref={cardRef} style={{ position: 'relative', background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+          <div
+            onTouchStart={e => { touchStartXRef.current = e.touches[0].clientX }}
+            onTouchEnd={e => {
+              const dx = e.changedTouches[0].clientX - touchStartXRef.current
+              if (Math.abs(dx) > 50) setCardLayout(l => (l + (dx > 0 ? 1 : -1) + LAYOUT_COUNT) % LAYOUT_COUNT)
+            }}
+          >
+            {cardLayout === 0 ? (
+              /* ── Layout 0: default ── */
+              <div ref={cardRef} style={{ position: 'relative', background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', paddingTop: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
 
-            {/* Header */}
-            <div style={{ padding: '0 20px 16px', position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
-                <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
-                  {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
-                </span>
-                {!annotationLabel && (
-                  <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
-                )}
-              </div>
-              {annotationLabel && (
-                <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#F0C84A', fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
-                    {annotationPctStr && (
-                      <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+                {/* Header */}
+                <div style={{ padding: '0 20px 16px', position: 'relative', zIndex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
+                    <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                      {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
+                    </span>
+                    {!annotationLabel && (
+                      <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
                     )}
                   </div>
-                  {postText && (
-                    <div style={{ fontSize: 11, color: '#6C6A60', lineHeight: 1.4 }}>
-                      {postText.length > 100 ? postText.slice(0, 100) + '…' : postText}
+                  {annotationLabel && (
+                    <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#F0C84A', fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
+                        {annotationPctStr && (
+                          <span style={{ fontSize: 14, fontWeight: 700, color: annotationPct! >= 0 ? '#26ab83' : '#E84332', fontVariantNumeric: 'tabular-nums' }}>{annotationPctStr}</span>
+                        )}
+                      </div>
+                      {postText && (
+                        <div style={{ fontSize: 11, color: '#6C6A60', lineHeight: 1.4 }}>
+                          {postText.length > 100 ? postText.slice(0, 100) + '…' : postText}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* Chart */}
-            <div ref={chartAreaRef} style={{ position: 'relative' }}>
-              {mounted && (
-                <Liveline
-                  data={data}
-                  value={currentPrice}
-                  color={cardChangeColor}
-                  theme="dark"
-                  fill
-                  grid
-                  badge={false}
-                  momentum={false}
-                  loading={loading || data.length === 0}
-                  lineWidth={1.5}
-                  window={chartWindow}
-                  padding={{ left: PAD_LEFT }}
-                  formatTime={timeframe !== '1D' ? (t: number) => {
-                    const d = new Date(t * 1000)
-                    return `${MONTHS[d.getMonth()]} ${d.getDate()}`
-                  } : undefined}
-                  style={{ width: '100%', height: CHART_H }}
-                />
-              )}
-            </div>
+                {/* Chart */}
+                <div ref={chartAreaRef} style={{ position: 'relative' }}>
+                  {mounted && (
+                    <Liveline
+                      data={data}
+                      value={currentPrice}
+                      color={cardChangeColor}
+                      theme="dark"
+                      fill
+                      grid
+                      badge={false}
+                      momentum={false}
+                      loading={loading || data.length === 0}
+                      lineWidth={1.5}
+                      window={chartWindow}
+                      padding={{ left: PAD_LEFT }}
+                      formatTime={timeframe !== '1D' ? (t: number) => {
+                        const d = new Date(t * 1000)
+                        return `${MONTHS[d.getMonth()]} ${d.getDate()}`
+                      } : undefined}
+                      style={{ width: '100%', height: CHART_H }}
+                    />
+                  )}
+                </div>
 
-            {/* Footer */}
-            <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
-              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
-            </div>
+                {/* Footer */}
+                <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                  <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+                  <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
+                </div>
 
-            {/* Duotone overlay — transparent except in bright photo areas */}
-            {duotoneUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={duotoneUrl}
-                alt=""
-                style={{
-                  position: 'absolute', inset: 0,
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  pointerEvents: 'none',
-                  mixBlendMode: 'screen',
-                }}
-              />
+                {/* Duotone overlay */}
+                {duotoneUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={duotoneUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', mixBlendMode: 'screen' }} />
+                )}
+
+                {/* Annotation dot */}
+                {annotation !== null && (
+                  <div style={{ position: 'absolute', width: 10, height: 10, borderRadius: '50%', background: '#F0C84A', border: `2px solid ${CARD_BG}`, boxShadow: '0 0 6px rgba(240,200,74,0.5)', pointerEvents: 'none', left: annotation.dotX - 5, top: chartAreaTop + annotation.dotY - 5 }} />
+                )}
+              </div>
+            ) : (
+              /* ── Layout 1: minimal, chart at bottom, raw photo ── */
+              <div ref={cardRef} style={{ position: 'relative', background: CARD_BG, border: '1px solid #2C2C2A', borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', minHeight: 320 }}>
+
+                {/* Background photo — raw, no duotone */}
+                {originalPhotoUrl && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={originalPhotoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.42)', pointerEvents: 'none' }} />
+                  </>
+                )}
+
+                {/* Header — single line: ticker · price · pct */}
+                <div style={{ padding: '20px 20px 0', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>{ticker}</span>
+                  <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                    {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
+                  </span>
+                  <span style={{ fontSize: 14, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                    {annotationPctStr ?? cardPctStr}
+                  </span>
+                  {annotationLabel && (
+                    <span style={{ fontSize: 12, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>since {annotationLabel}</span>
+                  )}
+                </div>
+
+                {/* Spacer — pushes chart to bottom */}
+                <div style={{ flex: 1 }} />
+
+                {/* Chart — half height, no axes */}
+                <div ref={chartAreaRef} style={{ position: 'relative', zIndex: 1 }}>
+                  {mounted && (
+                    <Liveline
+                      data={data}
+                      value={currentPrice}
+                      color={cardChangeColor}
+                      theme="dark"
+                      fill
+                      badge={false}
+                      momentum={false}
+                      loading={loading || data.length === 0}
+                      lineWidth={1.5}
+                      window={chartWindow}
+                      padding={{ left: PAD_LEFT }}
+                      style={{ width: '100%', height: ALT1_CHART_H }}
+                    />
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div style={{ padding: '8px 20px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                  <span style={{ fontSize: 11, color: '#FFFFFF', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
+                </div>
+
+                {/* Annotation dot */}
+                {annotation !== null && (
+                  <div style={{ position: 'absolute', width: 10, height: 10, borderRadius: '50%', background: '#F0C84A', border: `2px solid ${CARD_BG}`, boxShadow: '0 0 6px rgba(240,200,74,0.5)', pointerEvents: 'none', left: annotation.dotX - 5, top: chartAreaTop + annotation.dotY - 5 }} />
+                )}
+              </div>
             )}
 
-            {/* Annotation dot — last child so it's always above duotone regardless of stacking context.
-                Top is chartAreaTop (offsetTop of chart within card) + dotY within the chart. */}
-            {annotation !== null && (
-              <div style={{
-                position: 'absolute',
-                width: 10, height: 10,
-                borderRadius: '50%',
-                background: '#F0C84A',
-                border: `2px solid ${CARD_BG}`,
-                boxShadow: '0 0 6px rgba(240,200,74,0.5)',
-                pointerEvents: 'none',
-                left: annotation.dotX - 5,
-                top: chartAreaTop + annotation.dotY - 5,
-              }} />
-            )}
+            {/* Layout indicator dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+              {Array.from({ length: LAYOUT_COUNT }).map((_, i) => (
+                <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i === cardLayout ? '#F0EDE6' : '#2C2C2A', transition: 'background 0.2s' }} />
+              ))}
+            </div>
           </div>
         )}
 
@@ -645,7 +718,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
                   >CHANGE</button>
                   <button
-                    onClick={() => setDuotoneUrl(null)}
+                    onClick={() => { setDuotoneUrl(null); setOriginalPhotoUrl(null) }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
                   >REMOVE</button>
                 </div>

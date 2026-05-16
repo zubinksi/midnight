@@ -185,6 +185,8 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
 
   useEffect(() => setMounted(true), [])
 
+  // Re-run when cameraActive changes: toggling camera unmounts/remounts the card,
+  // creating a new DOM element for chartAreaRef that the previous observer no longer tracks.
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
@@ -193,7 +195,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
     const obs = new ResizeObserver(update)
     obs.observe(el)
     return () => obs.disconnect()
-  }, [])
+  }, [cameraActive])
 
   // Re-measure chartAreaTop when postDate changes: adding/removing the annotation row
   // changes the header height and therefore chartAreaRef's offsetTop, but ResizeObserver
@@ -386,7 +388,13 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
   }
 
   const annotationLabel = postDate
-    ? new Date(postDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? (() => {
+        const d = new Date(postDate)
+        const sameYear = d.getFullYear() === new Date().getFullYear()
+        return d.toLocaleDateString('en-US', sameYear
+          ? { month: 'short', day: 'numeric' }
+          : { month: 'short', day: 'numeric', year: 'numeric' })
+      })()
     : null
 
   const annotationPrice  = annotationForPct?.closestValue ?? null
@@ -652,9 +660,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             {!postDate ? (
               <button
                 onClick={() => {
-                  const now = new Date()
-                  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-                  setPostDate(now.toISOString().slice(0, 16))
+                  const n = new Date()
+                  const pad = (x: number) => x.toString().padStart(2, '0')
+                  setPostDate(`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}T${pad(n.getHours())}:${pad(n.getMinutes())}`)
                 }}
                 style={{
                   width: '100%', background: 'none',

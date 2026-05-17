@@ -148,10 +148,21 @@ async function fetchTokenLogs(): Promise<HypurrLog[]> {
 
 // ─── HyperEVM: batch eth_call ────────────────────────────────────────────────
 
-let _id = 1
+const EVM_BATCH_CHUNK = 200
 
 async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise<(string | null)[]> {
   if (calls.length === 0) return []
+
+  // Chunk large batches — HyperEVM rejects payloads with too many calls
+  if (calls.length > EVM_BATCH_CHUNK) {
+    const out = new Array<string | null>(calls.length).fill(null)
+    for (let i = 0; i < calls.length; i += EVM_BATCH_CHUNK) {
+      const chunkResults = await evmCallBatch(calls.slice(i, i + EVM_BATCH_CHUNK))
+      for (let j = 0; j < chunkResults.length; j++) out[i + j] = chunkResults[j]
+    }
+    return out
+  }
+
   const batch = calls.map((c, i) => ({
     jsonrpc: '2.0', id: i + 1,
     method: 'eth_call',
@@ -164,9 +175,9 @@ async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise
   })
   if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
   const raw = await res.json()
-  const responses = Array.isArray(raw) ? raw as Array<{ id: number; result?: string }> : []
+  if (!Array.isArray(raw)) { console.warn('[altfun] evmCallBatch non-array response', JSON.stringify(raw).slice(0, 200)); return new Array(calls.length).fill(null) }
   const out = new Array<string | null>(calls.length).fill(null)
-  for (const r of responses) {
+  for (const r of raw as Array<{ id: number; result?: string }>) {
     const i = r.id - 1
     if (i >= 0 && i < calls.length && r.result !== undefined) out[i] = r.result
   }

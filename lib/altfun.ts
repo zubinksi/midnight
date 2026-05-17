@@ -1,11 +1,14 @@
 'use client'
 
-// Alt.fun token data — calls HyperEVM directly from the browser.
-// HyperEVM rate-limits aggressively; all calls are throttled and cached.
+// Alt.fun token data.
+// Event logs: Hypurrscan indexed API (one request, no block range limit)
+// Contract reads: HyperEVM eth_call batch (browser only — server IPs are blocked)
 
-const EVM_RPC = 'https://rpc.hyperliquid.xyz/evm'
-const BONDING_ADDRESS = '0xb68811BcC0e4FcD825aA49F9453b065ddF752FcB'
-const TOKEN_LAUNCHED_TOPIC = '0xfbc2208107bf7df90abee76bf0fc7ccd04797858f418a4794797239da28cf0a3'
+const HYPURRSCAN = 'https://trace.hypurrscan.io/api/v1'
+const EVM_RPC    = 'https://rpc.hyperliquid.xyz/evm'
+
+const BONDING_ADDRESS       = '0xb68811BcC0e4FcD825aA49F9453b065ddF752FcB'
+const TOKEN_LAUNCHED_TOPIC  = '0xfbc2208107bf7df90abee76bf0fc7ccd04797858f418a4794797239da28cf0a3'
 
 const SEL_GET_TOKEN_INFO    = '0x1f69565f'
 const SEL_UNDERLYING_SYMBOL = '0xd90a730e'
@@ -14,14 +17,9 @@ const SEL_TARGET_LEVERAGE   = '0xd6c946ea'
 const SEL_EXCHANGE_RATE     = '0x3ba0b9a9'
 const SEL_POOL              = '0x16f0115b'
 
-// alt.fun contracts were deployed ~May 14 2026. At ~1 block/second on HyperEVM,
-// scanning the last 2M blocks covers ~23 days — more than enough history.
-const LOOKBACK_BLOCKS = 2_000_000
-
-// localStorage keys
-const LS_SCAN_CURSOR  = 'alt-scan-cursor-v2'
-const LS_RAW_LOGS     = 'alt-raw-logs-v2'
-const LS_TOKENS       = 'alt-tokens-v3'
+const LS_TOKENS     = 'alt-tokens-v4'
+const LS_TOKENS_TS  = 'alt-tokens-ts-v4'
+const CACHE_TTL_MS  = 5 * 60 * 1000
 
 export interface AltToken {
   address: string
@@ -69,34 +67,42 @@ function decodeString(hex: string, ptrOffset: number): string {
   } catch { return '' }
 }
 
-// ─── JSON-RPC (throttled) ─────────────────────────────────────────────────────
+function padAddress(addr: string): string {
+  return addr.toLowerCase().replace('0x', '').padStart(64, '0')
+}
+
+// ─── Hypurrscan: fetch all TokenLaunched logs ─────────────────────────────────
+
+interface HypurrLog {
+  address: string
+  block_number: number
+  data: string
+  topic0: string
+  topic1: string
+  topic2: string
+  topic3: string
+}
+
+async function fetchTokenLogs(): Promise<HypurrLog[]> {
+  const res = await fetch(`${HYPURRSCAN}/indexed/event-logs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      address: BONDING_ADDRESS,
+      topic0:  TOKEN_LAUNCHED_TOPIC,
+      limit:   10000,
+      offset:  0,
+    }),
+  })
+  if (!res.ok) throw new Error(`Hypurrscan ${res.status}`)
+  const json = await res.json() as { logs?: HypurrLog[]; error?: string }
+  if (json.error) throw new Error(`Hypurrscan: ${json.error}`)
+  return json.logs ?? []
+}
+
+// ─── HyperEVM: batch eth_call ────────────────────────────────────────────────
 
 let _id = 1
-
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
-
-async function evmPost<T>(method: string, params: unknown[], retries = 3): Promise<T> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(EVM_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: _id++, method, params }),
-    })
-    if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
-    const json = await res.json() as { result?: T; error?: { code: number; message: string } }
-    if (json.error) {
-      if (json.error.code === -32005 && attempt < retries) {
-        // Rate limited — back off
-        await sleep(1000 * (attempt + 1))
-        continue
-      }
-      throw new Error(`HyperEVM RPC error ${json.error.code}: ${json.error.message}`)
-    }
-    if (json.result === undefined) throw new Error('HyperEVM: no result')
-    return json.result
-  }
-  throw new Error('HyperEVM: max retries exceeded')
-}
 
 async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise<(string | null)[]> {
   if (calls.length === 0) return []
@@ -120,64 +126,23 @@ async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise
   return out
 }
 
-function toHex(n: number): string { return '0x' + n.toString(16) }
-function padAddress(addr: string): string {
-  return addr.toLowerCase().replace('0x', '').padStart(64, '0')
-}
+// ─── Token enrichment ─────────────────────────────────────────────────────────
 
+interface RawToken { address: string; creator: string; ltAddress: string; name: string; ticker: string }
 
-// ─── Log fetching (sequential, throttled) ─────────────────────────────────────
-
-interface RawLog { address: string; creator: string; ltAddress: string; name: string; ticker: string }
-
-function parseLog(log: { topics: string[]; data: string }): RawLog | null {
-  if (log.topics.length < 4) return null
-  const address   = '0x' + log.topics[1].slice(26)
-  const creator   = '0x' + log.topics[2].slice(26)
-  const ltAddress = '0x' + log.topics[3].slice(26)
+function parseLog(log: HypurrLog): RawToken | null {
+  if (!log.topic1 || !log.topic2 || !log.topic3) return null
+  const address   = '0x' + log.topic1.slice(26)
+  const creator   = '0x' + log.topic2.slice(26)
+  const ltAddress = '0x' + log.topic3.slice(26)
   const data = log.data.replace('0x', '')
   const name   = decodeString(data, 0)
   const ticker = decodeString(data, 32)
   return { address, creator, ltAddress, name, ticker }
 }
 
-async function scanLogs(
-  fromBlock: number,
-  toBlock: number,
-  onProgress?: (scanned: number, total: number) => void,
-): Promise<RawLog[]> {
-  const CHUNK = 1000
-  const chunks: Array<[number, number]> = []
-  for (let s = fromBlock; s <= toBlock; s += CHUNK) {
-    chunks.push([s, Math.min(s + CHUNK - 1, toBlock)])
-  }
-
-  const results: RawLog[] = []
-  for (let i = 0; i < chunks.length; i++) {
-    const [from, to] = chunks[i]
-    try {
-      const logs = await evmPost<Array<{ topics: string[]; data: string }>>('eth_getLogs', [{
-        address: BONDING_ADDRESS,
-        topics:  [TOKEN_LAUNCHED_TOPIC],
-        fromBlock: toHex(from),
-        toBlock:   toHex(to),
-      }])
-      for (const log of logs) {
-        const parsed = parseLog(log)
-        if (parsed) results.push(parsed)
-      }
-    } catch {
-      // Skip chunks that error (rate limit retries handled inside evmPost)
-    }
-    onProgress?.(i + 1, chunks.length)
-    await sleep(50) // throttle between chunks
-  }
-  return results
-}
-
-// ─── Token detail enrichment ──────────────────────────────────────────────────
-
-async function enrichTokens(rawTokens: RawLog[]): Promise<AltToken[]> {
+async function enrichTokens(rawTokens: RawToken[]): Promise<AltToken[]> {
+  // One batch for all tokens: underlyingSymbol, isLong, targetLeverage, getTokenInfo
   const calls = rawTokens.flatMap(t => [
     { to: t.ltAddress,     data: SEL_UNDERLYING_SYMBOL },
     { to: t.ltAddress,     data: SEL_IS_LONG },
@@ -221,54 +186,31 @@ async function enrichTokens(rawTokens: RawLog[]): Promise<AltToken[]> {
 export async function fetchAltTokenList(
   onProgress?: (pct: number, status: string) => void,
 ): Promise<AltToken[]> {
-  onProgress?.(0, 'Connecting...')
-
-  const currentBlockHex = await evmPost<string>('eth_blockNumber', [])
-  const currentBlock    = parseInt(currentBlockHex, 16)
-
-  // Load caches
-  let cachedRawLogs: RawLog[] = []
-  let scanCursor: number | null = null
-  let cachedTokens: AltToken[] | null = null
+  // Return cache if fresh
   try {
-    const raw = localStorage.getItem(LS_RAW_LOGS)
-    if (raw) cachedRawLogs = JSON.parse(raw)
-    const cur = localStorage.getItem(LS_SCAN_CURSOR)
-    if (cur) scanCursor = parseInt(cur)
-    const tok = localStorage.getItem(LS_TOKENS)
-    if (tok) cachedTokens = JSON.parse(tok)
+    const ts = localStorage.getItem(LS_TOKENS_TS)
+    if (ts && Date.now() - parseInt(ts) < CACHE_TTL_MS) {
+      const cached = localStorage.getItem(LS_TOKENS)
+      if (cached) return JSON.parse(cached)
+    }
   } catch {}
 
-  // On first load: scan last LOOKBACK_BLOCKS. On subsequent loads: scan from cursor.
-  const fromBlock = scanCursor ?? Math.max(0, currentBlock - LOOKBACK_BLOCKS)
+  onProgress?.(10, 'Fetching token list...')
+  const logs = await fetchTokenLogs()
 
-  if (fromBlock > currentBlock) {
-    return cachedTokens ?? []
-  }
+  const rawTokens = logs.map(parseLog).filter(Boolean) as RawToken[]
+  if (rawTokens.length === 0) return []
 
-  const numChunks = Math.ceil((currentBlock - fromBlock) / 1000)
+  onProgress?.(50, `Loading details for ${rawTokens.length} tokens...`)
+  const tokens = await enrichTokens(rawTokens)
 
-  if (numChunks > 0) {
-    onProgress?.(0, `Scanning ${numChunks} block ranges...`)
-    const newLogs = await scanLogs(fromBlock, currentBlock, (done, total) => {
-      onProgress?.(Math.round((done / total) * 100), `Scanning ${done}/${total}...`)
-    })
+  try {
+    localStorage.setItem(LS_TOKENS, JSON.stringify(tokens))
+    localStorage.setItem(LS_TOKENS_TS, String(Date.now()))
+  } catch {}
 
-    const allRaw = [...cachedRawLogs, ...newLogs]
-    try {
-      localStorage.setItem(LS_RAW_LOGS, JSON.stringify(allRaw))
-      localStorage.setItem(LS_SCAN_CURSOR, String(currentBlock + 1))
-    } catch {}
-
-    if (allRaw.length === 0) return []
-
-    onProgress?.(100, 'Loading token details...')
-    const tokens = await enrichTokens(allRaw)
-    try { localStorage.setItem(LS_TOKENS, JSON.stringify(tokens)) } catch {}
-    return tokens
-  }
-
-  return cachedTokens ?? []
+  onProgress?.(100, 'Done')
+  return tokens
 }
 
 export async function fetchAltTokenDetails(token: AltToken): Promise<AltTokenDetails> {

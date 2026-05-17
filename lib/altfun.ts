@@ -84,20 +84,59 @@ interface HypurrLog {
 }
 
 async function fetchTokenLogs(): Promise<HypurrLog[]> {
-  const res = await fetch(`${HYPURRSCAN}/indexed/event-logs`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      address: BONDING_ADDRESS,
-      topic0:  TOKEN_LAUNCHED_TOPIC,
-      limit:   10000,
-      offset:  0,
-    }),
-  })
-  if (!res.ok) throw new Error(`Hypurrscan ${res.status}`)
-  const json = await res.json() as { logs?: HypurrLog[]; error?: string }
-  if (json.error) throw new Error(`Hypurrscan: ${json.error}`)
-  return json.logs ?? []
+  // Primary: Hypurrscan indexed API (single request, no block range limit)
+  try {
+    const res = await fetch(`${HYPURRSCAN}/indexed/event-logs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        address: BONDING_ADDRESS,
+        topic0:  TOKEN_LAUNCHED_TOPIC,
+        limit:   10000,
+        offset:  0,
+      }),
+    })
+    if (res.ok) {
+      const json = await res.json() as { logs?: HypurrLog[]; error?: string }
+      if (!json.error && json.logs) return json.logs
+    }
+  } catch { /* fall through to Blockscout */ }
+
+  // Fallback: Blockscout REST API v2 (hyperscan.com), paginated
+  const logs: HypurrLog[] = []
+  let url: string | null =
+    `https://www.hyperscan.com/api/v2/addresses/${BONDING_ADDRESS}/logs` +
+    `?topic0=${TOKEN_LAUNCHED_TOPIC}`
+
+  while (url) {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`Blockscout ${res.status}`)
+    const json = await res.json() as {
+      items: Array<{ topics: string[]; data: string; block_number: number }>
+      next_page_params?: Record<string, string | number> | null
+    }
+    for (const item of json.items ?? []) {
+      if (item.topics[0]?.toLowerCase() !== TOKEN_LAUNCHED_TOPIC) continue
+      logs.push({
+        address:      BONDING_ADDRESS,
+        block_number: item.block_number,
+        data:         item.data,
+        topic0:       item.topics[0] ?? '',
+        topic1:       item.topics[1] ?? '',
+        topic2:       item.topics[2] ?? '',
+        topic3:       item.topics[3] ?? '',
+      })
+    }
+    if (json.next_page_params) {
+      const params = new URLSearchParams(
+        Object.fromEntries(Object.entries(json.next_page_params).map(([k, v]) => [k, String(v)]))
+      )
+      url = `https://www.hyperscan.com/api/v2/addresses/${BONDING_ADDRESS}/logs?${params}&topic0=${TOKEN_LAUNCHED_TOPIC}`
+    } else {
+      url = null
+    }
+  }
+  return logs
 }
 
 // ─── HyperEVM: batch eth_call ────────────────────────────────────────────────

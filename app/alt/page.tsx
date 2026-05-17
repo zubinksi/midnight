@@ -61,7 +61,7 @@ export default function AltPage() {
       })
       .catch(err => {
         console.error('[alt tokens]', err)
-        setError('Failed to load tokens')
+        setError((err as Error).message ?? 'Failed to load tokens')
       })
       .finally(() => setLoading(false))
   }, [])

@@ -14,11 +14,14 @@ const SEL_TARGET_LEVERAGE   = '0xd6c946ea'
 const SEL_EXCHANGE_RATE     = '0x3ba0b9a9'
 const SEL_POOL              = '0x16f0115b'
 
+// alt.fun contracts were deployed ~May 14 2026. At ~1 block/second on HyperEVM,
+// scanning the last 2M blocks covers ~23 days — more than enough history.
+const LOOKBACK_BLOCKS = 2_000_000
+
 // localStorage keys
-const LS_DEPLOY_BLOCK = 'alt-deploy-block'
-const LS_SCAN_CURSOR  = 'alt-scan-cursor'
-const LS_RAW_LOGS     = 'alt-raw-logs'       // cached parsed log entries
-const LS_TOKENS       = 'alt-tokens-v2'      // final token list
+const LS_SCAN_CURSOR  = 'alt-scan-cursor-v2'
+const LS_RAW_LOGS     = 'alt-raw-logs-v2'
+const LS_TOKENS       = 'alt-tokens-v3'
 
 export interface AltToken {
   address: string
@@ -122,27 +125,6 @@ function padAddress(addr: string): string {
   return addr.toLowerCase().replace('0x', '').padStart(64, '0')
 }
 
-// ─── Deployment block (binary search, cached) ─────────────────────────────────
-
-async function getOrFindDeployBlock(currentBlock: number): Promise<number> {
-  try {
-    const cached = localStorage.getItem(LS_DEPLOY_BLOCK)
-    if (cached) return parseInt(cached)
-  } catch {}
-
-  // Binary search with 200ms throttle between calls
-  let lo = 0, hi = currentBlock
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2)
-    const code = await evmPost<string>('eth_getCode', [BONDING_ADDRESS, toHex(mid)])
-    await sleep(200)
-    if (!code || code === '0x') lo = mid + 1
-    else hi = mid
-  }
-
-  try { localStorage.setItem(LS_DEPLOY_BLOCK, String(lo)) } catch {}
-  return lo
-}
 
 // ─── Log fetching (sequential, throttled) ─────────────────────────────────────
 
@@ -188,7 +170,7 @@ async function scanLogs(
       // Skip chunks that error (rate limit retries handled inside evmPost)
     }
     onProgress?.(i + 1, chunks.length)
-    await sleep(150) // throttle between chunks
+    await sleep(50) // throttle between chunks
   }
   return results
 }
@@ -257,23 +239,19 @@ export async function fetchAltTokenList(
     if (tok) cachedTokens = JSON.parse(tok)
   } catch {}
 
-  const fromBlock = scanCursor ?? await (async () => {
-    onProgress?.(0, 'Finding contract deploy block...')
-    return getOrFindDeployBlock(currentBlock)
-  })()
+  // On first load: scan last LOOKBACK_BLOCKS. On subsequent loads: scan from cursor.
+  const fromBlock = scanCursor ?? Math.max(0, currentBlock - LOOKBACK_BLOCKS)
 
   if (fromBlock > currentBlock) {
-    // Nothing new to scan
     return cachedTokens ?? []
   }
 
-  const totalBlocks = currentBlock - fromBlock
-  const numChunks   = Math.ceil(totalBlocks / 1000)
+  const numChunks = Math.ceil((currentBlock - fromBlock) / 1000)
 
   if (numChunks > 0) {
-    onProgress?.(0, `Scanning ${numChunks} block chunks...`)
+    onProgress?.(0, `Scanning ${numChunks} block ranges...`)
     const newLogs = await scanLogs(fromBlock, currentBlock, (done, total) => {
-      onProgress?.(Math.round((done / total) * 100), `Scanning blocks ${done}/${total}...`)
+      onProgress?.(Math.round((done / total) * 100), `Scanning ${done}/${total}...`)
     })
 
     const allRaw = [...cachedRawLogs, ...newLogs]

@@ -17,9 +17,9 @@ const SEL_TARGET_LEVERAGE   = '0xd6c946ea'
 const SEL_EXCHANGE_RATE     = '0x3ba0b9a9'
 const SEL_POOL              = '0x16f0115b'
 
-const LS_TOKENS     = 'alt-tokens-v5'
-const LS_TOKENS_TS  = 'alt-tokens-ts-v5'
-const CACHE_TTL_MS  = 5 * 60 * 1000
+const LS_TOKENS     = 'alt-tokens-v6'
+const LS_TOKENS_TS  = 'alt-tokens-ts-v6'
+const CACHE_TTL_MS  = 30 * 60 * 1000
 
 export interface AltToken {
   address: string
@@ -148,38 +148,52 @@ async function fetchTokenLogs(): Promise<HypurrLog[]> {
 
 // ─── HyperEVM: batch eth_call ────────────────────────────────────────────────
 
-const EVM_BATCH_CHUNK = 200
+// HyperEVM enforces a hard limit of 20 calls per JSON-RPC batch.
+const EVM_BATCH_CHUNK = 20
 
-async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise<(string | null)[]> {
-  if (calls.length === 0) return []
-
-  // Chunk large batches — HyperEVM rejects payloads with too many calls
-  if (calls.length > EVM_BATCH_CHUNK) {
-    const out = new Array<string | null>(calls.length).fill(null)
-    for (let i = 0; i < calls.length; i += EVM_BATCH_CHUNK) {
-      const chunkResults = await evmCallBatch(calls.slice(i, i + EVM_BATCH_CHUNK))
-      for (let j = 0; j < chunkResults.length; j++) out[i + j] = chunkResults[j]
-    }
-    return out
-  }
-
+async function evmCallChunk(calls: Array<{ to: string; data: string }>): Promise<(string | null)[]> {
   const batch = calls.map((c, i) => ({
     jsonrpc: '2.0', id: i + 1,
     method: 'eth_call',
     params: [{ to: c.to, data: c.data }, 'latest'],
   }))
-  const res = await fetch(EVM_RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(batch),
-  })
-  if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
-  const raw = await res.json()
-  if (!Array.isArray(raw)) { console.warn('[altfun] evmCallBatch non-array response', JSON.stringify(raw).slice(0, 200)); return new Array(calls.length).fill(null) }
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 500 * attempt))
+    let raw: unknown
+    try {
+      const res = await fetch(EVM_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch),
+      })
+      if (!res.ok) return new Array(calls.length).fill(null)
+      raw = await res.json()
+    } catch { return new Array(calls.length).fill(null) }
+    if (!Array.isArray(raw)) {
+      const code = (raw as { error?: { code?: number } })?.error?.code
+      if (code === -32005) continue  // rate limited — back off and retry
+      return new Array(calls.length).fill(null)
+    }
+    const out = new Array<string | null>(calls.length).fill(null)
+    for (const r of raw as Array<{ id: number; result?: string }>) {
+      const i = r.id - 1
+      if (i >= 0 && i < calls.length && r.result !== undefined) out[i] = r.result
+    }
+    return out
+  }
+  return new Array(calls.length).fill(null)
+}
+
+async function evmCallBatch(
+  calls: Array<{ to: string; data: string }>,
+  onChunk?: (done: number, total: number) => void,
+): Promise<(string | null)[]> {
+  if (calls.length === 0) return []
   const out = new Array<string | null>(calls.length).fill(null)
-  for (const r of raw as Array<{ id: number; result?: string }>) {
-    const i = r.id - 1
-    if (i >= 0 && i < calls.length && r.result !== undefined) out[i] = r.result
+  for (let i = 0; i < calls.length; i += EVM_BATCH_CHUNK) {
+    const results = await evmCallChunk(calls.slice(i, i + EVM_BATCH_CHUNK))
+    for (let j = 0; j < results.length; j++) out[i + j] = results[j]
+    onChunk?.(Math.min(i + EVM_BATCH_CHUNK, calls.length), calls.length)
   }
   return out
 }
@@ -199,45 +213,37 @@ function parseLog(log: HypurrLog): RawToken | null {
   return { address, creator, ltAddress, name, ticker }
 }
 
-async function enrichTokens(rawTokens: RawToken[]): Promise<AltToken[]> {
-  // One batch for all tokens: underlyingSymbol, isLong, targetLeverage, getTokenInfo
+async function enrichTokens(
+  rawTokens: RawToken[],
+  onProgress?: (pct: number, status: string) => void,
+): Promise<AltToken[]> {
+  // 3 calls per token (skip getTokenInfo — pair fetched on detail page only)
   const calls = rawTokens.flatMap(t => [
-    { to: t.ltAddress,     data: SEL_UNDERLYING_SYMBOL },
-    { to: t.ltAddress,     data: SEL_IS_LONG },
-    { to: t.ltAddress,     data: SEL_TARGET_LEVERAGE },
-    { to: BONDING_ADDRESS, data: SEL_GET_TOKEN_INFO + padAddress(t.address) },
+    { to: t.ltAddress, data: SEL_UNDERLYING_SYMBOL },
+    { to: t.ltAddress, data: SEL_IS_LONG },
+    { to: t.ltAddress, data: SEL_TARGET_LEVERAGE },
   ])
-  const results = await evmCallBatch(calls)
+  const total = calls.length
+  const results = await evmCallBatch(calls, (done) => {
+    const tokensDone = Math.floor(done / 3)
+    onProgress?.(50 + Math.round((done / total) * 45), `Loading ${tokensDone}/${rawTokens.length} tokens...`)
+  })
 
   const tokens: AltToken[] = []
   for (let i = 0; i < rawTokens.length; i++) {
     const t           = rawTokens[i]
-    const symbolHex   = results[i * 4]
-    const isLongHex   = results[i * 4 + 1]
-    const leverageHex = results[i * 4 + 2]
-    const infoHex     = results[i * 4 + 3]
+    const symbolHex   = results[i * 3]
+    const isLongHex   = results[i * 3 + 1]
+    const leverageHex = results[i * 3 + 2]
 
     const perpTicker = symbolHex && symbolHex !== '0x'
       ? decodeString(symbolHex.replace('0x', ''), 0) : null
-    if (!perpTicker) {
-      if (i === 0) console.warn('[altfun] token 0 missing perpTicker, symbolHex=', symbolHex?.slice(0, 20))
-      continue
-    }
+    if (!perpTicker) continue
 
     const isLong   = isLongHex ? decodeUint256(isLongHex.replace('0x', ''), 0) !== BigInt(0) : true
     const leverage = leverageHex ? Number(decodeUint256(leverageHex.replace('0x', ''), 0)) : 5
 
-    let pair = '', name = t.name, ticker = t.ticker
-    if (infoHex && infoHex !== '0x') {
-      const h = infoHex.replace('0x', '')
-      if (h.length >= 128) {
-        pair   = decodeAddress(h, 32)
-        name   = decodeString(h, 96) || t.name
-        ticker = decodeString(h, 128) || t.ticker
-      }
-    }
-
-    tokens.push({ address: t.address, creator: t.creator, pair, ltAddress: t.ltAddress, name, ticker, perpTicker, isLong, leverage })
+    tokens.push({ address: t.address, creator: t.creator, pair: '', ltAddress: t.ltAddress, name: t.name, ticker: t.ticker, perpTicker, isLong, leverage })
   }
   return tokens
 }
@@ -266,7 +272,7 @@ export async function fetchAltTokenList(
   if (rawTokens.length === 0) return []
 
   onProgress?.(50, `Loading details for ${rawTokens.length} tokens...`)
-  const tokens = await enrichTokens(rawTokens)
+  const tokens = await enrichTokens(rawTokens, onProgress)
   console.log(`[altfun] enrichTokens → ${tokens.length} tokens`)
 
   try {

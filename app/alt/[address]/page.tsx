@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAssetPrice, usePriceHistory, Timeframe } from '@/lib/hyperliquid'
 import { formatPrice, formatChange } from '@/lib/format'
-import { formatMarketCap } from '@/lib/altfun'
+import { fetchAltTokenList, fetchAltTokenDetails, formatMarketCap } from '@/lib/altfun'
 import type { AltTokenDetails } from '@/lib/altfun'
 import { priceDecimals } from '@/lib/assets'
 import LivelineChart from '@/components/LivelineChart'
@@ -27,6 +27,16 @@ const TIMEFRAME_TO_SECS: Partial<Record<Timeframe, number>> = {
 }
 
 const ALT_FAVORITES_KEY = 'alt-favorites'
+const ALT_CACHE_KEY     = 'alt-token-cache'
+
+function getTokenFromCache(address: string) {
+  try {
+    const raw = localStorage.getItem(ALT_CACHE_KEY)
+    if (!raw) return null
+    const { tokens } = JSON.parse(raw) as { tokens: import('@/lib/altfun').AltToken[] }
+    return tokens.find(t => t.address.toLowerCase() === address.toLowerCase()) ?? null
+  } catch { return null }
+}
 
 export default function AltTokenPage({ params }: { params: Promise<{ address: string }> }) {
   const { address } = use(params)
@@ -47,14 +57,30 @@ export default function AltTokenPage({ params }: { params: Promise<{ address: st
   }, [address])
 
   useEffect(() => {
-    fetch(`/api/alt/${address}`)
-      .then(r => r.ok ? r.json() as Promise<AltTokenDetails> : Promise.reject())
-      .then(data => setToken(data))
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false))
+    const cached = getTokenFromCache(address)
+    if (cached) {
+      // Immediately show basic info from cache, then fetch details
+      setToken({ ...cached, marketCapUsd: null })
+      setLoading(false)
+      fetchAltTokenDetails(cached)
+        .then(details => setToken(details))
+        .catch(() => {})
+      return
+    }
+    // No cache: fetch full list then details
+    fetchAltTokenList()
+      .then(tokens => {
+        const found = tokens.find(t => t.address.toLowerCase() === address.toLowerCase())
+        if (!found) { setLoading(false); return }
+        setToken({ ...found, marketCapUsd: null })
+        setLoading(false)
+        return fetchAltTokenDetails(found).then(details => setToken(details))
+      })
+      .catch(() => setLoading(false))
   }, [address])
 
   const toggleStar = () => {
+    if (!token) return
     setStarred(prev => {
       const next = !prev
       try {
@@ -68,7 +94,7 @@ export default function AltTokenPage({ params }: { params: Promise<{ address: st
     })
   }
 
-  // Chart the backing HL perp (same as regular chart pages)
+  // Chart the backing HL perp
   const perpCoin   = token?.perpTicker ?? ''
   const livePrice  = useAssetPrice(perpCoin, 800)
   const { data, loading: chartLoading, openPrice } = usePriceHistory(perpCoin, timeframe)
@@ -77,12 +103,11 @@ export default function AltTokenPage({ params }: { params: Promise<{ address: st
   const displayPrice = scrubPrice ?? currentPrice
   const decimals     = priceDecimals(displayPrice)
 
-  const windowOpen = openPrice ?? displayPrice
-  const windowDiff = displayPrice - windowOpen
-  const windowPct  = windowOpen !== 0 ? (windowDiff / windowOpen) * 100 : 0
-  const windowUp   = windowDiff >= 0
-  const changeColor = windowUp ? '#26ab83' : '#E84332'
-  const { pctStr } = formatChange(windowDiff, windowPct, decimals)
+  const windowOpen  = openPrice ?? displayPrice
+  const windowDiff  = displayPrice - windowOpen
+  const windowPct   = windowOpen !== 0 ? (windowDiff / windowOpen) * 100 : 0
+  const changeColor = windowDiff >= 0 ? '#26ab83' : '#E84332'
+  const { pctStr }  = formatChange(windowDiff, windowPct, decimals)
 
   const handleScrub = useCallback((p: number | null) => setScrubPrice(p), [])
 
@@ -128,7 +153,6 @@ export default function AltTokenPage({ params }: { params: Promise<{ address: st
                 >★</button>
               </div>
 
-              {/* Backing perp badge */}
               <div style={{ marginBottom: 12 }}>
                 <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
                   {dir} {token.leverage}× {token.perpTicker} PERP
@@ -198,7 +222,6 @@ export default function AltTokenPage({ params }: { params: Promise<{ address: st
                 </div>
               </div>
 
-              {/* Contract address */}
               <div style={{ marginBottom: 32, paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
                 <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginBottom: 6 }}>CONTRACT</div>
                 <div

@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { fetchAltTokenList } from '@/lib/altfun'
 import type { AltToken } from '@/lib/altfun'
 
 const ALT_FAVORITES_KEY = 'alt-favorites'
+const ALT_CACHE_KEY     = 'alt-token-cache'
+const CACHE_TTL_MS      = 5 * 60 * 1000
 
 function getInitialFavorites(): string[] {
   try {
@@ -13,24 +16,53 @@ function getInitialFavorites(): string[] {
   } catch { return [] }
 }
 
+function getCachedTokens(): AltToken[] | null {
+  try {
+    const raw = localStorage.getItem(ALT_CACHE_KEY)
+    if (!raw) return null
+    const { tokens, ts } = JSON.parse(raw) as { tokens: AltToken[]; ts: number }
+    if (Date.now() - ts > CACHE_TTL_MS) return null
+    return tokens
+  } catch { return null }
+}
+
+function setCachedTokens(tokens: AltToken[]) {
+  try { localStorage.setItem(ALT_CACHE_KEY, JSON.stringify({ tokens, ts: Date.now() })) } catch {}
+}
+
 function saveFavorites(favs: string[]) {
   try { localStorage.setItem(ALT_FAVORITES_KEY, JSON.stringify(favs)) } catch {}
 }
 
 export default function AltPage() {
-  const router                          = useRouter()
-  const [tokens, setTokens]             = useState<AltToken[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [search, setSearch]             = useState('')
-  const [favorites, setFavorites]       = useState<string[]>([])
+  const router                            = useRouter()
+  const [tokens, setTokens]               = useState<AltToken[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState<string | null>(null)
+  const [search, setSearch]               = useState('')
+  const [favorites, setFavorites]         = useState<string[]>([])
   const [filterStarred, setFilterStarred] = useState(false)
 
   useEffect(() => {
     setFavorites(getInitialFavorites())
-    fetch('/api/alt')
-      .then(r => r.json() as Promise<AltToken[]>)
-      .then(data => setTokens(Array.isArray(data) ? data : []))
-      .catch(() => setTokens([]))
+
+    const cached = getCachedTokens()
+    if (cached) {
+      setTokens(cached)
+      setLoading(false)
+      return
+    }
+
+    fetchAltTokenList()
+      .then(data => {
+        setTokens(data)
+        setCachedTokens(data)
+        setError(null)
+      })
+      .catch(err => {
+        console.error('[alt tokens]', err)
+        setError('Failed to load tokens')
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -110,7 +142,12 @@ export default function AltPage() {
               LOADING...
             </div>
           )}
-          {!loading && filtered.length === 0 && (
+          {!loading && error && (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11 }}>
+              {error}
+            </div>
+          )}
+          {!loading && !error && filtered.length === 0 && (
             <div style={{ padding: '40px 0', textAlign: 'center', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12 }}>
               {tokens.length === 0 ? 'NO TOKENS FOUND' : 'NO RESULTS'}
             </div>

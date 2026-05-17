@@ -6,7 +6,6 @@ const EVM_RPC = 'https://rpc.hyperliquid.xyz/evm'
 const BONDING_ADDRESS = '0xb68811BcC0e4FcD825aA49F9453b065ddF752FcB'
 const TOKEN_LAUNCHED_TOPIC = '0xfbc2208107bf7df90abee76bf0fc7ccd04797858f418a4794797239da28cf0a3'
 
-// keccak256-derived function selectors (precomputed)
 const SEL_GET_TOKEN_INFO    = '0x1f69565f'
 const SEL_UNDERLYING_SYMBOL = '0xd90a730e'
 const SEL_IS_LONG           = '0x202a61a1'
@@ -30,7 +29,7 @@ export interface AltTokenDetails extends AltToken {
   marketCapUsd: number | null
 }
 
-// ─── ABI helpers (browser-safe) ──────────────────────────────────────────────
+// ─── ABI helpers ─────────────────────────────────────────────────────────────
 
 function hexSlice(hex: string, byteStart: number, byteEnd: number): string {
   return hex.slice(byteStart * 2, byteEnd * 2)
@@ -47,9 +46,7 @@ function decodeAddress(hex: string, byteOffset: number): string {
 
 function hexToUtf8(hex: string): string {
   const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16)
-  }
+  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16)
   return new TextDecoder().decode(bytes)
 }
 
@@ -62,7 +59,7 @@ function decodeString(hex: string, ptrOffset: number): string {
   } catch { return '' }
 }
 
-// ─── JSON-RPC (single requests, not batch) ───────────────────────────────────
+// ─── JSON-RPC ────────────────────────────────────────────────────────────────
 
 let _id = 1
 
@@ -75,12 +72,12 @@ async function evmPost<T>(method: string, params: unknown[]): Promise<T> {
   if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
   const json = await res.json() as { result?: T; error?: { code: number; message: string } }
   if (json.error) throw new Error(`HyperEVM RPC error ${json.error.code}: ${json.error.message}`)
-  if (json.result === undefined) throw new Error('HyperEVM: no result in response')
+  if (json.result === undefined) throw new Error('HyperEVM: no result')
   return json.result
 }
 
-// Batch multiple eth_call requests into a single HTTP round-trip
 async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise<(string | null)[]> {
+  if (calls.length === 0) return []
   const batch = calls.map((c, i) => ({
     jsonrpc: '2.0', id: i + 1,
     method: 'eth_call',
@@ -92,7 +89,7 @@ async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise
     body: JSON.stringify(batch),
   })
   if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
-  const responses = await res.json() as Array<{ id: number; result?: string; error?: unknown }>
+  const responses = await res.json() as Array<{ id: number; result?: string }>
   const out = new Array<string | null>(calls.length).fill(null)
   for (const r of responses) {
     const i = r.id - 1
@@ -101,36 +98,78 @@ async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise
   return out
 }
 
+function toHex(n: number): string {
+  return '0x' + n.toString(16)
+}
+
 function padAddress(addr: string): string {
   return addr.toLowerCase().replace('0x', '').padStart(64, '0')
 }
 
-// ─── Token list from events ───────────────────────────────────────────────────
+// ─── Deployment block discovery ───────────────────────────────────────────────
 
-interface TokenLaunchedLog {
-  topics: string[]
-  data: string
+// Binary search for the first block where contractAddr has code deployed.
+async function findDeploymentBlock(contractAddr: string, currentBlock: number): Promise<number> {
+  let lo = 0, hi = currentBlock
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2)
+    const code = await evmPost<string>('eth_getCode', [contractAddr, toHex(mid)])
+    if (!code || code === '0x') {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+  return lo
 }
 
-export async function fetchAltTokenList(): Promise<AltToken[]> {
-  const logs = await evmPost<TokenLaunchedLog[]>('eth_getLogs', [{
-    address:   BONDING_ADDRESS,
-    topics:    [TOKEN_LAUNCHED_TOPIC],
-    fromBlock: '0x0',
-    toBlock:   'latest',
-  }])
+// ─── eth_getLogs with pagination ──────────────────────────────────────────────
 
-  if (!Array.isArray(logs)) throw new Error('eth_getLogs returned non-array')
+interface TokenLaunchedLog { topics: string[]; data: string }
+
+async function fetchAllLogs(fromBlock: number, toBlock: number): Promise<TokenLaunchedLog[]> {
+  const CHUNK   = 1000
+  const PARALLEL = 8
+  const chunks: Array<{ from: number; to: number }> = []
+  for (let start = fromBlock; start <= toBlock; start += CHUNK) {
+    chunks.push({ from: start, to: Math.min(start + CHUNK - 1, toBlock) })
+  }
+
+  const allLogs: TokenLaunchedLog[] = []
+  for (let i = 0; i < chunks.length; i += PARALLEL) {
+    const batch = chunks.slice(i, i + PARALLEL)
+    const results = await Promise.all(
+      batch.map(c =>
+        evmPost<TokenLaunchedLog[]>('eth_getLogs', [{
+          address:   BONDING_ADDRESS,
+          topics:    [TOKEN_LAUNCHED_TOPIC],
+          fromBlock: toHex(c.from),
+          toBlock:   toHex(c.to),
+        }]).catch(() => [] as TokenLaunchedLog[])
+      )
+    )
+    for (const r of results) allLogs.push(...r)
+  }
+  return allLogs
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function fetchAltTokenList(): Promise<AltToken[]> {
+  const currentBlockHex = await evmPost<string>('eth_blockNumber', [])
+  const currentBlock    = parseInt(currentBlockHex, 16)
+
+  const deployBlock = await findDeploymentBlock(BONDING_ADDRESS, currentBlock)
+  const logs        = await fetchAllLogs(deployBlock, currentBlock)
+
   if (logs.length === 0) return []
 
-  // Parse event logs
   const rawTokens = logs.map(log => {
     if (log.topics.length < 4) return null
     const address   = '0x' + log.topics[1].slice(26)
     const creator   = '0x' + log.topics[2].slice(26)
     const ltAddress = '0x' + log.topics[3].slice(26)
     const data = log.data.replace('0x', '')
-    // data encodes (string name, string ticker, uint256 k)
     const name   = decodeString(data, 0)
     const ticker = decodeString(data, 32)
     return { address, creator, ltAddress, name, ticker }
@@ -138,12 +177,11 @@ export async function fetchAltTokenList(): Promise<AltToken[]> {
 
   if (rawTokens.length === 0) return []
 
-  // Batch all LT calls in one round-trip: underlyingSymbol, isLong, targetLeverage, getTokenInfo per token
   const calls = rawTokens.flatMap(t => [
-    { to: t.ltAddress,      data: SEL_UNDERLYING_SYMBOL },
-    { to: t.ltAddress,      data: SEL_IS_LONG },
-    { to: t.ltAddress,      data: SEL_TARGET_LEVERAGE },
-    { to: BONDING_ADDRESS,  data: SEL_GET_TOKEN_INFO + padAddress(t.address) },
+    { to: t.ltAddress,     data: SEL_UNDERLYING_SYMBOL },
+    { to: t.ltAddress,     data: SEL_IS_LONG },
+    { to: t.ltAddress,     data: SEL_TARGET_LEVERAGE },
+    { to: BONDING_ADDRESS, data: SEL_GET_TOKEN_INFO + padAddress(t.address) },
   ])
   const results = await evmCallBatch(calls)
 
@@ -158,7 +196,7 @@ export async function fetchAltTokenList(): Promise<AltToken[]> {
     const perpTicker = symbolHex && symbolHex !== '0x' ? decodeString(symbolHex.replace('0x', ''), 0) : null
     if (!perpTicker) continue
 
-    const isLong  = isLongHex ? decodeUint256(isLongHex.replace('0x', ''), 0) !== BigInt(0) : true
+    const isLong   = isLongHex ? decodeUint256(isLongHex.replace('0x', ''), 0) !== BigInt(0) : true
     const leverage = leverageHex ? Number(decodeUint256(leverageHex.replace('0x', ''), 0)) : 5
 
     let pair = '', name = t.name, ticker = t.ticker
@@ -180,17 +218,16 @@ export async function fetchAltTokenList(): Promise<AltToken[]> {
 export async function fetchAltTokenDetails(token: AltToken): Promise<AltTokenDetails> {
   if (!token.pair) return { ...token, marketCapUsd: null }
 
-  const results = await evmCallBatch([
+  const [poolResult, rateResult] = await evmCallBatch([
     { to: token.pair,      data: SEL_POOL },
     { to: token.ltAddress, data: SEL_EXCHANGE_RATE },
   ])
 
   let marketCapUsd: number | null = null
-  const [poolResult, rateResult] = results
   if (poolResult && poolResult !== '0x' && rateResult && rateResult !== '0x') {
-    const tokenReserve = decodeUint256(poolResult.replace('0x', ''), 0)
     const assetReserve = decodeUint256(poolResult.replace('0x', ''), 32)
     const exchangeRate = decodeUint256(rateResult.replace('0x', ''), 0)
+    const tokenReserve = decodeUint256(poolResult.replace('0x', ''), 0)
     if (tokenReserve > BigInt(0)) {
       marketCapUsd = (Number(assetReserve) / 1e18) * (Number(exchangeRate) / 1e18)
     }

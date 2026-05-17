@@ -168,10 +168,11 @@ async function evmCallChunk(calls: Array<{ to: string; data: string }>): Promise
       })
       if (!res.ok) return new Array(calls.length).fill(null)
       raw = await res.json()
-    } catch { return new Array(calls.length).fill(null) }
+    } catch (e) { console.warn('[altfun] evmCallChunk fetch error', e); return new Array(calls.length).fill(null) }
     if (!Array.isArray(raw)) {
       const code = (raw as { error?: { code?: number } })?.error?.code
       if (code === -32005) continue  // rate limited — back off and retry
+      console.warn('[altfun] evmCallChunk non-array', JSON.stringify(raw).slice(0, 200))
       return new Array(calls.length).fill(null)
     }
     const out = new Array<string | null>(calls.length).fill(null)
@@ -204,9 +205,11 @@ interface RawToken { address: string; creator: string; ltAddress: string; name: 
 
 function parseLog(log: HypurrLog): RawToken | null {
   if (!log.topic1 || !log.topic2 || !log.topic3) return null
-  const address   = '0x' + log.topic1.slice(26)
-  const creator   = '0x' + log.topic2.slice(26)
-  const ltAddress = '0x' + log.topic3.slice(26)
+  // Topics may arrive with or without 0x prefix; always take the last 40 hex chars (20 bytes)
+  const addr = (t: string) => '0x' + t.replace('0x', '').slice(-40)
+  const address   = addr(log.topic1)
+  const creator   = addr(log.topic2)
+  const ltAddress = addr(log.topic3)
   const data = log.data.replace('0x', '')
   const name   = decodeString(data, 0)
   const ticker = decodeString(data, 32)
@@ -236,6 +239,7 @@ async function enrichTokens(
     const isLongHex   = results[i * 3 + 1]
     const leverageHex = results[i * 3 + 2]
 
+    if (i === 0) console.log('[altfun] token 0 ltAddress=', t.ltAddress, 'symbolHex=', symbolHex?.slice(0, 40))
     const perpTicker = symbolHex && symbolHex !== '0x'
       ? decodeString(symbolHex.replace('0x', ''), 0) : null
     if (!perpTicker) continue

@@ -17,8 +17,8 @@ const SEL_TARGET_LEVERAGE   = '0xd6c946ea'
 const SEL_EXCHANGE_RATE     = '0x3ba0b9a9'
 const SEL_POOL              = '0x16f0115b'
 
-const LS_TOKENS     = 'alt-tokens-v4'
-const LS_TOKENS_TS  = 'alt-tokens-ts-v4'
+const LS_TOKENS     = 'alt-tokens-v5'
+const LS_TOKENS_TS  = 'alt-tokens-ts-v5'
 const CACHE_TTL_MS  = 5 * 60 * 1000
 
 export interface AltToken {
@@ -97,12 +97,17 @@ async function fetchTokenLogs(): Promise<HypurrLog[]> {
       }),
     })
     if (res.ok) {
-      const json = await res.json() as { logs?: HypurrLog[]; result?: HypurrLog[]; data?: HypurrLog[]; error?: string }
+      const raw = await res.json()
+      // Handle direct array or wrapped { logs/result/data: [...] }
+      if (Array.isArray(raw)) return raw as HypurrLog[]
+      const json = raw as { logs?: HypurrLog[]; result?: HypurrLog[]; data?: HypurrLog[]; error?: string }
       const list = json.logs ?? json.result ?? json.data
       if (!json.error && Array.isArray(list)) return list
-      console.warn('[altfun] Hypurrscan unexpected shape', json)
+      console.warn('[altfun] Hypurrscan unexpected shape', JSON.stringify(raw).slice(0, 300))
+    } else {
+      console.warn('[altfun] Hypurrscan HTTP', res.status)
     }
-  } catch (e) { console.warn('[altfun] Hypurrscan failed', e) /* fall through to Blockscout */ }
+  } catch (e) { console.warn('[altfun] Hypurrscan failed', e) }
 
   // Fallback: Blockscout REST API v2 (hyperscan.com), paginated
   const logs: HypurrLog[] = []
@@ -203,7 +208,10 @@ async function enrichTokens(rawTokens: RawToken[]): Promise<AltToken[]> {
 
     const perpTicker = symbolHex && symbolHex !== '0x'
       ? decodeString(symbolHex.replace('0x', ''), 0) : null
-    if (!perpTicker) continue
+    if (!perpTicker) {
+      if (i === 0) console.warn('[altfun] token 0 missing perpTicker, symbolHex=', symbolHex?.slice(0, 20))
+      continue
+    }
 
     const isLong   = isLongHex ? decodeUint256(isLongHex.replace('0x', ''), 0) !== BigInt(0) : true
     const leverage = leverageHex ? Number(decodeUint256(leverageHex.replace('0x', ''), 0)) : 5
@@ -237,14 +245,18 @@ export async function fetchAltTokenList(
     }
   } catch {}
 
-  onProgress?.(10, 'Fetching token list...')
+  onProgress?.(10, 'Fetching token logs...')
   const logs = await fetchTokenLogs()
+  console.log(`[altfun] fetchTokenLogs → ${logs.length} logs`)
 
+  onProgress?.(30, `Parsing ${logs.length} logs...`)
   const rawTokens = logs.map(parseLog).filter(Boolean) as RawToken[]
+  console.log(`[altfun] parseLog → ${rawTokens.length} raw tokens`)
   if (rawTokens.length === 0) return []
 
   onProgress?.(50, `Loading details for ${rawTokens.length} tokens...`)
   const tokens = await enrichTokens(rawTokens)
+  console.log(`[altfun] enrichTokens → ${tokens.length} tokens`)
 
   try {
     localStorage.setItem(LS_TOKENS, JSON.stringify(tokens))

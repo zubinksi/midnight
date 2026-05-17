@@ -6,28 +6,12 @@ import { fetchAltTokenList } from '@/lib/altfun'
 import type { AltToken } from '@/lib/altfun'
 
 const ALT_FAVORITES_KEY = 'alt-favorites'
-const ALT_CACHE_KEY     = 'alt-token-cache'
-const CACHE_TTL_MS      = 5 * 60 * 1000
 
 function getInitialFavorites(): string[] {
   try {
     const v = localStorage.getItem(ALT_FAVORITES_KEY)
     return v ? JSON.parse(v) : []
   } catch { return [] }
-}
-
-function getCachedTokens(): AltToken[] | null {
-  try {
-    const raw = localStorage.getItem(ALT_CACHE_KEY)
-    if (!raw) return null
-    const { tokens, ts } = JSON.parse(raw) as { tokens: AltToken[]; ts: number }
-    if (Date.now() - ts > CACHE_TTL_MS) return null
-    return tokens
-  } catch { return null }
-}
-
-function setCachedTokens(tokens: AltToken[]) {
-  try { localStorage.setItem(ALT_CACHE_KEY, JSON.stringify({ tokens, ts: Date.now() })) } catch {}
 }
 
 function saveFavorites(favs: string[]) {
@@ -38,6 +22,8 @@ export default function AltPage() {
   const router                            = useRouter()
   const [tokens, setTokens]               = useState<AltToken[]>([])
   const [loading, setLoading]             = useState(true)
+  const [progress, setProgress]           = useState(0)
+  const [status, setStatus]               = useState('Connecting...')
   const [error, setError]                 = useState<string | null>(null)
   const [search, setSearch]               = useState('')
   const [favorites, setFavorites]         = useState<string[]>([])
@@ -46,17 +32,12 @@ export default function AltPage() {
   useEffect(() => {
     setFavorites(getInitialFavorites())
 
-    const cached = getCachedTokens()
-    if (cached) {
-      setTokens(cached)
-      setLoading(false)
-      return
-    }
-
-    fetchAltTokenList()
+    fetchAltTokenList((pct, msg) => {
+      setProgress(pct)
+      setStatus(msg)
+    })
       .then(data => {
         setTokens(data)
-        setCachedTokens(data)
         setError(null)
       })
       .catch(err => {
@@ -104,12 +85,14 @@ export default function AltPage() {
             placeholder="SEARCH TOKENS"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            disabled={loading}
             style={{
               width: '100%', background: 'transparent', border: 'none',
               borderBottom: '1px solid #1C1C1A', padding: '10px 0',
               color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
               fontSize: 12, letterSpacing: '0.08em', outline: 'none',
               boxSizing: 'border-box', marginBottom: 16,
+              opacity: loading ? 0.3 : 1,
             } as React.CSSProperties}
           />
 
@@ -137,21 +120,43 @@ export default function AltPage() {
 
         {/* Token list */}
         <div style={{ padding: '0 24px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
+
+          {/* Loading progress */}
           {loading && (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12 }}>
-              LOADING...
+            <div style={{ padding: '32px 0' }}>
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', marginBottom: 12 }}>
+                {status}
+              </div>
+              {/* Progress bar */}
+              <div style={{ height: 2, background: '#1C1C1A', borderRadius: 1, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  background: '#46443D',
+                  borderRadius: 1,
+                  width: `${progress}%`,
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
             </div>
           )}
+
           {!loading && error && (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11 }}>
-              {error}
+            <div style={{ padding: '40px 0' }}>
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', marginBottom: 8 }}>
+                ERROR
+              </div>
+              <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.5 }}>
+                {error}
+              </div>
             </div>
           )}
+
           {!loading && !error && filtered.length === 0 && (
             <div style={{ padding: '40px 0', textAlign: 'center', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12 }}>
               {tokens.length === 0 ? 'NO TOKENS FOUND' : 'NO RESULTS'}
             </div>
           )}
+
           {filtered.map(token => {
             const starred = favorites.includes(token.address)
             const dir = token.isLong ? '↑' : '↓'
@@ -161,9 +166,7 @@ export default function AltPage() {
                 onClick={() => router.push(`/alt/${token.address}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '16px 0',
-                  borderBottom: '1px solid #1C1C1A',
-                  cursor: 'pointer',
+                  padding: '16px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>

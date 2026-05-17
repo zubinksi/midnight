@@ -97,10 +97,12 @@ async function fetchTokenLogs(): Promise<HypurrLog[]> {
       }),
     })
     if (res.ok) {
-      const json = await res.json() as { logs?: HypurrLog[]; error?: string }
-      if (!json.error && json.logs) return json.logs
+      const json = await res.json() as { logs?: HypurrLog[]; result?: HypurrLog[]; data?: HypurrLog[]; error?: string }
+      const list = json.logs ?? json.result ?? json.data
+      if (!json.error && Array.isArray(list)) return list
+      console.warn('[altfun] Hypurrscan unexpected shape', json)
     }
-  } catch { /* fall through to Blockscout */ }
+  } catch (e) { console.warn('[altfun] Hypurrscan failed', e) /* fall through to Blockscout */ }
 
   // Fallback: Blockscout REST API v2 (hyperscan.com), paginated
   const logs: HypurrLog[] = []
@@ -115,7 +117,7 @@ async function fetchTokenLogs(): Promise<HypurrLog[]> {
       items: Array<{ topics: string[]; data: string; block_number: number }>
       next_page_params?: Record<string, string | number> | null
     }
-    for (const item of json.items ?? []) {
+    for (const item of (Array.isArray(json.items) ? json.items : [])) {
       if (item.topics[0]?.toLowerCase() !== TOKEN_LAUNCHED_TOPIC) continue
       logs.push({
         address:      BONDING_ADDRESS,
@@ -156,7 +158,8 @@ async function evmCallBatch(calls: Array<{ to: string; data: string }>): Promise
     body: JSON.stringify(batch),
   })
   if (!res.ok) throw new Error(`HyperEVM HTTP ${res.status}`)
-  const responses = await res.json() as Array<{ id: number; result?: string }>
+  const raw = await res.json()
+  const responses = Array.isArray(raw) ? raw as Array<{ id: number; result?: string }> : []
   const out = new Array<string | null>(calls.length).fill(null)
   for (const r of responses) {
     const i = r.id - 1

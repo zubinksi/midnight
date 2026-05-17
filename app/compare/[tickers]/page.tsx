@@ -130,13 +130,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button
-            onClick={() => {
-              try {
-                const fromSameOrigin = document.referrer && new URL(document.referrer).origin === window.location.origin
-                if (fromSameOrigin) { router.back(); return }
-              } catch {}
-              router.push('/compare')
-            }}
+            onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
             style={S.backBtn}
           >←</button>
           <button

@@ -10,10 +10,11 @@ export interface LivelinePoint {
   value: number
 }
 
-export type Timeframe = '1D' | '7D' | '1M' | '3M' | '6M' | 'ALL'
+export type Timeframe = '1D' | '4H' | '7D' | '1M' | '3M' | '6M' | 'ALL'
 
 const TIMEFRAME_CONFIG: Record<Timeframe, { interval: string; windowMs: number | null }> = {
   '1D':  { interval: '15m', windowMs:  1 * 24 * 60 * 60 * 1000 },
+  '4H':  { interval: '5m',  windowMs:  4 * 60 * 60 * 1000 },
   '7D':  { interval: '1h',  windowMs:  7 * 24 * 60 * 60 * 1000 },
   '1M':  { interval: '4h',  windowMs: 30 * 24 * 60 * 60 * 1000 },
   '3M':  { interval: '1d',  windowMs: 90 * 24 * 60 * 60 * 1000 },

@@ -72,11 +72,10 @@ export default function AltPage() {
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <span style={{ fontSize: 13, fontFamily: 'Menlo,Monaco,monospace', color: '#46443D', letterSpacing: '0.08em' }}>
-              ALT.FUN TOKENS
-            </span>
+        <div style={{ padding: 'calc(env(safe-area-inset-top) + 62px) 24px 0' }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>Explore Coins</div>
+            <div style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>On HyperEVM.</div>
           </div>
 
           {/* Search */}

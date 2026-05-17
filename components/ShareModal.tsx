@@ -578,12 +578,6 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                       <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
                     </div>
 
-                    {/* Duotone overlay */}
-                    {duotoneUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={duotoneUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', mixBlendMode: 'screen' }} />
-                    )}
-
                     {/* Annotation dot */}
                     {cardLayout === 0 && annotation !== null && (
                       <div style={{ position: 'absolute', width: 10, height: 10, borderRadius: '50%', background: '#F0C84A', border: `2px solid ${CARD_BG}`, boxShadow: '0 0 6px rgba(240,200,74,0.5)', pointerEvents: 'none', left: annotation.dotX - 5, top: chartAreaTop + annotation.dotY - 5 }} />

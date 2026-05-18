@@ -22,30 +22,6 @@ import { getAssetName } from '@/lib/assetNames'
 type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
 const CLOCK_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const ROTATE_WORDS = ['Crypto', 'Equities', 'Pre IPO', 'Commodities']
-
-function RotatingWord({ style }: { style?: React.CSSProperties }) {
-  const [idx, setIdx] = useState(0)
-  const [visible, setVisible] = useState(true)
-  useEffect(() => {
-    const cycle = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setIdx(i => (i + 1) % ROTATE_WORDS.length)
-        setVisible(true)
-      }, 350)
-    }, 2200)
-    return () => clearInterval(cycle)
-  }, [])
-  return (
-    <div style={{
-      ...style,
-      opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(6px)',
-      transition: 'opacity 0.35s ease, transform 0.35s ease',
-    }}>{ROTATE_WORDS[idx]}</div>
-  )
-}
 
 function LiveDate({ style }: { style?: React.CSSProperties }) {
   const [now, setNow] = useState(() => new Date())
@@ -85,6 +61,7 @@ export default function Home() {
     } catch {}
     return 'volume'
   })
+  const [showSearch, setShowSearch]         = useState(false)
   const [showSortSheet, setShowSortSheet]   = useState(false)
   const [showSummary, setShowSummary]       = useState(false)
   const [summaryText, setSummaryText]       = useState('')
@@ -440,32 +417,65 @@ export default function Home() {
     <div style={{ position: 'fixed', inset: 0, background: '#080807', overflow: 'hidden' }}>
       <div style={{ maxWidth: 430, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
+        {/* Search overlay */}
+        {showSearch && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#080807', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ maxWidth: 430, margin: '0 auto', width: '100%', padding: 'max(env(safe-area-inset-top), 56px) 24px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="SEARCH MARKETS"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{
+                      width: '100%', background: 'transparent', border: 'none',
+                      borderBottom: '1px solid #1C1C1A', padding: '10px 0',
+                      color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
+                      fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
+                    } as React.CSSProperties}
+                  />
+                </div>
+                <button
+                  onClick={() => { setShowSearch(false); setSearch('') }}
+                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
+                >CANCEL</button>
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1 }}>
+                {displayAssets.map(asset => (
+                  <div
+                    key={asset.coin}
+                    onClick={() => { setShowSearch(false); setSearch(''); router.push(`/chart/${asset.ticker}`) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 }}>{asset.ticker}</div>
+                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginTop: 2 }}>{getAssetName(asset.ticker)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fixed header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
-          <div style={{ marginBottom: 16 }}>
-            <RotatingWord style={S.hero} />
-            <LiveDate style={{ ...S.hero, color: '#46443D' }} />
-          </div>
-          {/* Search */}
-          <div style={{ position: 'relative', marginBottom: 4 }}>
-            <input
-              type="text"
-              placeholder="SEARCH"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', background: 'transparent', border: 'none',
-                borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-                color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
-                fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
-              } as React.CSSProperties}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, padding: '4px 0' }}
-              >✕</button>
-            )}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <div style={S.hero}>Hyperliquid</div>
+              <LiveDate style={{ ...S.hero, color: '#46443D' }} />
+            </div>
+            <button
+              onClick={() => setShowSearch(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', lineHeight: 1, color: '#46443D', flexShrink: 0, marginTop: 6 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="7.5" cy="7.5" r="5" />
+                <line x1="11.5" y1="11.5" x2="16" y2="16" />
+              </svg>
+            </button>
           </div>
           {/* Filters */}
           <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>

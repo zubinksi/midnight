@@ -290,12 +290,17 @@ export interface AssetActivityItem {
 }
 
 // Polls /api/assets + /api/crypto every pollMs ms.
-// Emits funding-rate extremes (|annualized| > 20% APR) and OI changes (>3% vs previous snapshot).
-export function useAssetActivityFeed(pollMs = 120_000): { items: AssetActivityItem[]; loading: boolean } {
-  const [items, setItems]   = useState<AssetActivityItem[]>([])
+// Watchlist assets surface first; market-wide signals backfill if fewer than MIN_WATCHLIST qualify.
+export function useAssetActivityFeed(
+  watchlistTickers: string[] = [],
+  pollMs = 120_000,
+): { items: AssetActivityItem[]; loading: boolean } {
+  const [items, setItems]     = useState<AssetActivityItem[]>([])
   const [loading, setLoading] = useState(true)
-  const prevOI  = useRef<Record<string, number>>({})
-  const prevTS  = useRef(0)
+  const prevOI     = useRef<Record<string, number>>({})
+  const prevTS     = useRef(0)
+  const watchlistRef = useRef(watchlistTickers)
+  watchlistRef.current = watchlistTickers
 
   useEffect(() => {
     let cancelled = false
@@ -313,19 +318,18 @@ export function useAssetActivityFeed(pollMs = 120_000): { items: AssetActivityIt
         ])
         const all = [...xyz, ...crypto]
         const now = Date.now()
-        const next: AssetActivityItem[] = []
+        const watchSet = new Set(watchlistRef.current)
 
-        // Funding extremes — top 6 by |annualized rate|, threshold 20% APR
+        // Build scored candidate items for every asset
+        const candidates: AssetActivityItem[] = []
+
+        // Funding extremes — threshold 20% APR
         const FUNDING_THRESHOLD = 20
-        const byFunding = [...all]
-          .map(a => ({ a, apr: a.funding * 3 * 365 * 100 }))
-          .filter(({ apr }) => Math.abs(apr) > FUNDING_THRESHOLD)
-          .sort((x, y) => Math.abs(y.apr) - Math.abs(x.apr))
-          .slice(0, 6)
-
-        for (const { a, apr } of byFunding) {
+        for (const a of all) {
+          const apr = a.funding * 3 * 365 * 100
+          if (Math.abs(apr) <= FUNDING_THRESHOLD) continue
           const positive = apr > 0
-          next.push({
+          candidates.push({
             type: 'funding',
             ticker: a.ticker,
             direction: positive ? 'up' : 'down',
@@ -334,31 +338,50 @@ export function useAssetActivityFeed(pollMs = 120_000): { items: AssetActivityIt
             ts: now,
           })
         }
+        // Sort funding candidates by |APR| descending
+        candidates.sort((a, b) => {
+          const aprA = Math.abs(parseFloat(a.value))
+          const aprB = Math.abs(parseFloat(b.value))
+          return aprB - aprA
+        })
 
         // OI changes — only once a previous snapshot exists (>60 s old)
+        const oiItems: AssetActivityItem[] = []
         if (prevTS.current > 0 && now - prevTS.current > 60_000) {
-          const oiChanges = all
-            .map(a => {
-              const prev = prevOI.current[a.ticker]
-              if (!prev || prev === 0) return null
-              const pct = (a.openInterest - prev) / prev * 100
-              return Math.abs(pct) >= 3 ? { a, pct } : null
+          for (const a of all) {
+            const prev = prevOI.current[a.ticker]
+            if (!prev || prev === 0) continue
+            const pct = (a.openInterest - prev) / prev * 100
+            if (Math.abs(pct) < 3) continue
+            oiItems.push({
+              type: 'oi',
+              ticker: a.ticker,
+              direction: pct > 0 ? 'up' : 'down',
+              headline: pct > 0 ? 'open interest rising' : 'open interest falling',
+              value: `OI ${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`,
+              ts: now,
             })
-            .filter(Boolean) as { a: AssetInfo; pct: number }[]
+          }
+          oiItems.sort((a, b) => Math.abs(parseFloat(b.value)) - Math.abs(parseFloat(a.value)))
+        }
 
-          oiChanges
-            .sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct))
-            .slice(0, 5)
-            .forEach(({ a, pct }) => {
-              next.push({
-                type: 'oi',
-                ticker: a.ticker,
-                direction: pct > 0 ? 'up' : 'down',
-                headline: pct > 0 ? 'open interest rising' : 'open interest falling',
-                value: `OI ${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`,
-                ts: now,
-              })
-            })
+        const allCandidates = [...candidates, ...oiItems]
+
+        // Hybrid: watchlist items first, then backfill from market-wide
+        const MIN_WATCHLIST = 4
+        const watchlistItems = allCandidates.filter(i => watchSet.has(i.ticker))
+        const marketItems    = allCandidates.filter(i => !watchSet.has(i.ticker))
+
+        const seen = new Set<string>()
+        const result: AssetActivityItem[] = []
+        for (const item of watchlistItems) {
+          if (!seen.has(item.ticker + item.type)) { seen.add(item.ticker + item.type); result.push(item) }
+        }
+        if (result.length < MIN_WATCHLIST) {
+          for (const item of marketItems) {
+            if (result.length >= MIN_WATCHLIST) break
+            if (!seen.has(item.ticker + item.type)) { seen.add(item.ticker + item.type); result.push(item) }
+          }
         }
 
         // Snapshot OI for next diff
@@ -368,7 +391,7 @@ export function useAssetActivityFeed(pollMs = 120_000): { items: AssetActivityIt
         prevTS.current = now
 
         if (!cancelled) {
-          setItems(next.slice(0, 12))
+          setItems(result.slice(0, 12))
           setLoading(false)
         }
       } catch { if (!cancelled) setLoading(false) }

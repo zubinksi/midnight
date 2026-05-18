@@ -569,6 +569,7 @@ export default function Home() {
           onRefresh={fetchSummary}
           allTickers={allAssets.map(a => a.ticker)}
           onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
+          watchlistTickers={[...favorites]}
         />
 
       </div>
@@ -588,10 +589,11 @@ interface SummaryPanelProps {
   onRefresh: () => void
   allTickers: string[]
   onNavigate: (t: string) => void
+  watchlistTickers: string[]
 }
 
-function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate }: SummaryPanelProps) {
-  const { items: feedItems, loading: feedLoading } = useAssetActivityFeed()
+function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate, watchlistTickers }: SummaryPanelProps) {
+  const { items: feedItems, loading: feedLoading } = useAssetActivityFeed(watchlistTickers)
 
   // Refs so the native-event closure always reads the latest values without re-attaching
   const outerRef   = useRef<HTMLDivElement>(null)

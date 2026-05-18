@@ -21,6 +21,21 @@ import { getAssetName } from '@/lib/assetNames'
 
 type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
+const CLOCK_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function LiveClock({ style }: { style?: React.CSSProperties }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const h = now.getHours()
+  const m = now.getMinutes().toString().padStart(2, '0')
+  const s = now.getSeconds().toString().padStart(2, '0')
+  const label = `${CLOCK_MONTHS[now.getMonth()]} ${now.getDate()} ${h}:${m}:${s}`
+  return <div style={style}>{label}</div>
+}
+
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',       label: 'ALL' },
   { key: 'starred',   label: '★' },
@@ -406,10 +421,13 @@ export default function Home() {
       <div style={{ maxWidth: 430, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* Fixed header */}
-        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 62px)' }}>
+        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={S.hero}>24/7 Markets</div>
-            <div style={{ ...S.hero, color: '#46443D' }}>On Hyperliquid.</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
+              <div style={S.hero}>Live on Hyperliquid</div>
+            </div>
+            <LiveClock style={{ ...S.hero, color: '#46443D' }} />
           </div>
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 4 }}>
@@ -758,7 +776,7 @@ function ErrorState({ message }: { message: string }) {
 
 const S = {
   label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
-  hero:   { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
+  hero:   { fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
   ticker: { fontSize: 17, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
   name:   { fontSize: 12, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as React.CSSProperties,
   price:  { fontSize: 17, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,

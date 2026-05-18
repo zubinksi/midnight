@@ -569,7 +569,7 @@ export default function Home() {
           onRefresh={fetchSummary}
           allTickers={allAssets.map(a => a.ticker)}
           onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
-          coins={allAssets.slice(0, 15).map(a => a.coin)}
+          coins={cryptoAssets.slice(0, 15).map(a => a.coin)}
         />
 
       </div>
@@ -594,7 +594,6 @@ interface SummaryPanelProps {
 
 function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate, coins }: SummaryPanelProps) {
   const dragStartY = useRef(0)
-  const [panelTab, setPanelTab] = useState<'summary' | 'activity'>('summary')
   const { items: feedItems, loading: feedLoading } = useActivityFeed(coins)
 
   const handleTouchStart = (e: React.TouchEvent) => { dragStartY.current = e.touches[0].clientY }
@@ -658,56 +657,38 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             )}
           </div>
 
-          {/* Tabs */}
-          {open && (
-            <div style={{ display: 'flex', borderBottom: '1px solid #1C1C1A', padding: '0 24px' }}>
-              {(['summary', 'activity'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={e => { e.stopPropagation(); setPanelTab(tab) }}
-                  style={{
-                    background: 'none', border: 'none',
-                    borderBottom: panelTab === tab ? '1px solid #F0EDE6' : '1px solid transparent',
-                    color: panelTab === tab ? '#F0EDE6' : '#46443D',
-                    fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em',
-                    padding: '6px 16px 7px 0', cursor: 'pointer', marginBottom: -1,
-                  }}
-                >
-                  {tab === 'summary' ? 'SUMMARY' : 'ACTIVITY'}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Expanded content — single scrollable column */}
+          <div style={{ padding: '0 24px', overflow: 'hidden', maxHeight: open ? '65vh' : 0, transition: 'max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1)', overflowY: open ? 'auto' : 'hidden' } as React.CSSProperties}>
 
-          {/* Expanded content */}
-          <div style={{ padding: '0 24px', overflow: 'hidden', maxHeight: open ? '60vh' : 0, transition: 'max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1)', overflowY: open ? 'auto' : 'hidden' } as React.CSSProperties}>
-            {panelTab === 'summary' ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, marginBottom: 8 }}>
-                  {time && !loading && (
-                    <button
-                      onClick={e => { e.stopPropagation(); onRefresh() }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
-                    >↻ REFRESH</button>
-                  )}
-                </div>
-                <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60, paddingBottom: 8 }}>
-                  {loading && !text
-                    ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
-                    : renderSummaryText(text, allTickers, onNavigate)}
-                  {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
-                </div>
-                {time && !loading && (
-                  <div style={{ marginTop: 8, marginBottom: 8, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
-                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ paddingTop: 4, paddingBottom: 8 }}>
-                <ActivityFeed items={feedItems} loading={feedLoading} onNavigate={onNavigate} />
+            {/* Summary section */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>SUMMARY</span>
+              {time && !loading && (
+                <button
+                  onClick={e => { e.stopPropagation(); onRefresh() }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
+                >↻ REFRESH</button>
+              )}
+            </div>
+            <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 48, paddingBottom: 4 }}>
+              {loading && !text
+                ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
+                : renderSummaryText(text, allTickers, onNavigate)}
+              {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
+            </div>
+            {time && !loading && (
+              <div style={{ marginTop: 6, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 16px' }} />
+
+            {/* Activity section */}
+            <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>ACTIVITY</div>
+            <ActivityFeed items={feedItems} loading={feedLoading} onNavigate={onNavigate} />
+
           </div>
         </div>
       </div>

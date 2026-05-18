@@ -13,7 +13,8 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
+import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, useActivityFeed, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
+import type { FeedItem } from '@/lib/hyperliquid'
 import { formatPrice } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
@@ -568,6 +569,7 @@ export default function Home() {
           onRefresh={fetchSummary}
           allTickers={allAssets.map(a => a.ticker)}
           onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
+          coins={allAssets.slice(0, 15).map(a => a.coin)}
         />
 
       </div>
@@ -587,10 +589,13 @@ interface SummaryPanelProps {
   onRefresh: () => void
   allTickers: string[]
   onNavigate: (t: string) => void
+  coins: string[]
 }
 
-function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate }: SummaryPanelProps) {
+function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate, coins }: SummaryPanelProps) {
   const dragStartY = useRef(0)
+  const [panelTab, setPanelTab] = useState<'summary' | 'activity'>('summary')
+  const { items: feedItems, loading: feedLoading } = useActivityFeed(coins)
 
   const handleTouchStart = (e: React.TouchEvent) => { dragStartY.current = e.touches[0].clientY }
   const handleTouchEnd   = (e: React.TouchEvent) => {
@@ -627,7 +632,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           borderRadius: '20px 20px 0 0',
           paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
         }}>
-          {/* Handle + collapsed header — tap to open */}
+          {/* Handle + collapsed header */}
           <div
             onClick={() => open ? onClose() : onOpen()}
             style={{ padding: '12px 24px 16px', cursor: 'pointer' }}
@@ -638,41 +643,126 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                 <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
                   <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
                 </svg>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Watchlist Summary</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Markets</span>
               </div>
               <span style={{ fontSize: 18, color: '#46443D', lineHeight: 1, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', display: 'inline-block' }}>⌃</span>
             </div>
             {!open && (
               <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
-                {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to generate'}
+                {feedItems.length > 0
+                  ? `${feedItems[0].side === 'buy' ? '▲' : '▼'} ${feedItems[0].ticker}  ${formatNotional(feedItems[0].notional)}  ·  tap to explore`
+                  : loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
               </div>
             )}
           </div>
 
+          {/* Tabs */}
+          {open && (
+            <div style={{ display: 'flex', borderBottom: '1px solid #1C1C1A', padding: '0 24px' }}>
+              {(['summary', 'activity'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={e => { e.stopPropagation(); setPanelTab(tab) }}
+                  style={{
+                    background: 'none', border: 'none',
+                    borderBottom: panelTab === tab ? '1px solid #F0EDE6' : '1px solid transparent',
+                    color: panelTab === tab ? '#F0EDE6' : '#46443D',
+                    fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em',
+                    padding: '6px 16px 7px 0', cursor: 'pointer', marginBottom: -1,
+                  }}
+                >
+                  {tab === 'summary' ? 'SUMMARY' : 'ACTIVITY'}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Expanded content */}
           <div style={{ padding: '0 24px', overflow: 'hidden', maxHeight: open ? '60vh' : 0, transition: 'max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1)', overflowY: open ? 'auto' : 'hidden' } as React.CSSProperties}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              {time && !loading && (
-                <button
-                  onClick={e => { e.stopPropagation(); onRefresh() }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
-                >↻ REFRESH</button>
-              )}
-            </div>
-            <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60, paddingBottom: 8 }}>
-              {loading && !text
-                ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
-                : renderSummaryText(text, allTickers, onNavigate)}
-              {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
-            </div>
-            {time && !loading && (
-              <div style={{ marginTop: 8, marginBottom: 8, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
-                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {panelTab === 'summary' ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, marginBottom: 8 }}>
+                  {time && !loading && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onRefresh() }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
+                    >↻ REFRESH</button>
+                  )}
+                </div>
+                <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60, paddingBottom: 8 }}>
+                  {loading && !text
+                    ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
+                    : renderSummaryText(text, allTickers, onNavigate)}
+                  {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
+                </div>
+                {time && !loading && (
+                  <div style={{ marginTop: 8, marginBottom: 8, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ paddingTop: 4, paddingBottom: 8 }}>
+                <ActivityFeed items={feedItems} loading={feedLoading} onNavigate={onNavigate} />
               </div>
             )}
           </div>
         </div>
       </div>
+    </>
+  )
+}
+
+// ── Activity feed helpers + component ────────────────────────────────────────
+
+function timeAgo(ms: number): string {
+  const s = Math.floor((Date.now() - ms) / 1000)
+  if (s < 60)   return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  return `${Math.floor(s / 3600)}h`
+}
+
+function formatNotional(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+  return `$${n.toFixed(0)}`
+}
+
+function formatSz(sz: number, ticker: string): string {
+  const n = sz >= 1000 ? `${(sz / 1000).toFixed(1)}K` : sz >= 10 ? sz.toFixed(0) : sz >= 1 ? sz.toFixed(2) : sz.toFixed(4)
+  return `${n} ${ticker}`
+}
+
+function ActivityFeed({ items, loading, onNavigate }: { items: FeedItem[]; loading: boolean; onNavigate: (t: string) => void }) {
+  if (loading && items.length === 0) {
+    return <div style={{ padding: '20px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading activity…</div>
+  }
+  if (!loading && items.length === 0) {
+    return <div style={{ padding: '20px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No large trades right now.</div>
+  }
+  return (
+    <>
+      {items.map((item, i) => {
+        const isBuy  = item.side === 'buy'
+        const color  = isBuy ? '#26ab83' : '#E84332'
+        const dec    = priceDecimals(item.px)
+        return (
+          <div
+            key={i}
+            onClick={() => onNavigate(item.ticker)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
+          >
+            <span style={{ fontSize: 10, color, flexShrink: 0, width: 10 }}>{isBuy ? '▲' : '▼'}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 46 }}>{item.ticker}</span>
+            <span style={{ fontSize: 11, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formatSz(item.sz, item.ticker)} <span style={{ color: '#46443D' }}>@ {formatPrice(item.px, dec)}</span>
+            </span>
+            <span style={{ fontSize: 12, color, fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{formatNotional(item.notional)}</span>
+            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 22, textAlign: 'right' }}>{timeAgo(item.time)}</span>
+          </div>
+        )
+      })}
     </>
   )
 }

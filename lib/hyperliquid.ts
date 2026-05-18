@@ -282,6 +282,47 @@ export function useCryptoLivePrices(
 
 // Single-asset price poll for the chart detail page.
 // Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
+export interface FeedItem {
+  ticker: string
+  coin: string
+  side: 'buy' | 'sell'
+  px: number
+  sz: number
+  notional: number
+  time: number  // unix ms
+}
+
+export function useActivityFeed(coins: string[], pollMs = 30_000): { items: FeedItem[]; loading: boolean } {
+  const [items, setItems] = useState<FeedItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const coinsKey = coins.join(',')
+
+  useEffect(() => {
+    if (coins.length === 0) return
+    let cancelled = false
+    setLoading(true)
+
+    const doFetch = async () => {
+      try {
+        const res = await fetch('/api/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coins }),
+        })
+        if (res.ok && !cancelled) setItems(await res.json())
+      } catch { /* keep previous */ }
+      if (!cancelled) setLoading(false)
+    }
+
+    doFetch()
+    const id = setInterval(doFetch, pollMs)
+    return () => { cancelled = true; clearInterval(id) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coinsKey, pollMs])
+
+  return { items, loading }
+}
+
 export function useAssetPrice(coin: string, pollMs = 800): number | null {
   const [price, setPrice] = useState<number | null>(null)
   const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)

@@ -499,7 +499,7 @@ export default function Home() {
           <div style={{ padding: '0 24px' }}>
             {assetList}
           </div>
-          <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 155px)' }} />
+          <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 185px)' }} />
         </div>
 
         {/* Persistent summary panel */}
@@ -570,7 +570,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         el.style.transform = `translateY(${Math.max(0, dy)}px)`
       } else {
         // Dragging up to open: only allow negative (upward) movement
-        const peek = `calc(100% - 155px + ${Math.min(0, dy)}px)`
+        const peek = `calc(100% - 185px + ${Math.min(0, dy)}px)`
         el.style.transform = `translateY(${peek})`
       }
       e.preventDefault()
@@ -584,7 +584,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         onCloseRef.current()
       } else {
         // Snap back to current position
-        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 155px))'
+        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 185px))'
       }
     }
     node.addEventListener('touchstart', onStart, { passive: true })
@@ -608,7 +608,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           display: 'flex', justifyContent: 'center',
-          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 155px))',
+          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 185px))',
           transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -640,17 +640,12 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                 </div>
                 {/* Source + headline */}
                 {tgPosts.length > 0 ? (
-                  <div>
-                    <div style={{ fontSize: 12, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.05em', marginBottom: 5 }}>
-                      {tgPosts[0].channel}
-                    </div>
-                    <div style={{
-                      fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
-                      lineHeight: 1.45,
-                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                    } as React.CSSProperties}>
-                      {tgPosts[0].text.split('\n')[0]}
-                    </div>
+                  <div style={{
+                    fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
+                    lineHeight: 1.45,
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                  } as React.CSSProperties}>
+                    {tgPosts[0].text.split('\n')[0]}
                   </div>
                 ) : (
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
@@ -658,8 +653,8 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                   </div>
                 )}
                 {/* Divider + branding */}
-                <div style={{ borderTop: '1px solid #2A2A28', marginTop: 14, paddingTop: 10, fontSize: 10, fontWeight: 700, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-                  neue.markets
+                <div style={{ borderTop: '1px solid #2A2A28', marginTop: 14, paddingTop: 10, fontSize: 20, fontWeight: 700, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em' }}>
+                  <span style={{ color: '#F0EDE6' }}>neue</span><span style={{ color: '#46443D' }}>.markets</span>
                 </div>
               </>
             )}

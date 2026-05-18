@@ -619,7 +619,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           WebkitBackdropFilter: 'blur(24px) saturate(180%)',
           borderTop: '1px solid rgba(255,255,255,0.10)',
           borderRadius: '20px 20px 0 0',
-          paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
+          paddingBottom: 'max(52px, calc(env(safe-area-inset-bottom) + 16px))',
         } as React.CSSProperties}>
           {/* Handle + collapsed header — drag target */}
           <div

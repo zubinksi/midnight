@@ -457,8 +457,8 @@ export default function Home() {
             <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
             {([
               { key: 'volume',     label: 'VOLUME' },
-              { key: 'price-desc', label: 'PRICE ↓' },
-              { key: 'price-asc',  label: 'PRICE ↑' },
+              { key: 'price-desc', label: '% ↓' },
+              { key: 'price-asc',  label: '% ↑' },
             ] as const).map(opt => {
               const active = sortBy === opt.key
               return (

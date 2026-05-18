@@ -280,49 +280,110 @@ export function useCryptoLivePrices(
   return prices
 }
 
-// Single-asset price poll for the chart detail page.
-// Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
-export interface FeedItem {
+export interface AssetActivityItem {
+  type: 'funding' | 'oi'
   ticker: string
-  coin: string
-  side: 'buy' | 'sell'
-  px: number
-  sz: number
-  notional: number
-  time: number  // unix ms
+  direction: 'up' | 'down'
+  headline: string   // e.g. "longs paying shorts"
+  value: string      // e.g. "+127% APR" or "OI +8.2%"
+  ts: number         // when this was computed
 }
 
-export function useActivityFeed(coins: string[], pollMs = 30_000): { items: FeedItem[]; loading: boolean } {
-  const [items, setItems] = useState<FeedItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const coinsKey = coins.join(',')
+// Polls /api/assets + /api/crypto every pollMs ms.
+// Emits funding-rate extremes (|annualized| > 20% APR) and OI changes (>3% vs previous snapshot).
+export function useAssetActivityFeed(pollMs = 120_000): { items: AssetActivityItem[]; loading: boolean } {
+  const [items, setItems]   = useState<AssetActivityItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const prevOI  = useRef<Record<string, number>>({})
+  const prevTS  = useRef(0)
 
   useEffect(() => {
-    if (coins.length === 0) return
     let cancelled = false
-    setLoading(true)
 
-    const doFetch = async () => {
+    const compute = async () => {
       try {
-        const res = await fetch('/api/activity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coins }),
-        })
-        if (res.ok && !cancelled) setItems(await res.json())
-      } catch { /* keep previous */ }
-      if (!cancelled) setLoading(false)
+        const [xyzRes, cryptoRes] = await Promise.all([
+          fetch('/api/assets'),
+          fetch('/api/crypto'),
+        ])
+        if (!xyzRes.ok || !cryptoRes.ok) return
+        const [xyz, crypto]: [AssetInfo[], AssetInfo[]] = await Promise.all([
+          xyzRes.json(),
+          cryptoRes.json(),
+        ])
+        const all = [...xyz, ...crypto]
+        const now = Date.now()
+        const next: AssetActivityItem[] = []
+
+        // Funding extremes — top 6 by |annualized rate|, threshold 20% APR
+        const FUNDING_THRESHOLD = 20
+        const byFunding = [...all]
+          .map(a => ({ a, apr: a.funding * 3 * 365 * 100 }))
+          .filter(({ apr }) => Math.abs(apr) > FUNDING_THRESHOLD)
+          .sort((x, y) => Math.abs(y.apr) - Math.abs(x.apr))
+          .slice(0, 6)
+
+        for (const { a, apr } of byFunding) {
+          const positive = apr > 0
+          next.push({
+            type: 'funding',
+            ticker: a.ticker,
+            direction: positive ? 'up' : 'down',
+            headline: positive ? 'longs paying shorts' : 'shorts paying longs',
+            value: `${positive ? '+' : ''}${apr.toFixed(0)}% APR`,
+            ts: now,
+          })
+        }
+
+        // OI changes — only once a previous snapshot exists (>60 s old)
+        if (prevTS.current > 0 && now - prevTS.current > 60_000) {
+          const oiChanges = all
+            .map(a => {
+              const prev = prevOI.current[a.ticker]
+              if (!prev || prev === 0) return null
+              const pct = (a.openInterest - prev) / prev * 100
+              return Math.abs(pct) >= 3 ? { a, pct } : null
+            })
+            .filter(Boolean) as { a: AssetInfo; pct: number }[]
+
+          oiChanges
+            .sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct))
+            .slice(0, 5)
+            .forEach(({ a, pct }) => {
+              next.push({
+                type: 'oi',
+                ticker: a.ticker,
+                direction: pct > 0 ? 'up' : 'down',
+                headline: pct > 0 ? 'open interest rising' : 'open interest falling',
+                value: `OI ${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`,
+                ts: now,
+              })
+            })
+        }
+
+        // Snapshot OI for next diff
+        const oiMap: Record<string, number> = {}
+        for (const a of all) oiMap[a.ticker] = a.openInterest
+        prevOI.current = oiMap
+        prevTS.current = now
+
+        if (!cancelled) {
+          setItems(next.slice(0, 12))
+          setLoading(false)
+        }
+      } catch { if (!cancelled) setLoading(false) }
     }
 
-    doFetch()
-    const id = setInterval(doFetch, pollMs)
+    compute()
+    const id = setInterval(compute, pollMs)
     return () => { cancelled = true; clearInterval(id) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coinsKey, pollMs])
+  }, [pollMs])
 
   return { items, loading }
 }
 
+// Single-asset price poll for the chart detail page.
+// Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
 export function useAssetPrice(coin: string, pollMs = 800): number | null {
   const [price, setPrice] = useState<number | null>(null)
   const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)

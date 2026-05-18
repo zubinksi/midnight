@@ -13,8 +13,8 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, useActivityFeed, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
-import type { FeedItem } from '@/lib/hyperliquid'
+import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, useAssetActivityFeed, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
+import type { AssetActivityItem } from '@/lib/hyperliquid'
 import { formatPrice } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
@@ -569,7 +569,6 @@ export default function Home() {
           onRefresh={fetchSummary}
           allTickers={allAssets.map(a => a.ticker)}
           onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
-          coins={cryptoAssets.slice(0, 15).map(a => a.coin)}
         />
 
       </div>
@@ -589,12 +588,11 @@ interface SummaryPanelProps {
   onRefresh: () => void
   allTickers: string[]
   onNavigate: (t: string) => void
-  coins: string[]
 }
 
-function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate, coins }: SummaryPanelProps) {
+function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate }: SummaryPanelProps) {
   const dragStartY = useRef(0)
-  const { items: feedItems, loading: feedLoading } = useActivityFeed(coins)
+  const { items: feedItems, loading: feedLoading } = useAssetActivityFeed()
 
   const handleTouchStart = (e: React.TouchEvent) => { dragStartY.current = e.touches[0].clientY }
   const handleTouchEnd   = (e: React.TouchEvent) => {
@@ -651,7 +649,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             {!open && (
               <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
                 {feedItems.length > 0
-                  ? `${feedItems[0].side === 'buy' ? '▲' : '▼'} ${feedItems[0].ticker}  ${formatNotional(feedItems[0].notional)}  ·  tap to explore`
+                  ? `${feedItems[0].direction === 'up' ? '▲' : '▼'} ${feedItems[0].ticker}  ${feedItems[0].value}  ·  tap to explore`
                   : loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
               </div>
             )}
@@ -696,53 +694,29 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
   )
 }
 
-// ── Activity feed helpers + component ────────────────────────────────────────
+// ── Activity feed ─────────────────────────────────────────────────────────────
 
-function timeAgo(ms: number): string {
-  const s = Math.floor((Date.now() - ms) / 1000)
-  if (s < 60)   return `${s}s`
-  if (s < 3600) return `${Math.floor(s / 60)}m`
-  return `${Math.floor(s / 3600)}h`
-}
-
-function formatNotional(n: number): string {
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
-  return `$${n.toFixed(0)}`
-}
-
-function formatSz(sz: number, ticker: string): string {
-  const n = sz >= 1000 ? `${(sz / 1000).toFixed(1)}K` : sz >= 10 ? sz.toFixed(0) : sz >= 1 ? sz.toFixed(2) : sz.toFixed(4)
-  return `${n} ${ticker}`
-}
-
-function ActivityFeed({ items, loading, onNavigate }: { items: FeedItem[]; loading: boolean; onNavigate: (t: string) => void }) {
+function ActivityFeed({ items, loading, onNavigate }: { items: AssetActivityItem[]; loading: boolean; onNavigate: (t: string) => void }) {
   if (loading && items.length === 0) {
-    return <div style={{ padding: '20px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading activity…</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading…</div>
   }
   if (!loading && items.length === 0) {
-    return <div style={{ padding: '20px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No large trades right now.</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No notable activity right now.</div>
   }
   return (
     <>
       {items.map((item, i) => {
-        const isBuy  = item.side === 'buy'
-        const color  = isBuy ? '#26ab83' : '#E84332'
-        const dec    = priceDecimals(item.px)
+        const color = item.direction === 'up' ? '#26ab83' : '#E84332'
         return (
           <div
             key={i}
             onClick={() => onNavigate(item.ticker)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
           >
-            <span style={{ fontSize: 10, color, flexShrink: 0, width: 10 }}>{isBuy ? '▲' : '▼'}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 46 }}>{item.ticker}</span>
-            <span style={{ fontSize: 11, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {formatSz(item.sz, item.ticker)} <span style={{ color: '#46443D' }}>@ {formatPrice(item.px, dec)}</span>
-            </span>
-            <span style={{ fontSize: 12, color, fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{formatNotional(item.notional)}</span>
-            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 22, textAlign: 'right' }}>{timeAgo(item.time)}</span>
+            <span style={{ fontSize: 10, color, flexShrink: 0 }}>{item.direction === 'up' ? '▲' : '▼'}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 50 }}>{item.ticker}</span>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>{item.headline}</span>
+            <span style={{ fontSize: 12, color, fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{item.value}</span>
           </div>
         )
       })}

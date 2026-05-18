@@ -46,6 +46,8 @@ const NAMES: Record<string, string> = {
   // FX
   JPY:      'Japanese Yen',
   EUR:      'Euro',
+  // Pre-IPO
+  SPCX:     'SpaceX',
   // Crypto
   BTC:      'Bitcoin',
   ETH:      'Ethereum',

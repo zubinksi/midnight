@@ -37,9 +37,9 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'starred',   label: '★' },
   { key: 'crypto',    label: 'CRYPTO' },
   { key: 'equities',  label: 'EQUITIES' },
+  { key: 'pre-ipo',   label: 'PRE IPO' },
   { key: 'commodity', label: 'COMMODITIES' },
   { key: 'fx',        label: 'FX' },
-  { key: 'pre-ipo',   label: 'PRE IPO' },
 ]
 
 export default function Home() {

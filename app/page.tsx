@@ -625,7 +625,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           <div
             ref={handleRef}
             onClick={() => open ? onClose() : onOpen()}
-            style={{ padding: '10px 24px 16px', cursor: 'pointer', touchAction: 'none' }}
+            style={{ padding: '10px 24px 14px', cursor: 'pointer', touchAction: 'none', position: 'relative' }}
           >
             <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 14px' }} />
             {/* Title row — always visible */}
@@ -633,7 +633,9 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
               <svg width="13" height="13" viewBox="0 0 13 13" fill="#26ab83">
                 <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
               </svg>
-              <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>Markets</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
+                {open ? 'Markets' : 'News'}
+              </span>
             </div>
             {/* News preview — collapsed only */}
             {!open && tgPosts.length > 0 && (
@@ -653,6 +655,12 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             {!open && tgPosts.length === 0 && (
               <div style={{ fontSize: 12, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
                 {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
+              </div>
+            )}
+            {/* Branding — bottom right, collapsed only */}
+            {!open && (
+              <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 10, color: '#3C3C3A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+                neue.markets
               </div>
             )}
           </div>

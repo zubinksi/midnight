@@ -630,7 +630,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 16px' }} />
             {open ? (
               <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
-                Markets
+                News
               </span>
             ) : (
               <>
@@ -645,7 +645,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                       {tgPosts[0].channel}
                     </div>
                     <div style={{
-                      fontSize: 13, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
+                      fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
                       lineHeight: 1.45,
                       display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     } as React.CSSProperties}>
@@ -653,12 +653,12 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 13, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
                     From Telegram
                   </div>
                 )}
-                {/* Branding — bottom left */}
-                <div style={{ position: 'absolute', bottom: 20, right: 24, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+                {/* Divider + branding */}
+                <div style={{ borderTop: '1px solid #2A2A28', marginTop: 14, paddingTop: 10, fontSize: 10, fontWeight: 700, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
                   neue.markets
                 </div>
               </>
@@ -670,7 +670,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
 
             {/* Summary section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>SUMMARY</span>
+              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>WATCHLIST SUMMARY</span>
               {time && !loading && (
                 <button
                   onClick={e => { e.stopPropagation(); onRefresh() }}

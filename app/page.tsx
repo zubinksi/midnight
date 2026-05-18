@@ -22,6 +22,78 @@ import { getAssetName } from '@/lib/assetNames'
 
 type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
+function getRowAnimStyle(idx: number, tappedIdx: number | null): React.CSSProperties {
+  if (tappedIdx === null) return {}
+  if (idx === tappedIdx) {
+    return {
+      animation: 'zoomRowOutTapped 0.9s cubic-bezier(0.4,0,0.2,1) forwards',
+      transformOrigin: 'left center',
+      zIndex: 5,
+      position: 'relative',
+    }
+  }
+  const name = idx % 2 === 0 ? 'zoomRowOutEven' : 'zoomRowOutOdd'
+  const delay = Math.abs(idx - tappedIdx) * 30
+  return {
+    animation: `${name} 0.7s ${delay}ms cubic-bezier(0.4,0,0.2,1) forwards`,
+  }
+}
+
+function BloomOverlay() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('neue-bloom-shown')) return
+      sessionStorage.setItem('neue-bloom-shown', '1')
+    } catch {}
+    setVisible(true)
+  }, [])
+  if (!visible) return null
+  return (
+    <div aria-hidden style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      pointerEvents: 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#080807',
+      animation: 'fadeOut 0.4s 1100ms forwards',
+    } as React.CSSProperties}>
+      <div style={{
+        width: 10, height: 10, borderRadius: '50%',
+        background: '#26ab83',
+        boxShadow: '0 0 6px rgba(38,171,131,0.33)',
+        animation: 'bloomDotSubtle 1.4s cubic-bezier(0.4,0,0.2,1) forwards',
+      }} />
+    </div>
+  )
+}
+
+function TransitionChartOverlay({ ticker, asset }: { ticker: string; asset: { price: number; prevDayPx: number } | undefined }) {
+  const name = getAssetName(ticker)
+  const price = asset?.price ?? 0
+  const priceStr = price > 0 ? formatPrice(price, priceDecimals(price)) : '—'
+  const pct = asset && asset.prevDayPx > 0 ? (asset.price - asset.prevDayPx) / asset.prevDayPx * 100 : 0
+  const up = pct >= 0
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 150,
+      background: '#080807',
+      animation: 'zoomChartIn 0.9s cubic-bezier(0.2,0.7,0.2,1) forwards',
+      fontFamily: 'Menlo,Monaco,monospace',
+      paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+      padding: 'calc(env(safe-area-inset-top) + 20px) 24px 0',
+    } as React.CSSProperties}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.025em', lineHeight: 1.15 }}>{ticker}</div>
+      <div style={{ fontSize: 13, color: '#46443D', marginTop: 4 }}>{name}</div>
+      <div style={{ fontSize: 40, fontWeight: 700, color: '#F0EDE6', marginTop: 28, letterSpacing: '-0.02em', lineHeight: 1 }}>{priceStr}</div>
+      {pct !== 0 && (
+        <div style={{ marginTop: 8, fontSize: 16, color: up ? '#26ab83' : '#E84332' }}>
+          {up ? '+' : ''}{pct.toFixed(2)}%
+        </div>
+      )}
+    </div>
+  )
+}
+
 const CLOCK_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function LiveDate({ style }: { style?: React.CSSProperties }) {
@@ -78,6 +150,9 @@ export default function Home() {
   })
   const [closePrices, setClosePrices]         = useState<Record<string, number>>({})
   const [prevClosePrices, setPrevClosePrices] = useState<Record<string, number>>({})
+  const [transMode, setTransMode]   = useState<'idle' | 'transitioning'>('idle')
+  const [tappedIdx, setTappedIdx]   = useState<number | null>(null)
+  const [tappedTicker, setTappedTicker] = useState<string | null>(null)
   const loading = xyzLoading || cryptoLoading
 
   const sessionLabel   = getNYSESessionLabel()
@@ -147,6 +222,16 @@ export default function Home() {
       return next
     })
   }
+
+  const handleRowTap = useCallback((ticker: string, idx: number) => {
+    if (transMode !== 'idle') return
+    setTappedIdx(idx)
+    setTappedTicker(ticker)
+    setTransMode('transitioning')
+    setTimeout(() => {
+      router.push(`/chart/${ticker}`)
+    }, 900)
+  }, [transMode, router])
 
   const allAssets = useMemo(() => [...xyzAssets, ...cryptoAssets], [xyzAssets, cryptoAssets])
 
@@ -317,43 +402,46 @@ export default function Home() {
         items={displayAssets.filter(a => favorites.has(a.ticker)).map(a => a.ticker)}
         strategy={verticalListSortingStrategy}
       >
-        {displayAssets.map(asset => favorites.has(asset.ticker) ? (
-          <SortableAssetRow
-            key={asset.ticker}
-            asset={asset}
-            price={prices[asset.ticker] ?? asset.price}
-            starred
-            onToggleFavorite={toggleFavorite}
-            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-            closePrice={closePrices[asset.ticker]}
-            sessionLabel={sessionLabel}
-          />
+        {displayAssets.map((asset, idx) => favorites.has(asset.ticker) ? (
+          <div key={asset.ticker} style={getRowAnimStyle(idx, tappedIdx)}>
+            <SortableAssetRow
+              asset={asset}
+              price={prices[asset.ticker] ?? asset.price}
+              starred
+              onToggleFavorite={toggleFavorite}
+              onNavigate={() => handleRowTap(asset.ticker, idx)}
+              closePrice={closePrices[asset.ticker]}
+              sessionLabel={sessionLabel}
+            />
+          </div>
         ) : (
-          <AssetRow
-            key={asset.coin}
-            asset={asset}
-            price={prices[asset.ticker] ?? asset.price}
-            starred={false}
-            onToggleFavorite={toggleFavorite}
-            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-            closePrice={closePrices[asset.ticker]}
-            sessionLabel={sessionLabel}
-          />
+          <div key={asset.coin} style={getRowAnimStyle(idx, tappedIdx)}>
+            <AssetRow
+              asset={asset}
+              price={prices[asset.ticker] ?? asset.price}
+              starred={false}
+              onToggleFavorite={toggleFavorite}
+              onNavigate={() => handleRowTap(asset.ticker, idx)}
+              closePrice={closePrices[asset.ticker]}
+              sessionLabel={sessionLabel}
+            />
+          </div>
         ))}
       </SortableContext>
     </DndContext>
   ) : (
-    displayAssets.map(asset => (
-      <AssetRow
-        key={asset.coin}
-        asset={asset}
-        price={prices[asset.ticker] ?? asset.price}
-        starred={favorites.has(asset.ticker)}
-        onToggleFavorite={toggleFavorite}
-        onNavigate={() => router.push(`/chart/${asset.ticker}`)}
-        closePrice={closePrices[asset.ticker]}
-        sessionLabel={sessionLabel}
-      />
+    displayAssets.map((asset, idx) => (
+      <div key={asset.coin} style={getRowAnimStyle(idx, tappedIdx)}>
+        <AssetRow
+          asset={asset}
+          price={prices[asset.ticker] ?? asset.price}
+          starred={favorites.has(asset.ticker)}
+          onToggleFavorite={toggleFavorite}
+          onNavigate={() => handleRowTap(asset.ticker, idx)}
+          closePrice={closePrices[asset.ticker]}
+          sessionLabel={sessionLabel}
+        />
+      </div>
     ))
   )
 
@@ -404,94 +492,98 @@ export default function Home() {
           </div>
         )}
 
-        {/* Fixed header */}
-        <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div>
-              <div style={S.hero}>Hyperliquid</div>
-              <LiveDate style={{ ...S.hero, color: '#46443D' }} />
+        <div style={transMode === 'transitioning' ? {
+          animation: 'zoomChromeOut 0.5s cubic-bezier(0.4,0,0.2,1) forwards',
+        } : {}}>
+          {/* Fixed header */}
+          <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <div style={S.hero}>Hyperliquid</div>
+                <LiveDate style={{ ...S.hero, color: '#46443D' }} />
+              </div>
+              <button
+                onClick={() => setShowSearch(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', lineHeight: 1, color: '#46443D', flexShrink: 0, marginTop: 6 }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <circle cx="7.5" cy="7.5" r="5" />
+                  <line x1="11.5" y1="11.5" x2="16" y2="16" />
+                </svg>
+              </button>
+            </div>
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
+              {FILTERS.map(f => {
+                const active = categoryFilter === f.key
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => { setCategoryFilter(f.key); try { localStorage.setItem('neue-filter', f.key) } catch {} }}
+                    style={{
+                      background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
+                      borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
+                      height: 28, fontSize: f.key === 'starred' ? 23 : 12.5,
+                      fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
+                      color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
+                      cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                    }}
+                  >{f.label}</button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 24px' }}>
+            {/* Sort options — slide out to the left of the icon */}
+            <div style={{
+              display: 'flex', gap: 6, alignItems: 'center', overflow: 'hidden',
+              maxWidth: showSortSheet ? 320 : 0,
+              opacity: showSortSheet ? 1 : 0,
+              transition: 'max-width 0.22s ease, opacity 0.18s ease',
+              marginRight: showSortSheet ? 8 : 0,
+            }}>
+              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
+              {([
+                { key: 'volume',     label: 'VOLUME' },
+                { key: 'price-desc', label: 'PERCENT ↓' },
+                { key: 'price-asc',  label: 'PERCENT ↑' },
+              ] as const).map(opt => {
+                const active = sortBy === opt.key
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {} }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      background: active ? '#1C1C1A' : 'none',
+                      border: '1px solid #1C1C1A', borderRadius: 20,
+                      padding: '4px 10px', height: 26,
+                      fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
+                      color: active ? '#F0EDE6' : '#46443D',
+                      cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                    }}
+                  >
+                    {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />}
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
             <button
-              onClick={() => setShowSearch(true)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', lineHeight: 1, color: '#46443D', flexShrink: 0, marginTop: 6 }}
+              onClick={() => setShowSortSheet(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1, flexShrink: 0 }}
             >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <circle cx="7.5" cy="7.5" r="5" />
-                <line x1="11.5" y1="11.5" x2="16" y2="16" />
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="2" y1="3.5" x2="12" y2="3.5" />
+                <line x1="2" y1="7"   x2="9"  y2="7"   />
+                <line x1="2" y1="10.5" x2="6" y2="10.5" />
+                <polyline points="11,5 13,7 11,9" />
               </svg>
             </button>
           </div>
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: 6, paddingTop: 14, paddingBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
-            {FILTERS.map(f => {
-              const active = categoryFilter === f.key
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => { setCategoryFilter(f.key); try { localStorage.setItem('neue-filter', f.key) } catch {} }}
-                  style={{
-                    background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
-                    borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
-                    height: 28, fontSize: f.key === 'starred' ? 23 : 12.5,
-                    fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
-                    color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
-                    cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                  }}
-                >{f.label}</button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 24px' }}>
-          {/* Sort options — slide out to the left of the icon */}
-          <div style={{
-            display: 'flex', gap: 6, alignItems: 'center', overflow: 'hidden',
-            maxWidth: showSortSheet ? 320 : 0,
-            opacity: showSortSheet ? 1 : 0,
-            transition: 'max-width 0.22s ease, opacity 0.18s ease',
-            marginRight: showSortSheet ? 8 : 0,
-          }}>
-            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
-            {([
-              { key: 'volume',     label: 'VOLUME' },
-              { key: 'price-desc', label: 'PERCENT ↓' },
-              { key: 'price-asc',  label: 'PERCENT ↑' },
-            ] as const).map(opt => {
-              const active = sortBy === opt.key
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {} }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    background: active ? '#1C1C1A' : 'none',
-                    border: '1px solid #1C1C1A', borderRadius: 20,
-                    padding: '4px 10px', height: 26,
-                    fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
-                    color: active ? '#F0EDE6' : '#46443D',
-                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                  }}
-                >
-                  {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />}
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
-          <button
-            onClick={() => setShowSortSheet(v => !v)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1, flexShrink: 0 }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="2" y1="3.5" x2="12" y2="3.5" />
-              <line x1="2" y1="7"   x2="9"  y2="7"   />
-              <line x1="2" y1="10.5" x2="6" y2="10.5" />
-              <polyline points="11,5 13,7 11,9" />
-            </svg>
-          </button>
         </div>
 
         {/* Scrollable area */}
@@ -515,6 +607,14 @@ export default function Home() {
           onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
           watchlistTickers={[...favorites]}
         />
+
+        <BloomOverlay />
+        {transMode === 'transitioning' && tappedTicker && (
+          <TransitionChartOverlay
+            ticker={tappedTicker}
+            asset={allAssets.find(a => a.ticker === tappedTicker)}
+          />
+        )}
 
       </div>
     </div>

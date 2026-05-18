@@ -578,7 +578,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
     const onEnd = () => {
       const el = outer()
       if (el) el.style.transition = 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)'
-      if (!openRef.current && dy < -50) {
+      if (!openRef.current && dy < -30) {
         onOpenRef.current()
       } else if (openRef.current && dy > 100) {
         onCloseRef.current()
@@ -619,7 +619,8 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(0.9)',
           borderTop: '1px solid rgba(255,255,255,0.14)',
           borderRadius: '24px 24px 0 0',
-          paddingBottom: 'max(52px, calc(env(safe-area-inset-bottom) + 16px))',
+          // When closed, extend the background well below the viewport so dragging up never exposes the list behind it
+          paddingBottom: open ? 'max(52px, calc(env(safe-area-inset-bottom) + 16px))' : 'max(400px, calc(env(safe-area-inset-bottom) + 370px))',
         } as React.CSSProperties}>
           {/* Handle + collapsed header — drag target */}
           <div

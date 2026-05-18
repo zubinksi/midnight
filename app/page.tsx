@@ -636,8 +636,8 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             </div>
             {!open && (
               <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
-                {feedItems.length > 0
-                  ? `${feedItems[0].direction === 'up' ? '▲' : '▼'} ${feedItems[0].ticker}  ${feedItems[0].value}  ·  tap to explore`
+                {tgPosts.length > 0
+                  ? `${tgPosts[0].channel}  ·  ${tgPosts[0].text.split('\n')[0].slice(0, 60)}${tgPosts[0].text.length > 60 ? '…' : ''}`
                   : loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
               </div>
             )}

@@ -13,8 +13,8 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, useAssetActivityFeed, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
-import type { AssetActivityItem } from '@/lib/hyperliquid'
+import { useAssets, useCryptoAssets, useLivePrices, useCryptoLivePrices, useAssetActivityFeed, useTelegramFeed, getNYSESessionLabel, fetchNYSEClosePrice, fetchNYSEPrevClosePrice } from '@/lib/hyperliquid'
+import type { AssetActivityItem, TelegramPost } from '@/lib/hyperliquid'
 import { formatPrice } from '@/lib/format'
 import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
@@ -537,7 +537,8 @@ interface SummaryPanelProps {
 }
 
 function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate, watchlistTickers }: SummaryPanelProps) {
-  const { items: feedItems, loading: feedLoading } = useAssetActivityFeed(watchlistTickers)
+  const { items: feedItems, loading: feedLoading }   = useAssetActivityFeed(watchlistTickers)
+  const { posts: tgPosts,  loading: tgLoading }       = useTelegramFeed()
 
   // Refs so the native-event closure always reads the latest values without re-attaching
   const outerRef   = useRef<HTMLDivElement>(null)
@@ -674,6 +675,13 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>ACTIVITY</div>
             <ActivityFeed items={feedItems} loading={feedLoading} onNavigate={onNavigate} />
 
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 16px' }} />
+
+            {/* News section */}
+            <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>NEWS</div>
+            <NewsFeed posts={tgPosts} loading={tgLoading} />
+
           </div>
         </div>
       </div>
@@ -707,6 +715,45 @@ function ActivityFeed({ items, loading, onNavigate }: { items: AssetActivityItem
           </div>
         )
       })}
+    </>
+  )
+}
+
+// ── News feed ─────────────────────────────────────────────────────────────────
+
+function timeAgo(ms: number): string {
+  const s = Math.floor((Date.now() - ms) / 1000)
+  if (s < 60)    return `${s}s`
+  if (s < 3600)  return `${Math.floor(s / 60)}m`
+  if (s < 86400) return `${Math.floor(s / 3600)}h`
+  return `${Math.floor(s / 86400)}d`
+}
+
+function NewsFeed({ posts, loading }: { posts: TelegramPost[]; loading: boolean }) {
+  if (loading && posts.length === 0) {
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading…</div>
+  }
+  if (!loading && posts.length === 0) {
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No posts available.</div>
+  }
+  return (
+    <>
+      {posts.map((post, i) => (
+        <div
+          key={i}
+          onClick={() => window.open(post.url, '_blank', 'noopener')}
+          style={{ padding: '12px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+            <span style={{ fontSize: 10, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{post.channel}</span>
+            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>·</span>
+            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>{timeAgo(post.time)}</span>
+          </div>
+          <div style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.55,
+            display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          } as React.CSSProperties}>{post.text}</div>
+        </div>
+      ))}
     </>
   )
 }

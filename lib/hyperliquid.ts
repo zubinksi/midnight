@@ -405,6 +405,34 @@ export function useAssetActivityFeed(
   return { items, loading }
 }
 
+export interface TelegramPost {
+  channel: string
+  text: string
+  time: number   // unix ms
+  url: string
+}
+
+export function useTelegramFeed(pollMs = 5 * 60_000): { posts: TelegramPost[]; loading: boolean } {
+  const [posts, setPosts]     = useState<TelegramPost[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    const doFetch = async () => {
+      try {
+        const res = await fetch('/api/telegram')
+        if (res.ok && !cancelled) setPosts(await res.json())
+      } catch { /* keep previous */ }
+      if (!cancelled) setLoading(false)
+    }
+    doFetch()
+    const id = setInterval(doFetch, pollMs)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [pollMs])
+
+  return { posts, loading }
+}
+
 // Single-asset price poll for the chart detail page.
 // Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
 export function useAssetPrice(coin: string, pollMs = 800): number | null {

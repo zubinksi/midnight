@@ -48,6 +48,7 @@ const NAMES: Record<string, string> = {
   EUR:      'Euro',
   // Pre-IPO
   SPCX:     'SpaceX',
+  ZEC:      'ZCash',
   // Crypto
   BTC:      'Bitcoin',
   ETH:      'Ethereum',

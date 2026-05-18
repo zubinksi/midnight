@@ -68,30 +68,5 @@ body {
     to { opacity: 0; visibility: hidden; }
   }
 
-  @keyframes zoomRowOutTapped {
-    0%   { opacity: 1; transform: scale(1); }
-    70%  { opacity: 1; transform: scale(1.8); }
-    100% { opacity: 0; transform: scale(2.2); }
-  }
 
-  @keyframes zoomRowOutEven {
-    0%   { opacity: 1; transform: translateX(0); }
-    100% { opacity: 0; transform: translateX(-90px); }
-  }
-
-  @keyframes zoomRowOutOdd {
-    0%   { opacity: 1; transform: translateX(0); }
-    100% { opacity: 0; transform: translateX(90px); }
-  }
-
-  @keyframes zoomChromeOut {
-    0%   { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(0.94); }
-  }
-
-  @keyframes zoomChartIn {
-    0%   { opacity: 0; transform: scale(0.88); }
-    45%  { opacity: 0; }
-    100% { opacity: 1; transform: scale(1); }
-  }
 }

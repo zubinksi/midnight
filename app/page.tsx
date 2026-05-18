@@ -22,22 +22,6 @@ import { getAssetName } from '@/lib/assetNames'
 
 type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
-function getRowAnimStyle(idx: number, tappedIdx: number | null): React.CSSProperties {
-  if (tappedIdx === null) return {}
-  if (idx === tappedIdx) {
-    return {
-      animation: 'zoomRowOutTapped 0.9s cubic-bezier(0.4,0,0.2,1) forwards',
-      transformOrigin: 'left center',
-      zIndex: 5,
-      position: 'relative',
-    }
-  }
-  const name = idx % 2 === 0 ? 'zoomRowOutEven' : 'zoomRowOutOdd'
-  const delay = Math.abs(idx - tappedIdx) * 30
-  return {
-    animation: `${name} 0.7s ${delay}ms cubic-bezier(0.4,0,0.2,1) forwards`,
-  }
-}
 
 function BloomOverlay() {
   const [visible, setVisible] = useState(false)
@@ -63,33 +47,6 @@ function BloomOverlay() {
         boxShadow: '0 0 6px rgba(38,171,131,0.33)',
         animation: 'bloomDotSubtle 1.4s cubic-bezier(0.4,0,0.2,1) forwards',
       }} />
-    </div>
-  )
-}
-
-function TransitionChartOverlay({ ticker, asset }: { ticker: string; asset: { price: number; prevDayPx: number } | undefined }) {
-  const name = getAssetName(ticker)
-  const price = asset?.price ?? 0
-  const priceStr = price > 0 ? formatPrice(price, priceDecimals(price)) : '—'
-  const pct = asset && asset.prevDayPx > 0 ? (asset.price - asset.prevDayPx) / asset.prevDayPx * 100 : 0
-  const up = pct >= 0
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 150,
-      background: '#080807',
-      animation: 'zoomChartIn 0.9s cubic-bezier(0.2,0.7,0.2,1) forwards',
-      fontFamily: 'Menlo,Monaco,monospace',
-      paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-      padding: 'calc(env(safe-area-inset-top) + 20px) 24px 0',
-    } as React.CSSProperties}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', letterSpacing: '-0.025em', lineHeight: 1.15 }}>{ticker}</div>
-      <div style={{ fontSize: 13, color: '#46443D', marginTop: 4 }}>{name}</div>
-      <div style={{ fontSize: 40, fontWeight: 700, color: '#F0EDE6', marginTop: 28, letterSpacing: '-0.02em', lineHeight: 1 }}>{priceStr}</div>
-      {pct !== 0 && (
-        <div style={{ marginTop: 8, fontSize: 16, color: up ? '#26ab83' : '#E84332' }}>
-          {up ? '+' : ''}{pct.toFixed(2)}%
-        </div>
-      )}
     </div>
   )
 }
@@ -150,9 +107,6 @@ export default function Home() {
   })
   const [closePrices, setClosePrices]         = useState<Record<string, number>>({})
   const [prevClosePrices, setPrevClosePrices] = useState<Record<string, number>>({})
-  const [transMode, setTransMode]   = useState<'idle' | 'transitioning'>('idle')
-  const [tappedIdx, setTappedIdx]   = useState<number | null>(null)
-  const [tappedTicker, setTappedTicker] = useState<string | null>(null)
   const loading = xyzLoading || cryptoLoading
 
   const sessionLabel   = getNYSESessionLabel()
@@ -222,16 +176,6 @@ export default function Home() {
       return next
     })
   }
-
-  const handleRowTap = useCallback((ticker: string, idx: number) => {
-    if (transMode !== 'idle') return
-    setTappedIdx(idx)
-    setTappedTicker(ticker)
-    setTransMode('transitioning')
-    setTimeout(() => {
-      router.push(`/chart/${ticker}`)
-    }, 900)
-  }, [transMode, router])
 
   const allAssets = useMemo(() => [...xyzAssets, ...cryptoAssets], [xyzAssets, cryptoAssets])
 
@@ -402,46 +346,43 @@ export default function Home() {
         items={displayAssets.filter(a => favorites.has(a.ticker)).map(a => a.ticker)}
         strategy={verticalListSortingStrategy}
       >
-        {displayAssets.map((asset, idx) => favorites.has(asset.ticker) ? (
-          <div key={asset.ticker} style={getRowAnimStyle(idx, tappedIdx)}>
-            <SortableAssetRow
-              asset={asset}
-              price={prices[asset.ticker] ?? asset.price}
-              starred
-              onToggleFavorite={toggleFavorite}
-              onNavigate={() => handleRowTap(asset.ticker, idx)}
-              closePrice={closePrices[asset.ticker]}
-              sessionLabel={sessionLabel}
-            />
-          </div>
+        {displayAssets.map(asset => favorites.has(asset.ticker) ? (
+          <SortableAssetRow
+            key={asset.ticker}
+            asset={asset}
+            price={prices[asset.ticker] ?? asset.price}
+            starred
+            onToggleFavorite={toggleFavorite}
+            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+            closePrice={closePrices[asset.ticker]}
+            sessionLabel={sessionLabel}
+          />
         ) : (
-          <div key={asset.coin} style={getRowAnimStyle(idx, tappedIdx)}>
-            <AssetRow
-              asset={asset}
-              price={prices[asset.ticker] ?? asset.price}
-              starred={false}
-              onToggleFavorite={toggleFavorite}
-              onNavigate={() => handleRowTap(asset.ticker, idx)}
-              closePrice={closePrices[asset.ticker]}
-              sessionLabel={sessionLabel}
-            />
-          </div>
+          <AssetRow
+            key={asset.coin}
+            asset={asset}
+            price={prices[asset.ticker] ?? asset.price}
+            starred={false}
+            onToggleFavorite={toggleFavorite}
+            onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+            closePrice={closePrices[asset.ticker]}
+            sessionLabel={sessionLabel}
+          />
         ))}
       </SortableContext>
     </DndContext>
   ) : (
-    displayAssets.map((asset, idx) => (
-      <div key={asset.coin} style={getRowAnimStyle(idx, tappedIdx)}>
-        <AssetRow
-          asset={asset}
-          price={prices[asset.ticker] ?? asset.price}
-          starred={favorites.has(asset.ticker)}
-          onToggleFavorite={toggleFavorite}
-          onNavigate={() => handleRowTap(asset.ticker, idx)}
-          closePrice={closePrices[asset.ticker]}
-          sessionLabel={sessionLabel}
-        />
-      </div>
+    displayAssets.map(asset => (
+      <AssetRow
+        key={asset.coin}
+        asset={asset}
+        price={prices[asset.ticker] ?? asset.price}
+        starred={favorites.has(asset.ticker)}
+        onToggleFavorite={toggleFavorite}
+        onNavigate={() => router.push(`/chart/${asset.ticker}`)}
+        closePrice={closePrices[asset.ticker]}
+        sessionLabel={sessionLabel}
+      />
     ))
   )
 
@@ -492,9 +433,7 @@ export default function Home() {
           </div>
         )}
 
-        <div style={transMode === 'transitioning' ? {
-          animation: 'zoomChromeOut 0.5s cubic-bezier(0.4,0,0.2,1) forwards',
-        } : {}}>
+        <div>
           {/* Fixed header */}
           <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -609,12 +548,6 @@ export default function Home() {
         />
 
         <BloomOverlay />
-        {transMode === 'transitioning' && tappedTicker && (
-          <TransitionChartOverlay
-            ticker={tappedTicker}
-            asset={allAssets.find(a => a.ticker === tappedTicker)}
-          />
-        )}
 
       </div>
     </div>

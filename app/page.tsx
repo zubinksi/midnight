@@ -499,7 +499,7 @@ export default function Home() {
           <div style={{ padding: '0 24px' }}>
             {assetList}
           </div>
-          <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 72px)' }} />
+          <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 155px)' }} />
         </div>
 
         {/* Persistent summary panel */}
@@ -570,7 +570,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         el.style.transform = `translateY(${Math.max(0, dy)}px)`
       } else {
         // Dragging up to open: only allow negative (upward) movement
-        const peek = `calc(100% - 72px + ${Math.min(0, dy)}px)`
+        const peek = `calc(100% - 155px + ${Math.min(0, dy)}px)`
         el.style.transform = `translateY(${peek})`
       }
       e.preventDefault()
@@ -584,7 +584,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         onCloseRef.current()
       } else {
         // Snap back to current position
-        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 116px))'
+        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 155px))'
       }
     }
     node.addEventListener('touchstart', onStart, { passive: true })
@@ -608,7 +608,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           display: 'flex', justifyContent: 'center',
-          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 116px))',
+          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 155px))',
           transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -625,43 +625,43 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           <div
             ref={handleRef}
             onClick={() => open ? onClose() : onOpen()}
-            style={{ padding: '10px 24px 14px', cursor: 'pointer', touchAction: 'none', position: 'relative' }}
+            style={{ padding: '12px 24px 20px', cursor: 'pointer', touchAction: 'none', position: 'relative' }}
           >
-            <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 14px' }} />
-            {/* Title row — always visible */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: open ? 0 : 10 }}>
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="#26ab83">
-                <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
-              </svg>
+            <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 16px' }} />
+            {open ? (
               <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
-                {open ? 'Markets' : 'News'}
+                Markets
               </span>
-            </div>
-            {/* News preview — collapsed only */}
-            {!open && tgPosts.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', marginBottom: 4 }}>
-                  {tgPosts[0].channel}
+            ) : (
+              <>
+                {/* Large title */}
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 6 }}>
+                  News
                 </div>
-                <div style={{
-                  fontSize: 13, color: '#C8C6C0', fontFamily: 'Menlo,Monaco,monospace',
-                  lineHeight: 1.45,
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                } as React.CSSProperties}>
-                  {tgPosts[0].text.split('\n')[0]}
+                {/* Source + headline */}
+                {tgPosts.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: 12, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.05em', marginBottom: 5 }}>
+                      {tgPosts[0].channel}
+                    </div>
+                    <div style={{
+                      fontSize: 13, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
+                      lineHeight: 1.45,
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    } as React.CSSProperties}>
+                      {tgPosts[0].text.split('\n')[0]}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
+                    From Telegram
+                  </div>
+                )}
+                {/* Branding — bottom left */}
+                <div style={{ position: 'absolute', bottom: 20, right: 24, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+                  neue.markets
                 </div>
-              </div>
-            )}
-            {!open && tgPosts.length === 0 && (
-              <div style={{ fontSize: 12, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
-                {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
-              </div>
-            )}
-            {/* Branding — bottom right, collapsed only */}
-            {!open && (
-              <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 10, color: '#3C3C3A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
-                neue.markets
-              </div>
+              </>
             )}
           </div>
 

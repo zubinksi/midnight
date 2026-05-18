@@ -22,18 +22,38 @@ import { getAssetName } from '@/lib/assetNames'
 type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
 const CLOCK_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const ROTATE_WORDS = ['Crypto', 'Equities', 'Pre IPO', 'Commodities']
 
-function LiveClock({ style }: { style?: React.CSSProperties }) {
+function RotatingWord({ style }: { style?: React.CSSProperties }) {
+  const [idx, setIdx] = useState(0)
+  const [visible, setVisible] = useState(true)
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setIdx(i => (i + 1) % ROTATE_WORDS.length)
+        setVisible(true)
+      }, 350)
+    }, 2200)
+    return () => clearInterval(cycle)
+  }, [])
+  return (
+    <div style={{
+      ...style,
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(6px)',
+      transition: 'opacity 0.35s ease, transform 0.35s ease',
+    }}>{ROTATE_WORDS[idx]}</div>
+  )
+}
+
+function LiveDate({ style }: { style?: React.CSSProperties }) {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
+    const id = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(id)
   }, [])
-  const h = now.getHours()
-  const m = now.getMinutes().toString().padStart(2, '0')
-  const s = now.getSeconds().toString().padStart(2, '0')
-  const label = `${CLOCK_MONTHS[now.getMonth()]} ${now.getDate()} ${h}:${m}:${s}`
-  return <div style={style}>{label}</div>
+  return <div style={style}>{CLOCK_MONTHS[now.getMonth()]} {now.getDate()}</div>
 }
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -423,11 +443,8 @@ export default function Home() {
         {/* Fixed header */}
         <div style={{ flexShrink: 0, padding: '0 24px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-              <div style={S.hero}>Live on Hyperliquid</div>
-            </div>
-            <LiveClock style={{ ...S.hero, color: '#46443D' }} />
+            <RotatingWord style={S.hero} />
+            <LiveDate style={{ ...S.hero, color: '#46443D' }} />
           </div>
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 4 }}>

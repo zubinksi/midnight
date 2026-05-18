@@ -41,14 +41,14 @@ function BloomOverlay() {
       pointerEvents: 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: '#080807',
-      ...(play ? { animation: 'fadeOut 0.4s 1900ms forwards' } : {}),
+      ...(play ? { animation: 'fadeOut 0.4s 2400ms forwards' } : {}),
     } as React.CSSProperties}>
       {play && (
         <div style={{
           width: 10, height: 10, borderRadius: '50%',
           background: '#26ab83',
           boxShadow: '0 0 6px rgba(38,171,131,0.33)',
-          animation: 'bloomDotSubtle 2.2s cubic-bezier(0.4,0,0.2,1) forwards',
+          animation: 'bloomDotSubtle 2.8s cubic-bezier(0.4,0,0.2,1) forwards',
         }} />
       )}
     </div>

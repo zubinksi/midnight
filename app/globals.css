@@ -58,12 +58,13 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   @keyframes bloomDotSubtle {
     0%   { transform: scale(0.6);  opacity: 0; }
-    11%  { transform: scale(1);    opacity: 1; }
-    25%  { transform: scale(1.12); opacity: 0.85; }
-    39%  { transform: scale(1);    opacity: 1; }
-    50%  { transform: scale(1);    opacity: 1; }
-    61%  { transform: scale(1.08); opacity: 0.88; }
-    72%  { transform: scale(1);    opacity: 1; }
+    9%   { transform: scale(1);    opacity: 1; }
+    20%  { transform: scale(1.22); opacity: 0.8; }
+    31%  { transform: scale(1);    opacity: 1; }
+    42%  { transform: scale(1.17); opacity: 0.84; }
+    53%  { transform: scale(1);    opacity: 1; }
+    64%  { transform: scale(1.12); opacity: 0.88; }
+    75%  { transform: scale(1);    opacity: 1; }
     100% { transform: scale(1);    opacity: 1; }
   }
 

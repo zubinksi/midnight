@@ -614,10 +614,10 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
       >
         <div style={{
           width: '100%', maxWidth: 430,
-          background: 'rgba(12, 12, 11, 0.72)',
+          background: 'rgba(12, 12, 11, 0.88)',
           backdropFilter: 'blur(24px) saturate(180%)',
           WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          borderTop: '1px solid rgba(255,255,255,0.10)',
           borderRadius: '20px 20px 0 0',
           paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
         } as React.CSSProperties}>
@@ -625,20 +625,31 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           <div
             ref={handleRef}
             onClick={() => open ? onClose() : onOpen()}
-            style={{ padding: '12px 24px 16px', cursor: 'pointer', touchAction: 'none' }}
+            style={{ padding: '12px 24px 14px', cursor: 'pointer', touchAction: 'none' }}
           >
-            <div style={{ width: 36, height: 4, background: '#2C2C2A', borderRadius: 2, margin: '0 auto 14px' }} />
+            <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 12px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
                 <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
               </svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Markets</span>
             </div>
-            {!open && (
-              <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
-                {tgPosts.length > 0
-                  ? `${tgPosts[0].channel}  ·  ${tgPosts[0].text.split('\n')[0].slice(0, 60)}${tgPosts[0].text.length > 60 ? '…' : ''}`
-                  : loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
+            {!open && tgPosts.length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                <span style={{
+                  fontSize: 10, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace',
+                  letterSpacing: '0.06em', flexShrink: 0,
+                }}>{tgPosts[0].channel}</span>
+                <span style={{ fontSize: 10, color: '#46443D', flexShrink: 0 }}>·</span>
+                <span style={{
+                  fontSize: 12, color: '#A0A09A', fontFamily: 'Menlo,Monaco,monospace',
+                  lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{tgPosts[0].text.split('\n')[0]}</span>
+              </div>
+            )}
+            {!open && tgPosts.length === 0 && (
+              <div style={{ marginTop: 6, fontSize: 11, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
+                {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
               </div>
             )}
           </div>

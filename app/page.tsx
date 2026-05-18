@@ -449,29 +449,37 @@ export default function Home() {
           {/* Sort options — slide out to the left of the icon */}
           <div style={{
             display: 'flex', gap: 6, alignItems: 'center', overflow: 'hidden',
-            maxWidth: showSortSheet ? 260 : 0,
+            maxWidth: showSortSheet ? 320 : 0,
             opacity: showSortSheet ? 1 : 0,
             transition: 'max-width 0.22s ease, opacity 0.18s ease',
             marginRight: showSortSheet ? 8 : 0,
           }}>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
             {([
               { key: 'volume',     label: 'VOLUME' },
-              { key: 'price-desc', label: 'CHG ↓' },
-              { key: 'price-asc',  label: 'CHG ↑' },
-            ] as const).map(opt => (
-              <button
-                key={opt.key}
-                onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {}; setShowSortSheet(false) }}
-                style={{
-                  background: sortBy === opt.key ? '#1C1C1A' : 'none',
-                  border: '1px solid #1C1C1A', borderRadius: 20,
-                  padding: '4px 10px', height: 26,
-                  fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
-                  color: sortBy === opt.key ? '#F0EDE6' : '#46443D',
-                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                }}
-              >{opt.label}</button>
-            ))}
+              { key: 'price-desc', label: 'PRICE ↓' },
+              { key: 'price-asc',  label: 'PRICE ↑' },
+            ] as const).map(opt => {
+              const active = sortBy === opt.key
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {} }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: active ? '#1C1C1A' : 'none',
+                    border: '1px solid #1C1C1A', borderRadius: 20,
+                    padding: '4px 10px', height: 26,
+                    fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
+                    color: active ? '#F0EDE6' : '#46443D',
+                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />}
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
           <button
             onClick={() => setShowSortSheet(v => !v)}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext, closestCenter,
@@ -501,19 +501,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Sort icon row */}
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px' }}>
-          <button
-            onClick={openSummary}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#46443D', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 10 }}
-          >
-            <span style={{ width: 28, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
-                <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
-              </svg>
-            </span>
-            <span style={{ fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>SUMMARY</span>
-          </button>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 24px' }}>
           <button
             onClick={() => setShowSortSheet(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
@@ -561,62 +549,131 @@ export default function Home() {
           </div>
         )}
 
-        {/* Summary bottom sheet */}
-        {showSummary && (
-          <div
-            onClick={() => setShowSummary(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000000BB', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' } as React.CSSProperties}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              ref={summarySheetRef}
-              className="slide-up"
-              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(36px, env(safe-area-inset-bottom))', touchAction: 'none' }}
-            >
-              <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
-                    <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
-                  </svg>
-                  <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>WATCHLIST SUMMARY</span>
-                </div>
-                {summaryTime && !summaryLoading && (
-                  <button
-                    onClick={fetchSummary}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
-                  >↻ REFRESH</button>
-                )}
-              </div>
-              <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60 }}>
-                {summaryLoading && !summaryText ? (
-                  <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
-                ) : summaryLoading ? (
-                  summaryText
-                ) : (
-                  renderSummaryText(summaryText, allAssets.map(a => a.ticker), t => { setShowSummary(false); router.push(`/chart/${t}`) })
-                )}
-                {summaryLoading && summaryText && <span style={{ color: '#46443D' }}>▌</span>}
-              </div>
-              {summaryTime && !summaryLoading && (
-                <div style={{ marginTop: 16, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
-                  {summaryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div style={{ padding: '0 24px' }}>
             {assetList}
           </div>
-          <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
+          <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 72px)' }} />
         </div>
+
+        {/* Persistent summary panel */}
+        <SummaryPanel
+          open={showSummary}
+          onOpen={() => { setShowSummary(true); openSummary() }}
+          onClose={() => setShowSummary(false)}
+          loading={summaryLoading}
+          text={summaryText}
+          time={summaryTime}
+          onRefresh={fetchSummary}
+          allTickers={allAssets.map(a => a.ticker)}
+          onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
+        />
 
       </div>
     </div>
+  )
+}
+
+// ── Summary peek panel ────────────────────────────────────────────────────────
+
+interface SummaryPanelProps {
+  open: boolean
+  onOpen: () => void
+  onClose: () => void
+  loading: boolean
+  text: string
+  time: Date | null
+  onRefresh: () => void
+  allTickers: string[]
+  onNavigate: (t: string) => void
+}
+
+function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate }: SummaryPanelProps) {
+  const dragStartY = useRef(0)
+
+  const handleTouchStart = (e: React.TouchEvent) => { dragStartY.current = e.touches[0].clientY }
+  const handleTouchEnd   = (e: React.TouchEvent) => {
+    const dy = dragStartY.current - e.changedTouches[0].clientY
+    if (!open && dy > 30) onOpen()
+    if (open  && dy < -40) onClose()
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' } as React.CSSProperties}
+        />
+      )}
+
+      {/* Panel */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
+          display: 'flex', justifyContent: 'center',
+          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 72px))',
+          transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <div style={{
+          width: '100%', maxWidth: 430,
+          background: '#0F0F0E',
+          borderTop: '1px solid #1C1C1A',
+          borderRadius: '20px 20px 0 0',
+          paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
+        }}>
+          {/* Handle + collapsed header — tap to open */}
+          <div
+            onClick={() => open ? onClose() : onOpen()}
+            style={{ padding: '12px 24px 16px', cursor: 'pointer' }}
+          >
+            <div style={{ width: 36, height: 4, background: '#2C2C2A', borderRadius: 2, margin: '0 auto 14px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
+                  <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
+                </svg>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Watchlist Summary</span>
+              </div>
+              <span style={{ fontSize: 18, color: '#46443D', lineHeight: 1, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', display: 'inline-block' }}>⌃</span>
+            </div>
+            {!open && (
+              <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
+                {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to generate'}
+              </div>
+            )}
+          </div>
+
+          {/* Expanded content */}
+          <div style={{ padding: '0 24px', overflow: 'hidden', maxHeight: open ? '60vh' : 0, transition: 'max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1)', overflowY: open ? 'auto' : 'hidden' } as React.CSSProperties}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              {time && !loading && (
+                <button
+                  onClick={e => { e.stopPropagation(); onRefresh() }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
+                >↻ REFRESH</button>
+              )}
+            </div>
+            <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 60, paddingBottom: 8 }}>
+              {loading && !text
+                ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
+                : renderSummaryText(text, allTickers, onNavigate)}
+              {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
+            </div>
+            {time && !loading && (
+              <div style={{ marginTop: 8, marginBottom: 8, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 

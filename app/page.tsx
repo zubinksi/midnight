@@ -584,7 +584,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         onCloseRef.current()
       } else {
         // Snap back to current position
-        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 72px))'
+        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 116px))'
       }
     }
     node.addEventListener('touchstart', onStart, { passive: true })
@@ -608,7 +608,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           display: 'flex', justifyContent: 'center',
-          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 72px))',
+          transform: open ? 'translateY(0)' : 'translateY(calc(100% - 116px))',
           transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -618,37 +618,40 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           backdropFilter: 'blur(40px) saturate(200%) brightness(0.9)',
           WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(0.9)',
           borderTop: '1px solid rgba(255,255,255,0.14)',
-          borderRadius: '20px 20px 0 0',
+          borderRadius: '24px 24px 0 0',
           paddingBottom: 'max(52px, calc(env(safe-area-inset-bottom) + 16px))',
         } as React.CSSProperties}>
           {/* Handle + collapsed header — drag target */}
           <div
             ref={handleRef}
             onClick={() => open ? onClose() : onOpen()}
-            style={{ padding: '12px 24px 14px', cursor: 'pointer', touchAction: 'none' }}
+            style={{ padding: '10px 24px 16px', cursor: 'pointer', touchAction: 'none' }}
           >
-            <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 12px' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
+            <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 14px' }} />
+            {/* Title row — always visible */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: open ? 0 : 10 }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="#26ab83">
                 <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Markets</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>Markets</span>
             </div>
+            {/* News preview — collapsed only */}
             {!open && tgPosts.length > 0 && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 7 }}>
-                <span style={{
-                  fontSize: 10, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace',
-                  letterSpacing: '0.06em', flexShrink: 0,
-                }}>{tgPosts[0].channel}</span>
-                <span style={{ fontSize: 10, color: '#46443D', flexShrink: 0 }}>·</span>
-                <span style={{
-                  fontSize: 12, color: '#A0A09A', fontFamily: 'Menlo,Monaco,monospace',
-                  lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{tgPosts[0].text.split('\n')[0]}</span>
+              <div>
+                <div style={{ fontSize: 11, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', marginBottom: 4 }}>
+                  {tgPosts[0].channel}
+                </div>
+                <div style={{
+                  fontSize: 13, color: '#C8C6C0', fontFamily: 'Menlo,Monaco,monospace',
+                  lineHeight: 1.45,
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                } as React.CSSProperties}>
+                  {tgPosts[0].text.split('\n')[0]}
+                </div>
               </div>
             )}
             {!open && tgPosts.length === 0 && (
-              <div style={{ marginTop: 6, fontSize: 11, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
+              <div style={{ fontSize: 12, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
                 {loading ? 'Generating…' : text ? 'Tap to read' : 'Tap to explore'}
               </div>
             )}

@@ -19,11 +19,14 @@ function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
+    // Numeric entities first (&#036; &#x24; etc.), then named ones
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);/g,        (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

@@ -614,10 +614,10 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
       >
         <div style={{
           width: '100%', maxWidth: 430,
-          background: 'rgba(12, 12, 11, 0.88)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          borderTop: '1px solid rgba(255,255,255,0.10)',
+          background: 'linear-gradient(180deg, rgba(38,38,34,0.55) 0%, rgba(10,10,9,0.72) 60px)',
+          backdropFilter: 'blur(40px) saturate(200%) brightness(0.9)',
+          WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(0.9)',
+          borderTop: '1px solid rgba(255,255,255,0.14)',
           borderRadius: '20px 20px 0 0',
           paddingBottom: 'max(52px, calc(env(safe-area-inset-bottom) + 16px))',
         } as React.CSSProperties}>
@@ -678,13 +678,6 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
-
-            {/* Divider */}
-            <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 16px' }} />
-
-            {/* Activity section */}
-            <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>ACTIVITY</div>
-            <ActivityFeed items={feedItems} loading={feedLoading} onNavigate={onNavigate} />
 
             {/* Divider */}
             <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 16px' }} />

@@ -68,63 +68,6 @@ export default function Home() {
   const [summaryText, setSummaryText]       = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryTime, setSummaryTime]       = useState<Date | null>(null)
-  const sortSheetRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return
-    let startY = 0, dy = 0
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY; dy = 0
-      node.style.animation = 'none'
-      node.style.transition = 'none'
-    }
-    const onMove = (e: TouchEvent) => {
-      dy = Math.max(0, e.touches[0].clientY - startY)
-      node.style.transform = `translateY(${dy}px)`
-      e.preventDefault()
-    }
-    const onEnd = () => {
-      if (dy > 120) {
-        node.style.transition = 'transform 0.25s ease'
-        node.style.transform  = 'translateY(100%)'
-        setTimeout(() => setShowSortSheet(false), 220)
-      } else {
-        node.style.transition = 'transform 0.25s ease'
-        node.style.transform  = 'translateY(0)'
-        dy = 0
-      }
-    }
-    node.addEventListener('touchstart', onStart, { passive: true })
-    node.addEventListener('touchmove',  onMove,  { passive: false })
-    node.addEventListener('touchend',   onEnd,   { passive: true })
-  }, [])
-  const summarySheetRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return
-    let startY = 0, dy = 0
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY; dy = 0
-      node.style.animation = 'none'
-      node.style.transition = 'none'
-    }
-    const onMove = (e: TouchEvent) => {
-      dy = Math.max(0, e.touches[0].clientY - startY)
-      node.style.transform = `translateY(${dy}px)`
-      e.preventDefault()
-    }
-    const onEnd = () => {
-      if (dy > 120) {
-        node.style.transition = 'transform 0.25s ease'
-        node.style.transform  = 'translateY(100%)'
-        setTimeout(() => setShowSummary(false), 220)
-      } else {
-        node.style.transition = 'transform 0.25s ease'
-        node.style.transform  = 'translateY(0)'
-        dy = 0
-      }
-    }
-    node.addEventListener('touchstart', onStart, { passive: true })
-    node.addEventListener('touchmove',  onMove,  { passive: false })
-    node.addEventListener('touchend',   onEnd,   { passive: true })
-  }, [])
-
   const [favorites, setFavorites]           = useState<Set<string>>(new Set(['HYPE', 'SP500']))
   const [starredOrder, setStarredOrder]     = useState<string[]>(() => {
     try {
@@ -503,9 +446,36 @@ export default function Home() {
         </div>
 
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 24px' }}>
+          {/* Sort options — slide out to the left of the icon */}
+          <div style={{
+            display: 'flex', gap: 6, alignItems: 'center', overflow: 'hidden',
+            maxWidth: showSortSheet ? 260 : 0,
+            opacity: showSortSheet ? 1 : 0,
+            transition: 'max-width 0.22s ease, opacity 0.18s ease',
+            marginRight: showSortSheet ? 8 : 0,
+          }}>
+            {([
+              { key: 'volume',     label: 'VOLUME' },
+              { key: 'price-desc', label: 'CHG ↓' },
+              { key: 'price-asc',  label: 'CHG ↑' },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {}; setShowSortSheet(false) }}
+                style={{
+                  background: sortBy === opt.key ? '#1C1C1A' : 'none',
+                  border: '1px solid #1C1C1A', borderRadius: 20,
+                  padding: '4px 10px', height: 26,
+                  fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
+                  color: sortBy === opt.key ? '#F0EDE6' : '#46443D',
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
           <button
-            onClick={() => setShowSortSheet(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1 }}
+            onClick={() => setShowSortSheet(v => !v)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: sortBy !== 'volume' ? '#F0EDE6' : '#46443D', lineHeight: 1, flexShrink: 0 }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <line x1="2" y1="3.5" x2="12" y2="3.5" />
@@ -515,40 +485,6 @@ export default function Home() {
             </svg>
           </button>
         </div>
-
-        <div style={{ flexShrink: 0, borderTop: '1px solid #1C1C1A' }} />
-
-        {/* Sort bottom sheet */}
-        {showSortSheet && (
-          <div
-            onClick={() => setShowSortSheet(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000000BB', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' } as React.CSSProperties}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              ref={sortSheetRef}
-              className="slide-up"
-              style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(32px, env(safe-area-inset-bottom))', touchAction: 'none' }}
-            >
-              <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>
-              {([
-                { key: 'volume',     label: 'Volume' },
-                { key: 'price-desc', label: 'Change ↓' },
-                { key: 'price-asc',  label: 'Change ↑' },
-              ] as const).map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => { setSortBy(opt.key); try { localStorage.setItem('neue-sort', opt.key) } catch {}; setShowSortSheet(false) }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #1C1C1A', padding: '16px 0', cursor: 'pointer' }}
-                >
-                  <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{opt.label}</span>
-                  {sortBy === opt.key && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83' }} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Scrollable area */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>

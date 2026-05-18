@@ -591,15 +591,59 @@ interface SummaryPanelProps {
 }
 
 function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, allTickers, onNavigate }: SummaryPanelProps) {
-  const dragStartY = useRef(0)
   const { items: feedItems, loading: feedLoading } = useAssetActivityFeed()
 
-  const handleTouchStart = (e: React.TouchEvent) => { dragStartY.current = e.touches[0].clientY }
-  const handleTouchEnd   = (e: React.TouchEvent) => {
-    const dy = dragStartY.current - e.changedTouches[0].clientY
-    if (!open && dy > 30) onOpen()
-    if (open  && dy < -40) onClose()
-  }
+  // Refs so the native-event closure always reads the latest values without re-attaching
+  const outerRef   = useRef<HTMLDivElement>(null)
+  const openRef    = useRef(open)
+  const onOpenRef  = useRef(onOpen)
+  const onCloseRef = useRef(onClose)
+  openRef.current    = open
+  onOpenRef.current  = onOpen
+  onCloseRef.current = onClose
+
+  // Attach native listeners to the handle only — passive:false on touchmove so we can
+  // call preventDefault and prevent the page from scrolling while dragging the sheet.
+  const handleRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    let startY = 0, dy = 0
+    const outer = () => outerRef.current
+
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY; dy = 0
+      const el = outer()
+      if (el) el.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      dy = e.touches[0].clientY - startY
+      const el = outer()
+      if (!el) return
+      if (openRef.current) {
+        // Dragging down to close: only allow positive (downward) movement
+        el.style.transform = `translateY(${Math.max(0, dy)}px)`
+      } else {
+        // Dragging up to open: only allow negative (upward) movement
+        const peek = `calc(100% - 72px + ${Math.min(0, dy)}px)`
+        el.style.transform = `translateY(${peek})`
+      }
+      e.preventDefault()
+    }
+    const onEnd = () => {
+      const el = outer()
+      if (el) el.style.transition = 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)'
+      if (!openRef.current && dy < -50) {
+        onOpenRef.current()
+      } else if (openRef.current && dy > 100) {
+        onCloseRef.current()
+      } else {
+        // Snap back to current position
+        if (el) el.style.transform = openRef.current ? 'translateY(0)' : 'translateY(calc(100% - 72px))'
+      }
+    }
+    node.addEventListener('touchstart', onStart, { passive: true })
+    node.addEventListener('touchmove',  onMove,  { passive: false })
+    node.addEventListener('touchend',   onEnd,   { passive: true })
+  }, [])
 
   return (
     <>
@@ -613,8 +657,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
 
       {/* Panel */}
       <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        ref={outerRef}
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           display: 'flex', justifyContent: 'center',
@@ -631,20 +674,18 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           borderRadius: '20px 20px 0 0',
           paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
         } as React.CSSProperties}>
-          {/* Handle + collapsed header */}
+          {/* Handle + collapsed header — drag target */}
           <div
+            ref={handleRef}
             onClick={() => open ? onClose() : onOpen()}
-            style={{ padding: '12px 24px 16px', cursor: 'pointer' }}
+            style={{ padding: '12px 24px 16px', cursor: 'pointer', touchAction: 'none' }}
           >
             <div style={{ width: 36, height: 4, background: '#2C2C2A', borderRadius: 2, margin: '0 auto 14px' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
-                  <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
-                </svg>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Markets</span>
-              </div>
-              <span style={{ fontSize: 18, color: '#46443D', lineHeight: 1, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', display: 'inline-block' }}>⌃</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="12" height="12" viewBox="0 0 13 13" fill="#26ab83">
+                <path d="M6.5 0 L7.5 4.5 L12 5.5 L7.5 6.5 L6.5 11 L5.5 6.5 L1 5.5 L5.5 4.5 Z" />
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>Markets</span>
             </div>
             {!open && (
               <div style={{ marginTop: 4, fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>

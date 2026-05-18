@@ -627,11 +627,13 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
       >
         <div style={{
           width: '100%', maxWidth: 430,
-          background: '#0F0F0E',
-          borderTop: '1px solid #1C1C1A',
+          background: 'rgba(12, 12, 11, 0.72)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
           borderRadius: '20px 20px 0 0',
           paddingBottom: 'max(36px, env(safe-area-inset-bottom))',
-        }}>
+        } as React.CSSProperties}>
           {/* Handle + collapsed header */}
           <div
             onClick={() => open ? onClose() : onOpen()}

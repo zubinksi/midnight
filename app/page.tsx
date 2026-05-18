@@ -654,7 +654,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                 )}
                 {/* Divider + branding */}
                 <div style={{ borderTop: '1px solid #2A2A28', marginTop: 14, paddingTop: 10, fontSize: 20, fontWeight: 700, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em' }}>
-                  <span style={{ color: '#F0EDE6' }}>neue</span><span style={{ color: '#46443D' }}>.markets</span>
+                  <span style={{ color: '#46443D' }}>neue.markets</span>
                 </div>
               </>
             )}

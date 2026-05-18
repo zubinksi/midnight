@@ -19,7 +19,7 @@ import { priceDecimals } from '@/lib/assets'
 import type { AssetCategory } from '@/lib/assets'
 import { getAssetName } from '@/lib/assetNames'
 
-type FilterKey = 'all' | 'starred' | 'trending' | 'equities' | AssetCategory
+type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
 const CLOCK_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -35,7 +35,6 @@ function LiveDate({ style }: { style?: React.CSSProperties }) {
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',       label: 'ALL' },
   { key: 'starred',   label: '★' },
-  { key: 'trending',  label: 'TRENDING' },
   { key: 'crypto',    label: 'CRYPTO' },
   { key: 'equities',  label: 'EQUITIES' },
   { key: 'pre-ipo',   label: 'PRE IPO' },
@@ -222,22 +221,6 @@ export default function Home() {
   const prices       = useMemo(() => ({ ...xyzPrices, ...cryptoPrices }), [xyzPrices, cryptoPrices])
 
   const displayAssets = useMemo(() => {
-    if (categoryFilter === 'trending') {
-      const volumes = allAssets.map(a => a.volume24h ?? 0).filter(v => v > 0).sort((a, b) => a - b)
-      const median = volumes.length > 0 ? volumes[Math.floor(volumes.length / 2)] : 1
-      return [...allAssets]
-        .map(a => {
-          const pctChange    = a.prevDayPx > 0 ? (a.price - a.prevDayPx) / a.prevDayPx * 100 : 0
-          const volumeSurge  = median > 0 ? (a.volume24h ?? 0) / median : 0
-          const fundingAnnPct = Math.abs((a.funding ?? 0) * 3 * 365 * 100)
-          const score        = Math.abs(pctChange) * 0.6 + Math.min(volumeSurge, 5) * 0.2 + Math.min(fundingAnnPct / 10, 5) * 0.2
-          return { asset: a, pctChange, volumeSurge, score }
-        })
-        .filter(({ volumeSurge, pctChange }) => volumeSurge > 1.5 || Math.abs(pctChange) > 5)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 6)
-        .map(({ asset }) => asset)
-    }
     let filtered = categoryFilter === 'all'
       ? allAssets
       : categoryFilter === 'starred'

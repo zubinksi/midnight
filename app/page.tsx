@@ -24,29 +24,33 @@ type FilterKey = 'all' | 'starred' | 'equities' | AssetCategory
 
 
 function BloomOverlay() {
-  const [visible, setVisible] = useState(false)
+  // Start as covering (prevents flash of page content before overlay mounts)
+  const [show, setShow] = useState(true)
+  const [play, setPlay] = useState(false)
   useEffect(() => {
     try {
-      if (sessionStorage.getItem('neue-bloom-shown')) return
+      if (sessionStorage.getItem('neue-bloom-shown')) { setShow(false); return }
       sessionStorage.setItem('neue-bloom-shown', '1')
     } catch {}
-    setVisible(true)
+    setPlay(true)
   }, [])
-  if (!visible) return null
+  if (!show) return null
   return (
     <div aria-hidden style={{
       position: 'fixed', inset: 0, zIndex: 200,
       pointerEvents: 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: '#080807',
-      animation: 'fadeOut 0.4s 1100ms forwards',
+      ...(play ? { animation: 'fadeOut 0.4s 1900ms forwards' } : {}),
     } as React.CSSProperties}>
-      <div style={{
-        width: 10, height: 10, borderRadius: '50%',
-        background: '#26ab83',
-        boxShadow: '0 0 6px rgba(38,171,131,0.33)',
-        animation: 'bloomDotSubtle 1.4s cubic-bezier(0.4,0,0.2,1) forwards',
-      }} />
+      {play && (
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%',
+          background: '#26ab83',
+          boxShadow: '0 0 6px rgba(38,171,131,0.33)',
+          animation: 'bloomDotSubtle 2.2s cubic-bezier(0.4,0,0.2,1) forwards',
+        }} />
+      )}
     </div>
   )
 }

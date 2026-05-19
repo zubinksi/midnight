@@ -10,6 +10,7 @@ import { formatPrice, formatChange, formatVolume } from '@/lib/format'
 import LivelineChart from '@/components/LivelineChart'
 import CompareModal from '@/components/CompareModal'
 import ShareModal from '@/components/ShareModal'
+import type { ETFFlowsData } from '@/app/api/etf-flows/route'
 
 const WINDOWS: { label: string; tf: Timeframe }[] = [
   { label: '1D',  tf: '1D' },
@@ -45,6 +46,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
   const [prevClosePrice, setPrevClosePrice] = useState<number | null>(null)
   const [showSearch, setShowSearch]     = useState(false)
   const [searchQuery, setSearchQuery]   = useState('')
+  const [etfFlows, setEtfFlows]         = useState<ETFFlowsData | null>(null)
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const searchInputRef    = useRef<HTMLInputElement>(null)
 
@@ -95,6 +97,14 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
     ]).then(([xyz, crypto]) => setAllAssets([...xyz, ...crypto])).catch(() => {})
   }, [])
 
+
+  useEffect(() => {
+    if (upperTicker !== 'HYPE') return
+    fetch('/api/etf-flows')
+      .then(r => r.json() as Promise<ETFFlowsData>)
+      .then(setEtfFlows)
+      .catch(() => {})
+  }, [upperTicker])
 
   const coin = assetInfo?.coin ?? upperTicker
 
@@ -319,6 +329,11 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         {/* Stats */}
         <StatsGrid assetInfo={assetInfo} currentPrice={currentPrice} />
 
+        {/* ETF flows — HYPE only */}
+        {upperTicker === 'HYPE' && (
+          <ETFFlowsSection flows={etfFlows} currentPrice={currentPrice} />
+        )}
+
         <div style={{ padding: '0 24px 40px' }} />
         <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
       </div>
@@ -376,6 +391,85 @@ function StatsGrid({ assetInfo, currentPrice }: {
           <div style={{ fontSize: 13, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; currentPrice: number }) {
+  function fmtHype(n: number) {
+    return n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  }
+  function fmtUSD(hype: number, price: number) {
+    const usd = hype * price
+    if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`
+    if (usd >= 1_000)     return `$${(usd / 1_000).toFixed(0)}K`
+    return `$${usd.toFixed(0)}`
+  }
+
+  const bhyp = flows?.bhyp
+  const bhypCurrent  = bhyp?.current  ?? 0
+  const bhypPrev     = bhyp?.prevClose ?? 0
+  const bhypDelta    = bhypPrev > 0 ? bhypCurrent - bhypPrev : null
+  const bhypDeltaUp  = (bhypDelta ?? 0) >= 0
+
+  const totalHype = bhypCurrent
+  const totalHasPrev = bhypPrev > 0
+
+  return (
+    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 0, padding: '24px 24px 0' }}>
+      <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>
+        ETF FLOWS
+      </div>
+
+      {/* BHYP row */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 48, flexShrink: 0 }}>BHYP</span>
+        <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>BITWISE</span>
+        {bhypCurrent > 0 ? (
+          <>
+            <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtHype(bhypCurrent)} HYPE
+            </span>
+            {bhypDelta !== null && (
+              <span style={{ fontSize: 11, color: bhypDeltaUp ? '#26ab83' : '#E84332', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                {bhypDeltaUp ? '+' : ''}{fmtHype(bhypDelta)}
+              </span>
+            )}
+          </>
+        ) : (
+          <span style={{ fontSize: 13, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>—</span>
+        )}
+      </div>
+
+      {/* THYP row */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 48, flexShrink: 0 }}>THYP</span>
+        <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>21SHARES</span>
+        <span style={{ fontSize: 13, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>—</span>
+      </div>
+
+      {/* Total */}
+      {totalHype > 0 && (
+        <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 14, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>TOTAL HYPE IN ETFS</span>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtHype(totalHype)} HYPE
+            </span>
+            {currentPrice > 0 && (
+              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginLeft: 8 }}>
+                {fmtUSD(totalHype, currentPrice)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {bhyp?.prevAsOf && (
+        <div style={{ marginTop: 10, fontSize: 9, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+          PREV CLOSE {bhyp.prevAsOf} · LIVE VIA HYPERLIQUID
+        </div>
+      )}
     </div>
   )
 }

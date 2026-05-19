@@ -407,13 +407,18 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
   }
 
   const bhyp = flows?.bhyp
+  const thyp = flows?.thyp
   const bhypCurrent  = bhyp?.current  ?? 0
   const bhypPrev     = bhyp?.prevClose ?? 0
   const bhypDelta    = bhypPrev > 0 ? bhypCurrent - bhypPrev : null
   const bhypDeltaUp  = (bhypDelta ?? 0) >= 0
 
-  const totalHype = bhypCurrent
-  const totalHasPrev = bhypPrev > 0
+  const thypCurrent  = thyp?.current  ?? 0
+  const thypPrev     = thyp?.prevClose ?? 0
+  const thypDelta    = thypPrev > 0 ? thypCurrent - thypPrev : null
+  const thypDeltaUp  = (thypDelta ?? 0) >= 0
+
+  const totalHype = bhypCurrent + thypCurrent
 
   return (
     <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 0, padding: '24px 24px 0' }}>
@@ -445,7 +450,20 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 48, flexShrink: 0 }}>THYP</span>
         <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>21SHARES</span>
-        <span style={{ fontSize: 13, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>—</span>
+        {thypCurrent > 0 ? (
+          <>
+            <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtHype(thypCurrent)} HYPE
+            </span>
+            {thypDelta !== null && (
+              <span style={{ fontSize: 11, color: thypDeltaUp ? '#26ab83' : '#E84332', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                {thypDeltaUp ? '+' : ''}{fmtHype(thypDelta)}
+              </span>
+            )}
+          </>
+        ) : (
+          <span style={{ fontSize: 13, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>—</span>
+        )}
       </div>
 
       {/* Total */}

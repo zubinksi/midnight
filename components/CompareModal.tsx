@@ -61,8 +61,10 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
     }
   }, [onClose])
 
-  const hasBase = baseTicker.length > 0
+  const hasBase    = baseTicker.length > 0
   const maxSelected = hasBase ? 3 : 4
+  const totalSlots  = hasBase ? 4 : 4
+  const filledCount = (hasBase ? 1 : 0) + selected.length
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -103,8 +105,8 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 430,
-          background: '#0F0F0E',
-          borderTop: '1px solid #1C1C1A',
+          background: '#161614',
+          borderTop: '1px solid #2A2A28',
           borderRadius: '20px 20px 0 0',
           padding: '28px 24px',
           paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
@@ -115,52 +117,67 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
           ref={dragHandleRef}
           style={{ margin: '-28px -24px 0', padding: '28px 24px 0', touchAction: 'none' }}
         >
-          <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
-          <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 20 }}>
-            COMPARE · UP TO 4 ASSETS
+          <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 20px' }} />
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
+              Compare
+            </div>
+            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginTop: 6 }}>
+              SELECT UP TO {totalSlots} ASSETS
+            </div>
           </div>
         </div>
 
         {/* Ticker chips */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          {/* Base ticker (locked) — only shown when pre-seeded */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+          {/* Base ticker (locked) */}
           {hasBase && (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: '#1C1C1A', borderRadius: 8, padding: '6px 12px',
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: '#1C1C1A',
+              border: `1px solid ${COMPARE_COLORS[0]}40`,
+              borderRadius: 10, padding: '9px 14px',
             }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[0], flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{baseTicker}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{baseTicker}</span>
             </div>
           )}
 
           {/* Selected tickers */}
-          {selected.map((t, i) => (
-            <button
-              key={t}
-              onClick={() => remove(t)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: '#1C1C1A', border: 'none', borderRadius: 8, padding: '6px 12px',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[hasBase ? i + 1 : i], flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
-              <span style={{ fontSize: 10, color: '#46443D', marginLeft: 2 }}>✕</span>
-            </button>
-          ))}
+          {selected.map((t, i) => {
+            const color = COMPARE_COLORS[hasBase ? i + 1 : i]
+            return (
+              <button
+                key={t}
+                onClick={() => remove(t)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: '#1C1C1A',
+                  border: `1px solid ${color}40`,
+                  borderRadius: 10, padding: '9px 14px',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
+                <span style={{ fontSize: 11, color: '#46443D', marginLeft: 2 }}>✕</span>
+              </button>
+            )
+          })}
 
           {/* Empty slots */}
-          {Array.from({ length: maxSelected - selected.length }).map((_, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              border: '1px dashed #1C1C1A', borderRadius: 8, padding: '6px 12px',
-            }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1C1C1A', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>···</span>
-            </div>
-          ))}
+          {Array.from({ length: maxSelected - selected.length }).map((_, i) => {
+            const colorIdx = filledCount + i
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                border: '1px dashed #2A2A28', borderRadius: 10, padding: '9px 14px',
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[colorIdx] ?? '#2A2A28', opacity: 0.25, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>···</span>
+              </div>
+            )
+          })}
         </div>
 
         {/* Search input */}
@@ -173,9 +190,12 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
               onChange={e => setSearch(e.target.value)}
               autoFocus={false}
               style={{
-                width: '100%', background: 'transparent', border: 'none',
-                borderBottom: '1px solid #1C1C1A',
-                padding: '10px 0', color: '#F0EDE6',
+                width: '100%',
+                background: '#1C1C1A',
+                border: '1px solid #2A2A28',
+                borderRadius: 10,
+                padding: '12px 14px',
+                color: '#F0EDE6',
                 fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
                 letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
               } as React.CSSProperties}
@@ -185,7 +205,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
 
         {/* Search results */}
         {filtered.length > 0 && (
-          <div style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #1C1C1A' }}>
+          <div style={{ marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '1px solid #2A2A28' }}>
             {filtered.map(a => (
               <button
                 key={a.ticker}
@@ -207,6 +227,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
         {/* Compare button */}
         <button
           onClick={() => canCompare && onCompare(hasBase ? [baseTicker, ...selected] : selected)}
+          disabled={!canCompare}
           style={{
             width: '100%', border: 'none', borderRadius: 10, padding: 14,
             cursor: canCompare ? 'pointer' : 'default',
@@ -216,20 +237,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
             transition: 'background 0.15s, color 0.15s',
           }}
         >
-          {canCompare ? `VIEW CHART · ${hasBase ? selected.length + 1 : selected.length} ASSETS` : 'VIEW CHART —'}
-        </button>
-
-        {/* Dismiss */}
-        <button
-          onClick={onClose}
-          style={{
-            marginTop: 12, width: '100%', background: 'none',
-            border: '1px solid #1C1C1A', borderRadius: 10, padding: 14,
-            color: '#46443D', fontFamily: 'Menlo,Monaco,monospace',
-            fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em',
-          }}
-        >
-          DISMISS
+          {canCompare ? `VIEW CHART · ${filledCount} ASSETS` : 'VIEW CHART'}
         </button>
       </div>
     </div>

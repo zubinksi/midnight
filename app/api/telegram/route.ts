@@ -102,8 +102,13 @@ async function scrapeChannel(name: string, label: string): Promise<TelegramPost[
     const time = new Date(timeMatch[1]).getTime()
     if (isNaN(time)) continue
 
-    const text = extractText(chunk)
-    if (!text) continue
+    const rawText = extractText(chunk)
+    if (!rawText) continue
+
+    // Strip bare URLs — they add no readable value in the feed
+    const text = rawText.replace(/https?:\/\/\S+/g, '').replace(/\n{3,}/g, '\n\n').trim()
+    // Skip posts that were purely a link with no surrounding text
+    if (text.length < 15) continue
 
     posts.push({
       channel: label,

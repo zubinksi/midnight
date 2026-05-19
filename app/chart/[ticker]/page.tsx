@@ -396,11 +396,9 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; currentPrice: number }) {
-  const MONO: React.CSSProperties = { fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }
+  const MONO = 'Menlo,Monaco,monospace'
 
-  function fmtHype(n: number) {
-    return n.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  }
+  function fmtHype(n: number) { return n.toLocaleString('en-US', { maximumFractionDigits: 0 }) }
   function fmtUSD(hype: number) {
     const usd = hype * currentPrice
     if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`
@@ -415,85 +413,89 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
   const thypCurrent = thyp?.current  ?? 0
   const thypDelta   = (thyp?.prevClose ?? 0) > 0 ? thypCurrent - (thyp?.prevClose ?? 0) : null
   const totalHype   = bhypCurrent + thypCurrent
-  const totalDelta  = (bhypDelta ?? 0) + (thypDelta ?? 0)
-  const hasDelta    = bhypDelta !== null || thypDelta !== null
+  const totalDelta  = (bhypDelta !== null || thypDelta !== null)
+    ? (bhypDelta ?? 0) + (thypDelta ?? 0) : null
 
-  // Column widths (px): ticker+issuer flex, hype, usd, Δhype, Δusd
-  const COL_HYPE: React.CSSProperties = { width: 72, textAlign: 'right', flexShrink: 0 }
-  const COL_USD:  React.CSSProperties = { width: 44, textAlign: 'right', flexShrink: 0 }
-  const COL_DHYPE: React.CSSProperties = { width: 60, textAlign: 'right', flexShrink: 0 }
-  const COL_DUSD:  React.CSSProperties = { width: 40, textAlign: 'right', flexShrink: 0 }
+  // grid: name | HYPE | USD | Δ HYPE | Δ USD
+  const grid: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 76px 44px 68px 44px',
+    columnGap: 0,
+    alignItems: 'baseline',
+  }
+  const rAlign: React.CSSProperties = { textAlign: 'right', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }
 
-  function DeltaCell({ delta }: { delta: number | null }) {
-    if (delta === null) return <span style={{ ...MONO, ...COL_DHYPE, fontSize: 11, color: '#2C2C2A' }}>—</span>
+  function DeltaCells({ delta }: { delta: number | null }) {
+    if (delta === null) return (
+      <>
+        <div style={{ ...rAlign, fontSize: 11, color: '#2C2C2A' }}>—</div>
+        <div />
+      </>
+    )
     const up = delta >= 0
-    const color = up ? '#26ab83' : '#E84332'
+    const color  = up ? '#26ab83' : '#E84332'
+    const dimmed = up ? '#1a7a5e' : '#a02a1e'
     return (
       <>
-        <span style={{ ...MONO, ...COL_DHYPE, fontSize: 11, color }}>
-          {up ? '+' : ''}{fmtHype(delta)}
-        </span>
-        {currentPrice > 0 && (
-          <span style={{ ...MONO, ...COL_DUSD, fontSize: 10, color: up ? '#1a7a5e' : '#a02a1e' }}>
-            {up ? '+' : ''}{fmtUSD(Math.abs(delta))}
-          </span>
-        )}
+        <div style={{ ...rAlign, fontSize: 11, color }}>{up ? '+' : ''}{fmtHype(delta)}</div>
+        <div style={{ ...rAlign, fontSize: 10, color: dimmed }}>
+          {currentPrice > 0 ? `${up ? '+' : ''}${fmtUSD(Math.abs(delta))}` : ''}
+        </div>
       </>
     )
   }
 
   return (
     <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 0, padding: '24px 24px 0' }}>
-      {/* Column headers */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontSize: 10, color: '#46443D', ...MONO, letterSpacing: '0.1em', flex: 1 }}>ETF FLOWS</span>
-        <span style={{ ...MONO, ...COL_HYPE, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>HYPE</span>
-        <span style={{ ...MONO, ...COL_USD,  fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>USD</span>
-        <span style={{ ...MONO, ...COL_DHYPE, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>DAY Δ</span>
-        {currentPrice > 0 && <span style={{ ...MONO, ...COL_DUSD, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}></span>}
+
+      {/* Header row */}
+      <div style={{ ...grid, marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>ETF FLOWS</div>
+        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>HYPE</div>
+        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>USD</div>
+        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>DAY Δ</div>
+        <div />
       </div>
 
       {/* BHYP row */}
-      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', ...MONO }}>BHYP </span>
-          <span style={{ fontSize: 10, color: '#46443D', ...MONO }}>BITWISE</span>
+      <div style={{ ...grid, marginBottom: 8 }}>
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>BHYP </span>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO }}>BITWISE</span>
         </div>
-        <span style={{ ...MONO, ...COL_HYPE, fontSize: 13, color: bhypCurrent > 0 ? '#F0EDE6' : '#46443D' }}>
+        <div style={{ ...rAlign, fontSize: 13, color: bhypCurrent > 0 ? '#F0EDE6' : '#2C2C2A' }}>
           {bhypCurrent > 0 ? fmtHype(bhypCurrent) : '—'}
-        </span>
-        <span style={{ ...MONO, ...COL_USD, fontSize: 11, color: '#46443D' }}>
+        </div>
+        <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
           {bhypCurrent > 0 && currentPrice > 0 ? fmtUSD(bhypCurrent) : ''}
-        </span>
-        <DeltaCell delta={bhypDelta} />
+        </div>
+        <DeltaCells delta={bhypDelta} />
       </div>
 
       {/* THYP row */}
-      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', ...MONO }}>THYP </span>
-          <span style={{ fontSize: 10, color: '#46443D', ...MONO }}>21SHARES</span>
+      <div style={{ ...grid, marginBottom: 16 }}>
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>THYP </span>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO }}>21SHARES</span>
         </div>
-        <span style={{ ...MONO, ...COL_HYPE, fontSize: 13, color: thypCurrent > 0 ? '#F0EDE6' : '#46443D' }}>
+        <div style={{ ...rAlign, fontSize: 13, color: thypCurrent > 0 ? '#F0EDE6' : '#2C2C2A' }}>
           {thypCurrent > 0 ? fmtHype(thypCurrent) : '—'}
-        </span>
-        <span style={{ ...MONO, ...COL_USD, fontSize: 11, color: '#46443D' }}>
+        </div>
+        <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
           {thypCurrent > 0 && currentPrice > 0 ? fmtUSD(thypCurrent) : ''}
-        </span>
-        <DeltaCell delta={thypDelta} />
+        </div>
+        <DeltaCells delta={thypDelta} />
       </div>
 
       {/* Total row */}
       {totalHype > 0 && (
-        <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12, display: 'flex', alignItems: 'baseline' }}>
-          <span style={{ fontSize: 10, color: '#46443D', ...MONO, letterSpacing: '0.1em', flex: 1 }}>TOTAL</span>
-          <span style={{ ...MONO, ...COL_HYPE, fontSize: 13, color: '#F0EDE6' }}>{fmtHype(totalHype)}</span>
-          <span style={{ ...MONO, ...COL_USD,  fontSize: 11, color: '#46443D' }}>
+        <div style={{ ...grid, borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
+          <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL</div>
+          <div style={{ ...rAlign, fontSize: 13, color: '#F0EDE6' }}>{fmtHype(totalHype)}</div>
+          <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
             {currentPrice > 0 ? fmtUSD(totalHype) : ''}
-          </span>
-          {hasDelta && (
-            <DeltaCell delta={totalDelta} />
-          )}
+          </div>
+          <DeltaCells delta={totalDelta} />
         </div>
       )}
     </div>

@@ -312,9 +312,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Action buttons */}
-        <div style={{ padding: '24px 24px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ padding: '24px 24px 0' }}>
           <button onClick={() => setShowCompare(true)} style={S.actionBtn}>COMPARE</button>
-          <button onClick={() => setShowShare(true)}   style={S.actionBtn}>SHARE</button>
         </div>
 
         {/* Stats */}

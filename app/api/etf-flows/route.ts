@@ -31,21 +31,20 @@ const BROWSER_HEADERS = {
 
 
 
-// Extract HYPE quantity from a 21Shares valuation history entry.
-// Field names observed in similar paradox-coworking endpoints:
-//   coin_entitlement, coinEntitlement, quantity, coin_amount, hype_amount, holdings
+// Calculate total HYPE held from a 21Shares valuation history entry.
+// The API doesn't include coin_entitlement directly; derive it from
+// total_nav / underlying.HYPE (the HYPE spot price used for NAV).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractHypeFromEntry(entry: Record<string, any>): number {
-  const candidates = [
-    'coin_entitlement', 'coinEntitlement', 'coin_amount', 'coinAmount',
-    'quantity', 'holdings', 'hype', 'hype_amount', 'amount',
-  ]
-  for (const key of candidates) {
+  // Preferred: total_nav divided by HYPE price gives total coins held
+  const nav   = parseFloat(entry.total_nav ?? 0)
+  const price = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 0)
+  if (nav > 0 && price > 0) return nav / price
+
+  // Fallback: direct coin quantity fields (other 21Shares products)
+  for (const key of ['coin_entitlement', 'coinEntitlement', 'quantity', 'coin_amount']) {
     const v = entry[key]
-    if (v !== undefined && v !== null) {
-      const n = parseFloat(String(v))
-      if (!isNaN(n) && n > 1000) return n  // sanity: ETF holds >1000 HYPE
-    }
+    if (v != null) { const n = parseFloat(String(v)); if (!isNaN(n) && n > 0) return n }
   }
   return 0
 }

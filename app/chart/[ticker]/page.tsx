@@ -400,18 +400,25 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const ETF_COLORS = { total: '#F0EDE6', thyp: '#26ab83', bhyp: '#F0C84A' }
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; currentPrice: number }) {
   const MONO = 'Menlo,Monaco,monospace'
   const [mounted, setMounted] = useState(false)
+  const [chartMode, setChartMode] = useState<'aum' | 'inflows'>('aum')
   useEffect(() => setMounted(true), [])
 
-  function fmtUSD(usd: number) {
-    if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`
-    if (usd >= 1_000)     return `$${(usd / 1_000).toFixed(0)}K`
-    return `$${usd.toFixed(0)}`
+  function fmtUSD(usd: number, sign = false) {
+    const s = sign && usd >= 0 ? '+' : usd < 0 ? '-' : ''
+    const abs = Math.abs(usd)
+    if (abs >= 1_000_000) return `${s}$${(abs / 1_000_000).toFixed(1)}M`
+    if (abs >= 1_000)     return `${s}$${(abs / 1_000).toFixed(0)}K`
+    return `${s}$${abs.toFixed(0)}`
   }
-  function fmtHype(hype: number) { return (hype * currentPrice) }
+  function fmtTime(t: number) {
+    const d = new Date(t * 1000)
+    return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate()
+  }
 
   const bhyp = flows?.bhyp
   const thyp = flows?.thyp
@@ -423,153 +430,167 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
   const totalDeltaH  = bhypDeltaH !== null || thypDeltaH !== null
     ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null
 
-  // Build chart series from history
-  const thypHistory  = thyp?.history ?? []
-  const bhypHistory  = bhyp?.history ?? []
+  const thypHistory = thyp?.history ?? []
+  const bhypHistory = bhyp?.history ?? []
 
-  // Merge into a combined timeline keyed by time
-  const timeSet = new Set([...thypHistory.map(p => p.time), ...bhypHistory.map(p => p.time)])
-  const times   = [...timeSet].sort((a, b) => a - b)
+  // Merged timeline
+  const timeSet   = new Set([...thypHistory.map(p => p.time), ...bhypHistory.map(p => p.time)])
+  const times     = [...timeSet].sort((a, b) => a - b)
+  const thypByTime = Object.fromEntries(thypHistory.map(p => [p.time, p]))
+  const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p]))
 
-  const thypByTime = Object.fromEntries(thypHistory.map(p => [p.time, p.usd]))
-  const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p.usd]))
+  // AUM chart series
+  const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
+  const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
+  const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
 
-  const thypPoints = times.map(t => ({ time: t, value: thypByTime[t] ?? 0 }))
-  const bhypPoints = times.map(t => ({ time: t, value: bhypByTime[t] ?? 0 }))
-  const totalPoints = times.map(t => ({ time: t, value: (thypByTime[t] ?? 0) + (bhypByTime[t] ?? 0) }))
+  // Daily inflow series — true inflow = Δshares × nav_per_share
+  function toInflowSeries(history: typeof thypHistory) {
+    return history.map((p, i) => ({
+      time: p.time,
+      value: i === 0
+        ? p.usd  // first day: full AUM is inflow
+        : (p.units - history[i - 1].units) * p.navPerShare,
+    }))
+  }
+  const thypInflows  = toInflowSeries(thypHistory)
+  const bhypInflows  = toInflowSeries(bhypHistory)
+  const totalInflows = times.map(t => {
+    const ti = thypInflows.find(p => p.time === t)?.value ?? 0
+    const bi = bhypInflows.find(p => p.time === t)?.value ?? 0
+    return { time: t, value: ti + bi }
+  })
 
-  const hasChart = totalPoints.length >= 2
-
-  const allSeries: LivelineSeries[] = [
-    { id: 'total', data: totalPoints, value: totalPoints.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
-    { id: 'thyp',  data: thypPoints,  value: thypPoints.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
+  const aumSeries: LivelineSeries[] = [
+    { id: 'total', data: totalAum,  value: totalAum.at(-1)?.value  ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
+    { id: 'thyp',  data: thypAum,   value: thypAum.at(-1)?.value   ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
     ...(bhypHistory.length > 0
-      ? [{ id: 'bhyp', data: bhypPoints, value: bhypPoints.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
+      ? [{ id: 'bhyp', data: bhypAum, value: bhypAum.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
+      : []),
+  ]
+  const inflowSeries: LivelineSeries[] = [
+    { id: 'total', data: totalInflows, value: totalInflows.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
+    { id: 'thyp',  data: thypInflows,  value: thypInflows.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
+    ...(bhypHistory.length > 0
+      ? [{ id: 'bhyp', data: bhypInflows, value: bhypInflows.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
       : []),
   ]
 
+  const primarySeries = chartMode === 'aum' ? aumSeries    : inflowSeries
+  const primaryData   = chartMode === 'aum' ? totalAum     : totalInflows
+  const hasChart = primaryData.length >= 2
   const chartWindow = hasChart
-    ? Math.ceil((totalPoints.at(-1)!.time - totalPoints[0].time) * 1.05) + 86400
+    ? Math.ceil((primaryData.at(-1)!.time - primaryData[0].time) * 1.05) + 86400
     : undefined
 
-  // grid: name | HYPE | USD | Δ HYPE | Δ USD
+  // Table: name | AUM USD (large) | DAY Δ USD (large)
+  // HYPE counts shown small below each USD value
   const grid: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: '1fr 76px 44px 68px 44px',
-    columnGap: 0,
-    alignItems: 'baseline',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    columnGap: 8,
   }
-  const rAlign: React.CSSProperties = { textAlign: 'right', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }
 
-  function DeltaCells({ deltaHype }: { deltaHype: number | null }) {
+  function ETFRow({ label, issuer, color, usd, hype, deltaHype }: {
+    label: string; issuer: string; color: string
+    usd: number; hype: number; deltaHype: number | null
+  }) {
     const deltaUsd = deltaHype !== null ? deltaHype * currentPrice : null
-    if (deltaHype === null) return (
-      <>
-        <div style={{ ...rAlign, fontSize: 11, color: '#2C2C2A' }}>—</div>
-        <div />
-      </>
-    )
-    const up = deltaHype >= 0
-    const color  = up ? '#26ab83' : '#E84332'
-    const dimmed = up ? '#1a7a5e' : '#a02a1e'
+    const up = (deltaUsd ?? 0) >= 0
+    const dColor = up ? '#26ab83' : '#E84332'
     return (
-      <>
-        <div style={{ ...rAlign, fontSize: 11, color }}>
-          {up ? '+' : ''}{Math.round(Math.abs(deltaHype)).toLocaleString('en-US')}
+      <div style={{ ...grid, alignItems: 'start', marginBottom: 12 }}>
+        {/* Name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingTop: 2 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>{label}</div>
+            <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>{issuer}</div>
+          </div>
         </div>
-        <div style={{ ...rAlign, fontSize: 10, color: dimmed }}>
-          {currentPrice > 0 && deltaUsd !== null ? `${up ? '+' : ''}${fmtUSD(Math.abs(deltaUsd))}` : ''}
+        {/* AUM */}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: usd > 0 ? '#F0EDE6' : '#2C2C2A', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+            {usd > 0 ? fmtUSD(usd) : '—'}
+          </div>
+          {hype > 0 && <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+            {Math.round(hype).toLocaleString('en-US')} HYPE
+          </div>}
         </div>
-      </>
+        {/* Day Δ */}
+        <div style={{ textAlign: 'right' }}>
+          {deltaUsd !== null ? (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 700, color: dColor, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                {fmtUSD(deltaUsd, true)}
+              </div>
+              {deltaHype !== null && <div style={{ fontSize: 9, color: up ? '#1a7a5e' : '#a02a1e', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                {(up ? '+' : '')}{Math.round(Math.abs(deltaHype)).toLocaleString('en-US')} HYPE
+              </div>}
+            </>
+          ) : (
+            <div style={{ fontSize: 15, color: '#2C2C2A', fontFamily: MONO }}>—</div>
+          )}
+        </div>
+      </div>
     )
   }
 
   return (
     <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 0, padding: '24px 24px 0' }}>
 
-      {/* Section label */}
-      <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 16 }}>
-        ETF FLOWS
+      {/* Header + chart toggle */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>ETF FLOWS</span>
+        <div style={{ display: 'inline-flex', gap: 2, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 2 }}>
+          {(['aum', 'inflows'] as const).map(mode => (
+            <button key={mode} onClick={() => setChartMode(mode)} style={{
+              background: chartMode === mode ? 'rgba(255,255,255,0.06)' : 'transparent',
+              border: 'none', borderRadius: 4, padding: '3px 10px',
+              fontSize: 10, fontFamily: MONO, letterSpacing: '0.06em',
+              color: chartMode === mode ? '#F0EDE6' : '#46443D',
+              fontWeight: chartMode === mode ? 600 : 400,
+              cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
+            }}>{mode === 'aum' ? 'AUM' : 'INFLOWS'}</button>
+          ))}
+        </div>
       </div>
 
-      {/* Multi-line AUM chart */}
+      {/* Chart */}
       {hasChart && mounted && (
         <div style={{ marginBottom: 20, marginLeft: -24, marginRight: -24 }}>
           <LivelineMulti
-            data={totalPoints}
-            value={totalPoints.at(-1)?.value ?? 0}
-            color={ETF_COLORS.total}
-            series={allSeries}
+            data={primaryData}
+            value={primaryData.at(-1)?.value ?? 0}
+            color={ETF_COLORS.thyp}
+            series={primarySeries}
             theme="dark"
             scrub
             grid
             lineWidth={1.5}
             window={chartWindow}
             formatValue={v => fmtUSD(v)}
-            formatTime={(t: number) => {
-              const d = new Date(t * 1000)
-              return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()] + ' ' + d.getUTCDate()
-            }}
+            formatTime={fmtTime}
             padding={{ left: 24 }}
-            className="ll-compare"
-            style={{ width: '100%', height: 200 }}
+            style={{ width: '100%', height: 180 }}
           />
         </div>
       )}
 
-      {/* Table header */}
+      {/* Column headers */}
       <div style={{ ...grid, marginBottom: 10 }}>
         <div />
-        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>HYPE</div>
-        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>USD</div>
-        <div style={{ ...rAlign, fontSize: 9, color: '#2C2C2A', letterSpacing: '0.06em' }}>DAY Δ</div>
-        <div />
+        <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
+        <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>DAY Δ</div>
       </div>
 
-      {/* BHYP row */}
-      <div style={{ ...grid, marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: ETF_COLORS.bhyp, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>BHYP</span>
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO }}>BITWISE</span>
-        </div>
-        <div style={{ ...rAlign, fontSize: 13, color: bhypCurrent > 0 ? '#F0EDE6' : '#2C2C2A' }}>
-          {bhypCurrent > 0 ? Math.round(bhypCurrent).toLocaleString('en-US') : '—'}
-        </div>
-        <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
-          {bhypCurrent > 0 && currentPrice > 0 ? fmtUSD(fmtHype(bhypCurrent)) : ''}
-        </div>
-        <DeltaCells deltaHype={bhypDeltaH} />
-      </div>
+      <ETFRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp} usd={bhypCurrent * currentPrice} hype={bhypCurrent} deltaHype={bhypDeltaH} />
+      <ETFRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp} usd={thypCurrent * currentPrice} hype={thypCurrent} deltaHype={thypDeltaH} />
 
-      {/* THYP row */}
-      <div style={{ ...grid, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: ETF_COLORS.thyp, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>THYP</span>
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO }}>21SHARES</span>
-        </div>
-        <div style={{ ...rAlign, fontSize: 13, color: thypCurrent > 0 ? '#F0EDE6' : '#2C2C2A' }}>
-          {thypCurrent > 0 ? Math.round(thypCurrent).toLocaleString('en-US') : '—'}
-        </div>
-        <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
-          {thypCurrent > 0 && currentPrice > 0 ? fmtUSD(fmtHype(thypCurrent)) : ''}
-        </div>
-        <DeltaCells deltaHype={thypDeltaH} />
-      </div>
-
-      {/* Total row */}
+      {/* Total */}
       {totalHype > 0 && (
-        <div style={{ ...grid, borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: ETF_COLORS.total, flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL</span>
-          </div>
-          <div style={{ ...rAlign, fontSize: 13, color: '#F0EDE6' }}>{Math.round(totalHype).toLocaleString('en-US')}</div>
-          <div style={{ ...rAlign, fontSize: 11, color: '#46443D' }}>
-            {currentPrice > 0 ? fmtUSD(fmtHype(totalHype)) : ''}
-          </div>
-          <DeltaCells deltaHype={totalDeltaH} />
+        <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
+          <ETFRow label="TOTAL" issuer="" color={ETF_COLORS.total} usd={totalHype * currentPrice} hype={totalHype} deltaHype={totalDeltaH} />
         </div>
       )}
     </div>

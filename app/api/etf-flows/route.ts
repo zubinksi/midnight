@@ -14,9 +14,11 @@ const BHYP_API_URLS = [
 ]
 
 export interface ETFHistoryPoint {
-  time: number  // unix seconds (midnight UTC of valuation date)
-  usd: number   // total AUM in USD (total_nav)
-  hype: number  // HYPE quantity
+  time: number        // unix seconds (midnight UTC of valuation date)
+  usd: number         // total AUM (total_nav)
+  hype: number        // HYPE quantity
+  units: number       // shares outstanding (for true inflow calc)
+  navPerShare: number // NAV per share (for true inflow calc)
 }
 
 export interface ETFFlowsData {
@@ -50,10 +52,12 @@ function entryToPoint(entry: Record<string, any>): ETFHistoryPoint | null {
   if (!dateStr) return null
   const time = Math.floor(new Date(dateStr + 'T00:00:00Z').getTime() / 1000)
   if (isNaN(time)) return null
-  const usd   = parseFloat(entry.total_nav ?? 0)
-  const price = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 1)
-  const hype  = price > 0 ? usd / price : 0
-  return { time, usd, hype }
+  const usd        = parseFloat(entry.total_nav ?? 0)
+  const price      = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 1)
+  const hype       = price > 0 ? usd / price : 0
+  const units      = parseFloat(entry.total_units_outstanding ?? 0)
+  const navPerShare= parseFloat(entry.nav_per_share ?? 0)
+  return { time, usd, hype, units, navPerShare }
 }
 
 async function fetchValuationHistory(urls: string[]): Promise<{

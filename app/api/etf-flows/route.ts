@@ -25,7 +25,7 @@ export interface ETFTodayEstimate {
   aum: number       // Yahoo Finance totalAssets (live AUM)
   nav: number       // Yahoo Finance navPrice (live NAV/share)
   shares: number    // current shares outstanding
-  inflowUsd: number // (current_shares - yesterday_shares) × nav
+  inflowUsd: number | null // null when no historical baseline available
   ts: number        // timestamp ms
 }
 
@@ -124,11 +124,12 @@ async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum
     const results: Record<string, any>[] = json?.quoteResponse?.result ?? []
     const out: Record<string, { aum: number; nav: number; shares: number }> = {}
     for (const q of results) {
-      const nav = parseFloat(q.navPrice ?? 0)
+      // ETFs may use navPrice or regularMarketPrice; impliedSharesOutstanding is ETF-specific
+      const nav = parseFloat(q.navPrice ?? q.regularMarketPrice ?? 0)
       const aum = parseFloat(q.totalAssets ?? 0)
-      const sharesRaw = parseFloat(q.sharesOutstanding ?? 0)
+      const sharesRaw = parseFloat(q.impliedSharesOutstanding ?? q.sharesOutstanding ?? 0)
       const shares = sharesRaw > 0 ? sharesRaw : (nav > 0 ? aum / nav : 0)
-      if (nav > 0 && aum > 0) out[String(q.symbol)] = { aum, nav, shares }
+      if (aum > 0 && shares > 0) out[String(q.symbol)] = { aum, nav: nav > 0 ? nav : aum / shares, shares }
     }
     return out
   } catch { return {} }
@@ -186,26 +187,27 @@ export async function GET(req: NextRequest) {
   const now = Date.now()
 
   // Yahoo Finance live estimates for today
+  // Create today estimate whenever Yahoo has data; inflowUsd requires a historical baseline
   const bhypYahoo = yahoo['BHYP']
   const bhypYestShares = bhypHistory.at(-1)?.units ?? 0
-  const bhypToday: ETFTodayEstimate | null = bhypYahoo && bhypYestShares > 0
+  const bhypToday: ETFTodayEstimate | null = bhypYahoo
     ? {
         aum:       bhypYahoo.aum,
         nav:       bhypYahoo.nav,
         shares:    bhypYahoo.shares,
-        inflowUsd: (bhypYahoo.shares - bhypYestShares) * bhypYahoo.nav,
+        inflowUsd: bhypYestShares > 0 ? (bhypYahoo.shares - bhypYestShares) * bhypYahoo.nav : null,
         ts:        now,
       }
     : null
 
   const thypYahoo = yahoo['THYP']
   const thypYestShares = thyp?.history.at(-1)?.units ?? 0
-  const thypToday: ETFTodayEstimate | null = thypYahoo && thypYestShares > 0
+  const thypToday: ETFTodayEstimate | null = thypYahoo
     ? {
         aum:       thypYahoo.aum,
         nav:       thypYahoo.nav,
         shares:    thypYahoo.shares,
-        inflowUsd: (thypYahoo.shares - thypYestShares) * thypYahoo.nav,
+        inflowUsd: thypYestShares > 0 ? (thypYahoo.shares - thypYestShares) * thypYahoo.nav : null,
         ts:        now,
       }
     : null

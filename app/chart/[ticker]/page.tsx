@@ -430,6 +430,13 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
   const totalDeltaH  = bhypDeltaH !== null || thypDeltaH !== null
     ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null
 
+  const bhypToday = bhyp?.today ?? null
+  const thypToday = thyp?.today ?? null
+  const totalLiveAum = (bhypToday?.aum ?? 0) + (thypToday?.aum ?? 0) > 0
+    ? (bhypToday?.aum ?? 0) + (thypToday?.aum ?? 0) : null
+  const totalLiveInflow = bhypToday !== null || thypToday !== null
+    ? (bhypToday?.inflowUsd ?? 0) + (thypToday?.inflowUsd ?? 0) : null
+
   const thypHistory = thyp?.history ?? []
   const bhypHistory = bhyp?.history ?? []
 
@@ -491,12 +498,17 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
     columnGap: 8,
   }
 
-  function ETFRow({ label, issuer, color, usd, hype, deltaHype }: {
+  function ETFRow({ label, issuer, color, usd, hype, deltaHype, liveAum, liveInflowUsd }: {
     label: string; issuer: string; color: string
     usd: number; hype: number; deltaHype: number | null
+    liveAum?: number | null; liveInflowUsd?: number | null
   }) {
-    const deltaUsd = deltaHype !== null ? deltaHype * currentPrice : null
-    const up = (deltaUsd ?? 0) >= 0
+    const displayUsd  = liveAum ?? usd
+    const displayHype = liveAum && currentPrice > 0 ? liveAum / currentPrice : hype
+    const isLiveDelta = liveInflowUsd != null
+    const deltaUsd    = isLiveDelta ? liveInflowUsd : (deltaHype !== null ? deltaHype * currentPrice : null)
+    const deltaHypeDisplay = isLiveDelta && currentPrice > 0 ? liveInflowUsd / currentPrice : deltaHype
+    const up    = (deltaUsd ?? 0) >= 0
     const dColor = up ? '#26ab83' : '#E84332'
     return (
       <div style={{ ...grid, alignItems: 'start', marginBottom: 12 }}>
@@ -510,11 +522,11 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
         </div>
         {/* AUM */}
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: usd > 0 ? '#F0EDE6' : '#2C2C2A', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
-            {usd > 0 ? fmtUSD(usd) : '—'}
+          <div style={{ fontSize: 15, fontWeight: 700, color: displayUsd > 0 ? '#F0EDE6' : '#2C2C2A', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+            {displayUsd > 0 ? fmtUSD(displayUsd) : '—'}
           </div>
-          {hype > 0 && <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
-            {Math.round(hype).toLocaleString('en-US')} HYPE
+          {displayHype > 0 && <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+            {Math.round(displayHype).toLocaleString('en-US')} HYPE
           </div>}
         </div>
         {/* Day Δ */}
@@ -522,10 +534,10 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
           {deltaUsd !== null ? (
             <>
               <div style={{ fontSize: 15, fontWeight: 700, color: dColor, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtUSD(deltaUsd, true)}
+                {isLiveDelta ? '~' : ''}{fmtUSD(deltaUsd, true)}
               </div>
-              {deltaHype !== null && <div style={{ fontSize: 9, color: up ? '#1a7a5e' : '#a02a1e', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
-                {(up ? '+' : '')}{Math.round(Math.abs(deltaHype)).toLocaleString('en-US')} HYPE
+              {deltaHypeDisplay !== null && <div style={{ fontSize: 9, color: up ? '#1a7a5e' : '#a02a1e', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                {(up ? '+' : '')}{Math.round(Math.abs(deltaHypeDisplay)).toLocaleString('en-US')} HYPE
               </div>}
             </>
           ) : (
@@ -581,16 +593,21 @@ function ETFFlowsSection({ flows, currentPrice }: { flows: ETFFlowsData | null; 
       <div style={{ ...grid, marginBottom: 10 }}>
         <div />
         <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
-        <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>DAY Δ</div>
+        <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+          {(bhypToday !== null || thypToday !== null) && (
+            <span style={{ fontSize: 8, color: '#26ab83', letterSpacing: '0.04em' }}>LIVE</span>
+          )}
+          <span>DAY Δ</span>
+        </div>
       </div>
 
-      <ETFRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp} usd={bhypCurrent * currentPrice} hype={bhypCurrent} deltaHype={bhypDeltaH} />
-      <ETFRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp} usd={thypCurrent * currentPrice} hype={thypCurrent} deltaHype={thypDeltaH} />
+      <ETFRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp} usd={bhypCurrent * currentPrice} hype={bhypCurrent} deltaHype={bhypDeltaH} liveAum={bhypToday?.aum} liveInflowUsd={bhypToday?.inflowUsd} />
+      <ETFRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp} usd={thypCurrent * currentPrice} hype={thypCurrent} deltaHype={thypDeltaH} liveAum={thypToday?.aum} liveInflowUsd={thypToday?.inflowUsd} />
 
       {/* Total */}
       {totalHype > 0 && (
         <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
-          <ETFRow label="TOTAL" issuer="" color={ETF_COLORS.total} usd={totalHype * currentPrice} hype={totalHype} deltaHype={totalDeltaH} />
+          <ETFRow label="TOTAL" issuer="" color={ETF_COLORS.total} usd={totalHype * currentPrice} hype={totalHype} deltaHype={totalDeltaH} liveAum={totalLiveAum} liveInflowUsd={totalLiveInflow} />
         </div>
       )}
     </div>

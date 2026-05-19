@@ -21,18 +21,28 @@ export interface ETFHistoryPoint {
   navPerShare: number // NAV per share (for true inflow calc)
 }
 
+export interface ETFTodayEstimate {
+  aum: number       // Yahoo Finance totalAssets (live AUM)
+  nav: number       // Yahoo Finance navPrice (live NAV/share)
+  shares: number    // current shares outstanding
+  inflowUsd: number // (current_shares - yesterday_shares) × nav
+  ts: number        // timestamp ms
+}
+
 export interface ETFFlowsData {
   bhyp: {
     current: number
     prevClose: number
     prevAsOf: string
     history: ETFHistoryPoint[]
+    today: ETFTodayEstimate | null
   }
   thyp: {
     current: number
     prevClose: number
     prevAsOf: string
     history: ETFHistoryPoint[]
+    today: ETFTodayEstimate | null
   } | null
   ts: number
 }
@@ -98,6 +108,32 @@ async function fetchValuationHistory(urls: string[]): Promise<{
   return { current: 0, prevClose: 0, prevAsOf: '', history: [] }
 }
 
+async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum: number; nav: number; shares: number }>> {
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&fields=navPrice,totalAssets,sharesOutstanding`
+  try {
+    const res = await fetch(url, {
+      headers: {
+        ...BROWSER_HEADERS,
+        'Accept': 'application/json',
+      },
+      next: { revalidate: 0 },
+    })
+    if (!res.ok) return {}
+    const json = await res.json()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results: Record<string, any>[] = json?.quoteResponse?.result ?? []
+    const out: Record<string, { aum: number; nav: number; shares: number }> = {}
+    for (const q of results) {
+      const nav = parseFloat(q.navPrice ?? 0)
+      const aum = parseFloat(q.totalAssets ?? 0)
+      const sharesRaw = parseFloat(q.sharesOutstanding ?? 0)
+      const shares = sharesRaw > 0 ? sharesRaw : (nav > 0 ? aum / nav : 0)
+      if (nav > 0 && aum > 0) out[String(q.symbol)] = { aum, nav, shares }
+    }
+    return out
+  } catch { return {} }
+}
+
 async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
   try {
     const res = await fetch('https://bhypetf.com/', { headers: BROWSER_HEADERS, next: { revalidate: 0 } })
@@ -115,33 +151,64 @@ async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
 
 export async function GET(req: NextRequest) {
   if (new URL(req.url).searchParams.has('debug')) {
-    const [bhypApi, thyp, bhypScrape] = await Promise.allSettled([
+    const [bhypApi, thyp, bhypScrape, yahoo] = await Promise.allSettled([
       fetchValuationHistory(BHYP_API_URLS),
       fetchValuationHistory(THYP_API_URLS),
       scrapeBHYP(),
+      fetchYahooQuotes(['BHYP', 'THYP']),
     ])
     return NextResponse.json({
       bhypApi:    bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
       thypApi:    thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
       bhypScrape: bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
+      yahoo:      yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
     }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
-  const [bhypApiRes, thypRes, bhypScrapeRes] = await Promise.allSettled([
+  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes] = await Promise.allSettled([
     fetchValuationHistory(BHYP_API_URLS),
     fetchValuationHistory(THYP_API_URLS),
     scrapeBHYP(),
+    fetchYahooQuotes(['BHYP', 'THYP']),
   ])
 
   const bhypApi   = bhypApiRes.status   === 'fulfilled' ? bhypApiRes.value   : null
   const thyp      = thypRes.status      === 'fulfilled' ? thypRes.value      : null
   const bhypScrape= bhypScrapeRes.status=== 'fulfilled' ? bhypScrapeRes.value: { hype: 0, asOf: '' }
+  const yahoo     = yahooRes.status     === 'fulfilled' ? yahooRes.value     : {}
 
   // Prefer API history; fall back to scrape as single current point
   const bhypCurrent  = bhypApi?.current  || bhypScrape.hype
   const bhypHistory  = bhypApi?.history.length ? bhypApi.history : []
+
+  const now = Date.now()
+
+  // Yahoo Finance live estimates for today
+  const bhypYahoo = yahoo['BHYP']
+  const bhypYestShares = bhypHistory.at(-1)?.units ?? 0
+  const bhypToday: ETFTodayEstimate | null = bhypYahoo && bhypYestShares > 0
+    ? {
+        aum:       bhypYahoo.aum,
+        nav:       bhypYahoo.nav,
+        shares:    bhypYahoo.shares,
+        inflowUsd: (bhypYahoo.shares - bhypYestShares) * bhypYahoo.nav,
+        ts:        now,
+      }
+    : null
+
+  const thypYahoo = yahoo['THYP']
+  const thypYestShares = thyp?.history.at(-1)?.units ?? 0
+  const thypToday: ETFTodayEstimate | null = thypYahoo && thypYestShares > 0
+    ? {
+        aum:       thypYahoo.aum,
+        nav:       thypYahoo.nav,
+        shares:    thypYahoo.shares,
+        inflowUsd: (thypYahoo.shares - thypYestShares) * thypYahoo.nav,
+        ts:        now,
+      }
+    : null
 
   const data: ETFFlowsData = {
     bhyp: {
@@ -149,14 +216,16 @@ export async function GET(req: NextRequest) {
       prevClose: bhypApi?.prevClose ?? 0,
       prevAsOf:  bhypApi?.prevAsOf  ?? bhypScrape.asOf,
       history:   bhypHistory,
+      today:     bhypToday,
     },
     thyp: thyp && (thyp.current > 0 || thyp.history.length > 0) ? {
       current:   thyp.current,
       prevClose: thyp.prevClose,
       prevAsOf:  thyp.prevAsOf,
       history:   thyp.history,
+      today:     thypToday,
     } : null,
-    ts: Date.now(),
+    ts: now,
   }
 
   cache = { data, ts: Date.now() }

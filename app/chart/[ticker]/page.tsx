@@ -167,16 +167,26 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
-          <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>←</button>
-          <button
-            onClick={() => setShowSearch(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', lineHeight: 1, color: '#46443D' }}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="7.5" cy="7.5" r="5" />
-              <line x1="11.5" y1="11.5" x2="16" y2="16" />
+          <button onClick={() => window.history.length > 1 ? router.back() : router.push('/')} style={S.backBtn}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="12,4 6,10 12,16" />
             </svg>
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              onClick={toggleStar}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: starred ? '#F0C84A' : '#2C2C2A', padding: '4px 0', lineHeight: 1, transition: 'color 0.15s' }}
+            >★</button>
+            <button
+              onClick={() => setShowSearch(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', lineHeight: 1, color: '#46443D' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="7.5" cy="7.5" r="5" />
+                <line x1="11.5" y1="11.5" x2="16" y2="16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Search overlay */}
@@ -229,10 +239,6 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
             <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
             <span style={{ fontSize: 15, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
-            <button
-              onClick={toggleStar}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 32, color: starred ? '#F0C84A' : '#2C2C2A', padding: 0, lineHeight: 1, marginLeft: 'auto', flexShrink: 0 }}
-            >★</button>
           </div>
           <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
@@ -306,9 +312,9 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         </div>
 
         {/* Action buttons */}
-        <div style={{ padding: '16px 24px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button onClick={() => setShowCompare(true)} style={S.actionBtn}>COMPARE ⇄</button>
-          <button onClick={() => setShowShare(true)}   style={S.actionBtn}>SHARE ↗</button>
+        <div style={{ padding: '24px 24px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={() => setShowCompare(true)} style={S.actionBtn}>COMPARE</button>
+          <button onClick={() => setShowShare(true)}   style={S.actionBtn}>SHARE</button>
         </div>
 
         {/* Stats */}
@@ -360,11 +366,11 @@ function StatsGrid({ assetInfo, currentPrice }: {
   const stats = [
     { label: '24H VOLUME', value: volume24h > 0 ? formatVolume(volume24h) : '—', color: '#F0EDE6' },
     { label: 'OPEN INT',   value: openInterest > 0 ? formatVolume(openInterest) : '—', color: '#F0EDE6' },
-    { label: 'FUNDING',    value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 100).toFixed(4)}%` : '—', color: fundingColor },
+    { label: 'FUNDING APR', value: funding !== 0 ? `${funding >= 0 ? '+' : ''}${(funding * 3 * 365 * 100).toFixed(2)}%` : '—', color: fundingColor },
   ]
 
   return (
-    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '40px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
+    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
       {stats.map(({ label, value, color }) => (
         <div key={label}>
           <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
@@ -376,6 +382,6 @@ function StatsGrid({ assetInfo, currentPrice }: {
 }
 
 const S = {
-  backBtn:    { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
-  actionBtn:  { width: '100%', background: 'none', border: '1px solid #2C2C2A', borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
+  backBtn:    { background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' } as React.CSSProperties,
+  actionBtn:  { width: '100%', background: 'none', border: '1px solid #3C3C3A', borderRadius: 10, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
 }

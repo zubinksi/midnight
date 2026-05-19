@@ -55,7 +55,11 @@ body {
   animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-@media (prefers-reduced-motion: no-preference) {
+/* Hide Liveline's built-in series toggle chips on the compare page (we render our own legend) */
+.ll-compare > div[style*="inline-flex"] {
+  display: none !important;
+}
+
   @keyframes bloomDotSubtle {
     0%   { transform: scale(0.6);  opacity: 0; }
     9%   { transform: scale(1);    opacity: 1; }

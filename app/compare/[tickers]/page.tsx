@@ -132,7 +132,11 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
           <button
             onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
             style={S.backBtn}
-          >←</button>
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="12,4 6,10 12,16" />
+            </svg>
+          </button>
           <button
             onClick={toggleStar}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: starred ? '#F0C84A' : '#2C2C2A', padding: '4px 0', lineHeight: 1, transition: 'color 0.15s' }}
@@ -140,18 +144,19 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
         </div>
 
         {/* Legend */}
-        <div style={{ padding: '24px 24px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: '20px 24px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {tickers.map((ticker, i) => {
             const pts   = seriesData[ticker] ?? []
             const pct   = pts.at(-1)?.value ?? 0
-            const color = pct >= 0 ? '#26ab83' : '#E84332'
+            const up    = pct >= 0
+            const pctColor = up ? '#26ab83' : '#E84332'
             return (
-              <div key={ticker} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0, marginBottom: 1 }} />
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 90, flexShrink: 0 }}>{ticker}</span>
-                <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>{getAssetName(ticker)}</span>
+              <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 80, flexShrink: 0 }}>{ticker}</span>
+                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getAssetName(ticker)}</span>
                 {pts.length > 0 && !loading && (
-                  <span style={{ fontSize: 13, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: pctColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                     {fmtPct(pct)}
                   </span>
                 )}
@@ -205,25 +210,26 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
                 return `${months[d.getMonth()]} ${d.getDate()}`
               } : undefined}
               padding={{ left: 24 }}
+              className="ll-compare"
               style={{ width: '100%', height: 360 }}
             />
           )}
         </div>
 
         {/* Attribution */}
-        <div style={{ padding: '8px 24px 40px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
             LIVE · POWERED BY HYPERLIQUID
           </span>
         </div>
 
-        <div style={{ height: 'max(env(safe-area-inset-bottom), 32px)' }} />
+        <div style={{ height: 'max(env(safe-area-inset-bottom), 16px)' }} />
       </div>
     </div>
   )
 }
 
 const S = {
-  backBtn: { background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 } as React.CSSProperties,
+  backBtn: { background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' } as React.CSSProperties,
 }

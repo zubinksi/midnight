@@ -6,16 +6,31 @@ const THYP_API_URLS = [
   'https://21sharessecondary.paradox-coworking.com/api/product_valuation_history/thyp',
 ]
 
+// BHYP counterpart attempts — Bitwise equivalent of the 21Shares API
+const BHYP_API_URLS = [
+  'https://bitwiseprimary.paradox-coworking.com/api/product_valuation_history/bhyp',
+  'https://bitwisesecondary.paradox-coworking.com/api/product_valuation_history/bhyp',
+  'https://bhypprimary.paradox-coworking.com/api/product_valuation_history/bhyp',
+]
+
+export interface ETFHistoryPoint {
+  time: number  // unix seconds (midnight UTC of valuation date)
+  usd: number   // total AUM in USD (total_nav)
+  hype: number  // HYPE quantity
+}
+
 export interface ETFFlowsData {
   bhyp: {
-    current: number    // real-time HYPE from chain (spot + staked)
-    prevClose: number  // previous day official figure from ETF website
-    prevAsOf: string   // "MM/DD/YYYY"
+    current: number
+    prevClose: number
+    prevAsOf: string
+    history: ETFHistoryPoint[]
   }
   thyp: {
     current: number
     prevClose: number
     prevAsOf: string
+    history: ETFHistoryPoint[]
   } | null
   ts: number
 }
@@ -29,122 +44,114 @@ const BROWSER_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.9',
 }
 
-
-
-// Calculate total HYPE held from a 21Shares valuation history entry.
-// The API doesn't include coin_entitlement directly; derive it from
-// total_nav / underlying.HYPE (the HYPE spot price used for NAV).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractHypeFromEntry(entry: Record<string, any>): number {
-  // Preferred: total_nav divided by HYPE price gives total coins held
-  const nav   = parseFloat(entry.total_nav ?? 0)
-  const price = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 0)
-  if (nav > 0 && price > 0) return nav / price
-
-  // Fallback: direct coin quantity fields (other 21Shares products)
-  for (const key of ['coin_entitlement', 'coinEntitlement', 'quantity', 'coin_amount']) {
-    const v = entry[key]
-    if (v != null) { const n = parseFloat(String(v)); if (!isNaN(n) && n > 0) return n }
-  }
-  return 0
+function entryToPoint(entry: Record<string, any>): ETFHistoryPoint | null {
+  const dateStr = entry.valuation_date ?? entry.date ?? ''
+  if (!dateStr) return null
+  const time = Math.floor(new Date(dateStr + 'T00:00:00Z').getTime() / 1000)
+  if (isNaN(time)) return null
+  const usd   = parseFloat(entry.total_nav ?? 0)
+  const price = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 1)
+  const hype  = price > 0 ? usd / price : 0
+  return { time, usd, hype }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractDateFromEntry(entry: Record<string, any>): string {
-  const v = entry.date ?? entry.valuation_date ?? entry.as_of ?? entry.timestamp ?? ''
-  return String(v)
-}
-
-async function fetchTHYP(): Promise<{ current: number; prevClose: number; prevAsOf: string; raw: unknown }> {
-  for (const url of THYP_API_URLS) {
+async function fetchValuationHistory(urls: string[]): Promise<{
+  current: number; prevClose: number; prevAsOf: string
+  history: ETFHistoryPoint[]
+}> {
+  for (const url of urls) {
     try {
       const res = await fetch(url, { headers: BROWSER_HEADERS, next: { revalidate: 0 } })
       if (!res.ok) continue
       const json = await res.json()
-      const raw = json
 
-      // Response may be an array directly or wrapped: { data: [...] } / { history: [...] }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let entries: Record<string, any>[] = []
-      if (Array.isArray(json)) entries = json
-      else if (Array.isArray(json?.data))    entries = json.data
-      else if (Array.isArray(json?.history)) entries = json.history
-      else if (Array.isArray(json?.results)) entries = json.results
+      if (Array.isArray(json))              entries = json
+      else if (Array.isArray(json?.data))   entries = json.data
+      else if (Array.isArray(json?.history))entries = json.history
+      else if (Array.isArray(json?.results))entries = json.results
+      if (entries.length === 0) continue
 
-      if (entries.length === 0) return { current: 0, prevClose: 0, prevAsOf: '', raw }
+      // Sort descending to get latest first
+      entries.sort((a, b) =>
+        String(b.valuation_date ?? b.date ?? '').localeCompare(String(a.valuation_date ?? a.date ?? ''))
+      )
 
-      // Sort descending by date to get most recent first
-      entries.sort((a, b) => String(b.date ?? b.valuation_date ?? '').localeCompare(
-        String(a.date ?? a.valuation_date ?? '')
-      ))
-
-      const latest   = entries[0]
-      const previous = entries[1]
+      const points = entries.map(entryToPoint).filter((p): p is ETFHistoryPoint => p !== null)
+      // history in ascending order for charting
+      const history = [...points].reverse()
 
       return {
-        current:   extractHypeFromEntry(latest),
-        prevClose: previous ? extractHypeFromEntry(previous) : 0,
-        prevAsOf:  previous ? extractDateFromEntry(previous) : '',
-        raw:       { latest, previous },
+        current:   points[0]?.hype  ?? 0,
+        prevClose: points[1]?.hype  ?? 0,
+        prevAsOf:  String(entries[1]?.valuation_date ?? entries[1]?.date ?? ''),
+        history,
       }
-    } catch {
-      continue
-    }
+    } catch { continue }
   }
-  return { current: 0, prevClose: 0, prevAsOf: '', raw: 'all endpoints failed' }
+  return { current: 0, prevClose: 0, prevAsOf: '', history: [] }
 }
 
-async function scrapeBHYP(): Promise<{ hype: number; asOf: string; rawHtml: string }> {
+async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
   try {
     const res = await fetch('https://bhypetf.com/', { headers: BROWSER_HEADERS, next: { revalidate: 0 } })
-    if (!res.ok) return { hype: 0, asOf: '', rawHtml: `HTTP ${res.status}` }
+    if (!res.ok) return { hype: 0, asOf: '' }
     const html = await res.text()
     const holdingsMatch = html.match(/Hy+perliquid in Trust[\s\S]{0,300}?([\d,]+\.\d+)/i)
-    // Date appears deep in the rendered JSON/HTML — search the whole document
-    const dateMatch = html.match(/Data as of[^"<]*?(\d{2}\/\d{2}\/\d{4})/i)
+    const dateMatch     = html.match(/Data as of[^"<]*?(\d{2}\/\d{2}\/\d{4})/i)
       ?? html.match(/"holdingsDate"\s*:\s*"([^"]+)"/i)
-      ?? html.match(/as_of[^"<]*?(\d{4}-\d{2}-\d{2})/i)
     return {
-      hype:    holdingsMatch ? parseFloat(holdingsMatch[1].replace(/,/g, '')) : 0,
-      asOf:    dateMatch ? dateMatch[1] : '',
-      rawHtml: html.slice(0, 3000),
+      hype: holdingsMatch ? parseFloat(holdingsMatch[1].replace(/,/g, '')) : 0,
+      asOf: dateMatch ? dateMatch[1] : '',
     }
-  } catch (e) {
-    return { hype: 0, asOf: '', rawHtml: String(e) }
-  }
+  } catch { return { hype: 0, asOf: '' } }
 }
 
 export async function GET(req: NextRequest) {
-  // ?debug — returns raw API responses to diagnose data issues
   if (new URL(req.url).searchParams.has('debug')) {
-    const [bhyp, thyp] = await Promise.allSettled([scrapeBHYP(), fetchTHYP()])
+    const [bhypApi, thyp, bhypScrape] = await Promise.allSettled([
+      fetchValuationHistory(BHYP_API_URLS),
+      fetchValuationHistory(THYP_API_URLS),
+      scrapeBHYP(),
+    ])
     return NextResponse.json({
-      bhypScrape: bhyp.status === 'fulfilled' ? bhyp.value : { error: String((bhyp as PromiseRejectedResult).reason) },
-      thypApi:    thyp.status === 'fulfilled' ? thyp.value : { error: String((thyp as PromiseRejectedResult).reason) },
+      bhypApi:    bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
+      thypApi:    thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
+      bhypScrape: bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
     }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
-  if (cache && Date.now() - cache.ts < CACHE_TTL) {
-    return NextResponse.json(cache.data)
-  }
+  if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
-  const [bhypScrape, thypData] = await Promise.allSettled([
+  const [bhypApiRes, thypRes, bhypScrapeRes] = await Promise.allSettled([
+    fetchValuationHistory(BHYP_API_URLS),
+    fetchValuationHistory(THYP_API_URLS),
     scrapeBHYP(),
-    fetchTHYP(),
   ])
 
-  // bhypetf.com publishes official holdings (previous trading day).
-  // Wallet on-chain queries return 0 — ETF likely custodies off Hyperliquid spot.
-  const { hype: bhypCurrent, asOf: bhypAsOf } =
-    bhypScrape.status === 'fulfilled' ? bhypScrape.value : { hype: 0, asOf: '' }
+  const bhypApi   = bhypApiRes.status   === 'fulfilled' ? bhypApiRes.value   : null
+  const thyp      = thypRes.status      === 'fulfilled' ? thypRes.value      : null
+  const bhypScrape= bhypScrapeRes.status=== 'fulfilled' ? bhypScrapeRes.value: { hype: 0, asOf: '' }
 
-  const thyp = thypData.status === 'fulfilled' ? thypData.value : null
+  // Prefer API history; fall back to scrape as single current point
+  const bhypCurrent  = bhypApi?.current  || bhypScrape.hype
+  const bhypHistory  = bhypApi?.history.length ? bhypApi.history : []
 
   const data: ETFFlowsData = {
-    bhyp: { current: bhypCurrent, prevClose: 0, prevAsOf: bhypAsOf },
-    thyp: thyp && thyp.current > 0
-      ? { current: thyp.current, prevClose: thyp.prevClose, prevAsOf: thyp.prevAsOf }
-      : null,
+    bhyp: {
+      current:   bhypCurrent,
+      prevClose: bhypApi?.prevClose ?? 0,
+      prevAsOf:  bhypApi?.prevAsOf  ?? bhypScrape.asOf,
+      history:   bhypHistory,
+    },
+    thyp: thyp && (thyp.current > 0 || thyp.history.length > 0) ? {
+      current:   thyp.current,
+      prevClose: thyp.prevClose,
+      prevAsOf:  thyp.prevAsOf,
+      history:   thyp.history,
+    } : null,
     ts: Date.now(),
   }
 

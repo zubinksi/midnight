@@ -114,25 +114,28 @@ async function fetchValuationHistory(urls: string[]): Promise<{
 }
 
 async function fetchYahooQuote(symbol: string): Promise<{ aum: number; nav: number; shares: number } | null> {
-  // Use v8 chart endpoint — try both query1 and query2 subdomains
+  // Try query1+query2 with both full browser headers and minimal headers (data.py style)
+  const headerSets = [
+    { ...BROWSER_HEADERS, 'Accept': 'application/json' },
+    { 'User-Agent': 'Mozilla/5.0' },
+  ]
   for (const host of ['query1', 'query2']) {
-    const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`
-    try {
-      const res = await fetch(url, {
-        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
-        next: { revalidate: 0 },
-      })
-      if (!res.ok) continue
-      const json = await res.json()
-      const meta = json?.chart?.result?.[0]?.meta
-      if (!meta) continue
-      const nav = parseFloat(meta.navPrice ?? meta.regularMarketPrice ?? 0)
-      const aum = parseFloat(meta.totalAssets ?? 0)
-      const sharesRaw = parseFloat(meta.impliedSharesOutstanding ?? meta.sharesOutstanding ?? 0)
-      const shares = sharesRaw > 0 ? sharesRaw : (nav > 0 ? aum / nav : 0)
-      if (aum <= 0 || shares <= 0) continue
-      return { aum, nav: nav > 0 ? nav : aum / shares, shares }
-    } catch { continue }
+    for (const headers of headerSets) {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`
+      try {
+        const res = await fetch(url, { headers, next: { revalidate: 0 } })
+        if (!res.ok) continue
+        const json = await res.json()
+        const meta = json?.chart?.result?.[0]?.meta
+        if (!meta) continue
+        const nav = parseFloat(meta.navPrice ?? meta.regularMarketPrice ?? 0)
+        const aum = parseFloat(meta.totalAssets ?? 0)
+        const sharesRaw = parseFloat(meta.impliedSharesOutstanding ?? meta.sharesOutstanding ?? 0)
+        const shares = sharesRaw > 0 ? sharesRaw : (nav > 0 ? aum / nav : 0)
+        if (aum <= 0 || shares <= 0) continue
+        return { aum, nav: nav > 0 ? nav : aum / shares, shares }
+      } catch { continue }
+    }
   }
   return null
 }
@@ -228,10 +231,10 @@ interface YahooDailyBar { time: number; volumeUsd: number }
 async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
   // Try Yahoo Finance (query1 + query2)
   for (const host of ['query1', 'query2']) {
-    const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`
+    const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`
     try {
       const res = await fetch(url, {
-        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         next: { revalidate: 0 },
       })
       if (!res.ok) continue
@@ -254,7 +257,7 @@ async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
   try {
     const url = `https://stooq.com/q/d/l/?s=${symbol.toLowerCase()}.us&i=d`
     const res = await fetch(url, {
-      headers: { ...BROWSER_HEADERS, 'Accept': 'text/csv,*/*' },
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/csv,*/*' },
       next: { revalidate: 0 },
     })
     if (res.ok) {

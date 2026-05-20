@@ -295,18 +295,6 @@ export default function ETFFlowsPage() {
               label: 'Daily Inflows (Est.)',
               detail: 'Farside when available; otherwise daily volume × 0.28',
             },
-            {
-              label: 'HYPE Price',
-              detail: 'Hyperliquid spot feed via allMids API, polled live.',
-            },
-            {
-              label: '% Float',
-              detail: 'Daily inflows ÷ HYPE price ÷ circulating supply (CoinGecko). Estimates what share of circulating HYPE flowed into ETFs that day.',
-            },
-            {
-              label: 'Price & Volume',
-              detail: 'Yahoo Finance daily OHLCV bars (1-month range).',
-            },
           ].map(({ label, detail }) => (
             <div key={label} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>

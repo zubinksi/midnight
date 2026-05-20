@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { LivelineSeries } from 'liveline'
 import type { ETFFlowsData } from '@/app/api/etf-flows/route'
+import type { InflowBarPoint } from '@/components/ETFInflowsBarChart'
 import { useAssetPrice } from '@/lib/hyperliquid'
 import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
 
@@ -28,12 +29,12 @@ function fmtTime(t: number) {
 }
 
 export default function ETFFlowsPage() {
-  const router       = useRouter()
-  const [flows, setFlows]       = useState<ETFFlowsData | null>(null)
-  const [mounted, setMounted]   = useState(false)
-  const [scrubTime, setScrubTime] = useState<number | null>(null)
-  const livePrice    = useAssetPrice('HYPE', 5000)
-  const currentPrice = livePrice ?? 0
+  const router        = useRouter()
+  const [flows, setFlows]         = useState<ETFFlowsData | null>(null)
+  const [mounted, setMounted]     = useState(false)
+  const [hoveredInflow, setHoveredInflow] = useState<InflowBarPoint | null>(null)
+  const livePrice     = useAssetPrice('HYPE', 5000)
+  const currentPrice  = livePrice ?? 0
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -75,12 +76,6 @@ export default function ETFFlowsPage() {
       : []),
   ]
 
-  // Values to show in the chart header (scrub time or latest)
-  const refTime      = scrubTime ?? totalAum.at(-1)?.time ?? null
-  const headerTotal  = refTime !== null ? (totalAum.find(p => p.time === refTime)?.value ?? null) : null
-  const headerThyp   = refTime !== null ? (thypAum.find(p => p.time === refTime)?.value ?? null) : null
-  const headerBhyp   = refTime !== null ? (bhypAum.find(p => p.time === refTime)?.value ?? null) : null
-
   function toInflowSeries(history: typeof thypHistory) {
     return history.map((p, i) => ({
       time:  p.time,
@@ -97,8 +92,8 @@ export default function ETFFlowsPage() {
     return { time: t, total: ti + bi, thyp: ti, bhyp: bi }
   })
 
-  const hasAumChart  = totalAum.length >= 2
-  const chartWindow  = hasAumChart
+  const hasAumChart = totalAum.length >= 2
+  const chartWindow = hasAumChart
     ? Math.ceil((totalAum.at(-1)!.time - totalAum[0].time) * 1.05) + 86400
     : undefined
 
@@ -124,7 +119,7 @@ export default function ETFFlowsPage() {
           <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginLeft: 8 }}>HYPE ETF</span>
         </div>
 
-        {/* Table — top of page */}
+        {/* Table: TOTAL first, then ETF breakdown */}
         <div style={{ padding: '24px 24px 0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
             <div />
@@ -135,44 +130,34 @@ export default function ETFFlowsPage() {
             </div>
           </div>
 
-          <ETFTableRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp}
-            usd={bhypHype * currentPrice} hype={bhypHype} deltaHype={bhypDeltaH} currentPrice={currentPrice}
-            liveAum={bhypToday?.aum} liveInflowUsd={bhypToday?.inflowUsd} />
-
-          <ETFTableRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp}
-            usd={thypHype * currentPrice} hype={thypHype} deltaHype={thypDeltaH} currentPrice={currentPrice}
-            liveAum={thypToday?.aum} liveInflowUsd={thypToday?.inflowUsd} />
-
+          {/* TOTAL row */}
           {(bhypHype + thypHype) > 0 && (
-            <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
-              <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
-                usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
-                deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
-                currentPrice={currentPrice}
-                liveAum={totalLiveAum}
-                liveInflowUsd={totalLiveInflow} />
-            </div>
+            <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
+              usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
+              deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
+              currentPrice={currentPrice}
+              liveAum={totalLiveAum}
+              liveInflowUsd={totalLiveInflow} />
           )}
+
+          {/* ETF breakdown */}
+          <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
+            <ETFTableRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp}
+              usd={bhypHype * currentPrice} hype={bhypHype} deltaHype={bhypDeltaH} currentPrice={currentPrice}
+              liveAum={bhypToday?.aum} liveInflowUsd={bhypToday?.inflowUsd} />
+            <ETFTableRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp}
+              usd={thypHype * currentPrice} hype={thypHype} deltaHype={thypDeltaH} currentPrice={currentPrice}
+              liveAum={thypToday?.aum} liveInflowUsd={thypToday?.inflowUsd} />
+          </div>
         </div>
 
-        {/* AUM chart — multi-series, scrub values shown in header */}
+        {/* AUM chart — multi-series with built-in scrub tooltip, wrapped via .ll-wrap CSS */}
         <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 12 }}>
-          <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>TOTAL AUM</span>
-            {headerTotal !== null && (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: ETF_COLORS.total, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>{fmtUSD(headerTotal)}</span>
-                {headerThyp !== null && headerThyp > 0 && (
-                  <span style={{ fontSize: 10, color: ETF_COLORS.thyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>THYP {fmtUSD(headerThyp)}</span>
-                )}
-                {headerBhyp !== null && headerBhyp > 0 && (
-                  <span style={{ fontSize: 10, color: ETF_COLORS.bhyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>BHYP {fmtUSD(headerBhyp)}</span>
-                )}
-              </div>
-            )}
+          <div style={{ padding: '16px 24px 8px' }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL AUM</span>
           </div>
           {hasAumChart && mounted ? (
-            <div className="ll-compare">
+            <div className="ll-wrap">
               <LivelineMulti
                 data={totalAum}
                 value={totalAum.at(-1)?.value ?? 0}
@@ -187,7 +172,6 @@ export default function ETFFlowsPage() {
                 formatTime={fmtTime}
                 padding={{ left: 24 }}
                 style={{ width: '100%', height: 180 }}
-                onHover={point => setScrubTime(point?.time ?? null)}
               />
             </div>
           ) : (
@@ -197,13 +181,29 @@ export default function ETFFlowsPage() {
           )}
         </div>
 
-        {/* Daily inflows bar chart */}
+        {/* Daily inflows bar chart — tooltip in header row */}
         <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 4 }}>
-          <div style={{ padding: '16px 24px 0' }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>DAILY INFLOWS</span>
+          <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY INFLOWS</span>
+            {hoveredInflow && (
+              <div style={{ display: 'flex', gap: 10 }}>
+                {hoveredInflow.bhyp !== 0 && (
+                  <span style={{ fontSize: 10, color: ETF_COLORS.bhyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                    BHYP {fmtUSD(hoveredInflow.bhyp, true)}
+                  </span>
+                )}
+                {hoveredInflow.thyp !== 0 && (
+                  <span style={{ fontSize: 10, color: ETF_COLORS.thyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                    THYP {fmtUSD(hoveredInflow.thyp, true)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           {inflowBarData.length > 0
-            ? <div style={{ padding: '0 24px' }}><ETFInflowsBarChart data={inflowBarData} /></div>
+            ? <div style={{ padding: '0 24px' }}>
+                <ETFInflowsBarChart data={inflowBarData} onHover={setHoveredInflow} />
+              </div>
             : <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>NO HISTORY</span>
               </div>

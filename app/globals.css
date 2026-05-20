@@ -60,6 +60,13 @@ body {
   display: none !important;
 }
 
+/* Allow Liveline multi-series scrub chips to wrap to a second line instead of overflowing */
+.ll-wrap > div[style*="inline-flex"] {
+  flex-wrap: wrap !important;
+  row-gap: 2px !important;
+  max-width: 100% !important;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   @keyframes bloomDotSubtle {
     0%   { transform: scale(0.6);  opacity: 0; }

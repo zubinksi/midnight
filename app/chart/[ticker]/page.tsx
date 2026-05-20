@@ -434,7 +434,7 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em' }}>HYPE ETF FLOWS</span>
         <button
-          onClick={() => router.push('/etf-flows')}
+          onClick={() => router.push('/etf')}
           style={{ background: 'none', border: 'none', color: '#8A8880', fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
         >
           VIEW FULL

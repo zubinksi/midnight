@@ -215,6 +215,11 @@ export default function ETFFlowsPage() {
           </div>
         </div>
 
+        {/* Historical data table */}
+        {flows?.dailyHistory && flows.dailyHistory.length > 0 && (
+          <DailyHistoryTable rows={flows.dailyHistory} circulatingSupply={circulatingSupply} />
+        )}
+
         {/* AUM chart */}
         <div style={{ marginTop: 16 }}>
           <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -264,11 +269,6 @@ export default function ETFFlowsPage() {
               </div>
           }
         </div>
-
-        {/* Historical data table */}
-        {flows?.dailyHistory && flows.dailyHistory.length > 0 && (
-          <DailyHistoryTable rows={flows.dailyHistory} circulatingSupply={circulatingSupply} />
-        )}
 
         <div style={{ height: 'max(env(safe-area-inset-bottom), 40px)' }} />
       </div>

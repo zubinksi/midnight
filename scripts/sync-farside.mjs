@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 // Scrapes Farside Investors HYPE ETF flow data and stores it in Upstash Redis.
-// Runs as a GitHub Actions cron job from non-Vercel IPs that Farside doesn't block.
+// Runs as a GitHub Actions cron job hourly.
+//
+// Farside blocks datacenter IPs (GitHub Actions = Azure, Vercel = AWS).
+// Set SCRAPER_API_KEY to route through ScraperAPI residential IPs.
+// Free tier: 1,000 req/month — hourly cron uses ~720/month.
+// Sign up at: https://www.scraperapi.com (no card required for free tier)
 
-const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = process.env
+const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, SCRAPER_API_KEY } = process.env
 
 if (!UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN) {
   console.error('Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN')
+  process.exit(1)
+}
+
+if (!SCRAPER_API_KEY) {
+  console.error('Missing SCRAPER_API_KEY — set this secret to route through residential IPs')
   process.exit(1)
 }
 
@@ -38,17 +48,16 @@ function parseFarsideHtml(html) {
 }
 
 async function main() {
-  console.log('Fetching Farside HYPE ETF flows...')
-  const res = await fetch('https://farside.co.uk/hyp/', {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
+  const targetUrl = 'https://farside.co.uk/hyp/'
+  const fetchUrl  = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}`
+
+  console.log('Fetching Farside HYPE ETF flows via ScraperAPI...')
+  const res = await fetch(fetchUrl, {
+    headers: { 'Accept': 'text/html,*/*' },
   })
 
   if (!res.ok) {
-    console.error(`Farside fetch failed: HTTP ${res.status}`)
+    console.error(`Fetch failed: HTTP ${res.status}`)
     process.exit(1)
   }
 

@@ -64,17 +64,22 @@ export default function ETFFlowsPage() {
   const thypByTime = Object.fromEntries(thypHistory.map(p => [p.time, p]))
   const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p]))
 
-  const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
   const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
   const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
+  const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
 
-  const aumSeries: LivelineSeries[] = [
+  const hasBhypHistory = bhypHistory.length > 0
+  // Only show multi-series (with TOTAL) when both ETFs have API history — otherwise
+  // TOTAL = THYP which is redundant and misleading vs the table which shows live totals
+  const aumSeries: LivelineSeries[] | undefined = hasBhypHistory ? [
     { id: 'total', data: totalAum, value: totalAum.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
     { id: 'thyp',  data: thypAum,  value: thypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
-    ...(bhypHistory.length > 0
-      ? [{ id: 'bhyp', data: bhypAum, value: bhypAum.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
-      : []),
-  ]
+    { id: 'bhyp',  data: bhypAum,  value: bhypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.bhyp,  label: 'BHYP'  },
+  ] : undefined
+  // When only THYP has history, chart data is just THYP
+  const aumData    = hasBhypHistory ? totalAum : thypAum
+  const aumColor   = hasBhypHistory ? ETF_COLORS.total : ETF_COLORS.thyp
+  const aumLabel   = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
 
   function toInflowSeries(history: typeof thypHistory) {
     return history.map((p, i) => ({
@@ -92,9 +97,9 @@ export default function ETFFlowsPage() {
     return { time: t, total: ti + bi, thyp: ti, bhyp: bi }
   })
 
-  const hasAumChart = totalAum.length >= 2
+  const hasAumChart = aumData.length >= 2
   const chartWindow = hasAumChart
-    ? Math.ceil((totalAum.at(-1)!.time - totalAum[0].time) * 1.05) + 86400
+    ? Math.ceil((aumData.at(-1)!.time - aumData[0].time) * 1.05) + 86400
     : undefined
 
   const totalLiveAum    = (bhypToday?.aum ?? 0) + (thypToday?.aum ?? 0) > 0
@@ -151,17 +156,20 @@ export default function ETFFlowsPage() {
           </div>
         </div>
 
-        {/* AUM chart — multi-series with built-in scrub tooltip, wrapped via .ll-wrap CSS */}
-        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 12 }}>
-          <div style={{ padding: '16px 24px 8px' }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL AUM</span>
+        {/* AUM chart */}
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
+          <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>{aumLabel}</span>
+            {!hasBhypHistory && (
+              <span style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.04em' }}>BHYP HISTORY UNAVAILABLE</span>
+            )}
           </div>
           {hasAumChart && mounted ? (
-            <div className="ll-wrap">
+            <div className={aumSeries ? 'll-wrap' : undefined}>
               <LivelineMulti
-                data={totalAum}
-                value={totalAum.at(-1)?.value ?? 0}
-                color={ETF_COLORS.thyp}
+                data={aumData}
+                value={aumData.at(-1)?.value ?? 0}
+                color={aumColor}
                 series={aumSeries}
                 theme="dark"
                 scrub
@@ -182,7 +190,7 @@ export default function ETFFlowsPage() {
         </div>
 
         {/* Daily inflows bar chart — tooltip in header row */}
-        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 4 }}>
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
           <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY INFLOWS</span>
             {hoveredInflow && (

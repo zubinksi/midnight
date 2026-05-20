@@ -480,10 +480,15 @@ export async function GET(req: NextRequest) {
     ...thypBars.map(b => toMidnightUTC(b.time)),
   ])].sort((a, b) => a - b)
 
+  const todayMidnight = toMidnightUTC(now / 1000)
+
   const dailyHistory: DailyRow[] = allDays.map(t => {
     const bh = bhypHistByTime[t]
     const th = thypHistByTime[t]
-    const totalAum = (bh?.usd ?? 0) + (th?.usd ?? 0)
+    // For today, history APIs may not have updated yet — fall back to live today estimates
+    const bhypAumForDay = bh?.usd ?? (t === todayMidnight && bhypToday ? bhypToday.aum : 0)
+    const thypAumForDay = th?.usd ?? (t === todayMidnight && thypToday ? thypToday.aum : 0)
+    const totalAum = bhypAumForDay + thypAumForDay
     // Derive HYPE price from THYP history (usd/hype is most accurate); fall back to current
     const dayHypePrice = th && th.hype > 0 ? th.usd / th.hype : (hypePrice || null)
     return {

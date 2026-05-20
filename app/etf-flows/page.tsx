@@ -190,9 +190,8 @@ export default function ETFFlowsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
               <div />
               <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
-              <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                {hasLive && <span style={{ color: '#26ab83', letterSpacing: '0.04em' }}>LIVE</span>}
-                <span>DAILY EST.</span>
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>
+                DAILY EST.
               </div>
             </div>
 

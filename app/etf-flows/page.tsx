@@ -121,38 +121,40 @@ export default function ETFFlowsPage() {
               <polyline points="12,4 6,10 12,16" />
             </svg>
           </button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginLeft: 8 }}>HYPE ETF</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginLeft: 8 }}>HYPE ETF FLOWS</span>
         </div>
 
-        {/* Table: TOTAL first, then ETF breakdown */}
-        <div style={{ padding: '24px 24px 0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
-            <div />
-            <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
-            <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-              {hasLive && <span style={{ fontSize: 8, color: '#26ab83', letterSpacing: '0.04em' }}>LIVE</span>}
-              <span>DAILY</span>
+        {/* Table: TOTAL first, then ETF breakdown — inside a card */}
+        <div style={{ margin: '20px 16px 0' }}>
+          <div style={{ background: '#0F0F0D', border: '1px solid #1C1C1A', borderRadius: 16, padding: '16px 16px 4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
+              <div />
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                {hasLive && <span style={{ fontSize: 8, color: '#26ab83', letterSpacing: '0.04em' }}>LIVE</span>}
+                <span>DAILY</span>
+              </div>
             </div>
-          </div>
 
-          {/* TOTAL row */}
-          {(bhypHype + thypHype) > 0 && (
-            <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
-              usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
-              deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
-              currentPrice={currentPrice}
-              liveAum={totalLiveAum}
-              liveInflowUsd={totalLiveInflow} />
-          )}
+            {/* TOTAL row */}
+            {(bhypHype + thypHype) > 0 && (
+              <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
+                usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
+                deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
+                currentPrice={currentPrice}
+                liveAum={totalLiveAum}
+                liveInflowUsd={totalLiveInflow} />
+            )}
 
-          {/* ETF breakdown */}
-          <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
-            <ETFTableRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp}
-              usd={bhypHype * currentPrice} hype={bhypHype} deltaHype={bhypDeltaH} currentPrice={currentPrice}
-              liveAum={bhypToday?.aum} liveInflowUsd={bhypToday?.inflowUsd} />
-            <ETFTableRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp}
-              usd={thypHype * currentPrice} hype={thypHype} deltaHype={thypDeltaH} currentPrice={currentPrice}
-              liveAum={thypToday?.aum} liveInflowUsd={thypToday?.inflowUsd} />
+            {/* ETF breakdown */}
+            <div style={{ borderTop: '1px solid #1C1C1A', paddingTop: 12 }}>
+              <ETFTableRow label="BHYP" issuer="BITWISE"  color={ETF_COLORS.bhyp}
+                usd={bhypHype * currentPrice} hype={bhypHype} deltaHype={bhypDeltaH} currentPrice={currentPrice}
+                liveAum={bhypToday?.aum} liveInflowUsd={bhypToday?.inflowUsd} />
+              <ETFTableRow label="THYP" issuer="21SHARES" color={ETF_COLORS.thyp}
+                usd={thypHype * currentPrice} hype={thypHype} deltaHype={thypDeltaH} currentPrice={currentPrice}
+                liveAum={thypToday?.aum} liveInflowUsd={thypToday?.inflowUsd} />
+            </div>
           </div>
         </div>
 

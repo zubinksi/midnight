@@ -289,11 +289,11 @@ export default function ETFFlowsPage() {
           {[
             {
               label: 'AUM',
-              detail: 'BHYP: live holdings from bhypetf.com × HYPE spot price. THYP: confirmed NAV from 21Shares + today\'s estimated inflow.',
+              detail: 'BHYP: live holdings from bhypetf.com × HYPE spot price.\nTHYP: confirmed NAV from 21Shares + today\'s estimated inflow.',
             },
             {
               label: 'Daily Inflows (Est.)',
-              detail: 'Farside Investors when available; otherwise daily volume × 0.28 (empirical inflow/volume ratio calibrated against Farside data).',
+              detail: 'Farside when available; otherwise daily volume × 0.28',
             },
             {
               label: 'HYPE Price',
@@ -310,7 +310,7 @@ export default function ETFFlowsPage() {
           ].map(({ label, detail }) => (
             <div key={label} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
-              <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, lineHeight: 1.5 }}>{detail}</div>
+              <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{detail}</div>
             </div>
           ))}
         </div>

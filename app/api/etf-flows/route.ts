@@ -65,8 +65,8 @@ function entryToPoint(entry: Record<string, any>): ETFHistoryPoint | null {
   const usd        = parseFloat(entry.total_nav ?? 0)
   const price      = parseFloat(entry.underlying?.HYPE ?? entry.index ?? 1)
   const hype       = price > 0 ? usd / price : 0
-  const units      = parseFloat(entry.total_units_outstanding ?? 0) || (navPerShare > 0 ? usd / navPerShare : 0)
   const navPerShare= parseFloat(entry.nav_per_share ?? 0)
+  const units      = parseFloat(entry.total_units_outstanding ?? 0) || (navPerShare > 0 ? usd / navPerShare : 0)
   return { time, usd, hype, units, navPerShare }
 }
 

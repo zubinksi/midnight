@@ -70,9 +70,18 @@ export default function ETFFlowsPage() {
   const bhypInflowByTime  = Object.fromEntries(bhypInflowHistory.map(p => [p.time, p.usd]))
   const thypInflowByTime  = Object.fromEntries(thypInflowHistory.map(p => [p.time, p.usd]))
 
-  const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
-  const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
-  const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
+  // Build AUM series with forward-fill so gaps between series don't drop to zero
+  let lastThypUsd = 0, lastBhypUsd = 0
+  const thypAum: { time: number; value: number }[] = []
+  const bhypAum: { time: number; value: number }[] = []
+  const totalAum: { time: number; value: number }[] = []
+  for (const t of times) {
+    if (thypByTime[t]) lastThypUsd = thypByTime[t].usd
+    if (bhypByTime[t]) lastBhypUsd = bhypByTime[t].usd
+    thypAum.push({ time: t, value: lastThypUsd })
+    bhypAum.push({ time: t, value: lastBhypUsd })
+    totalAum.push({ time: t, value: lastThypUsd + lastBhypUsd })
+  }
 
   const hasBhypHistory = bhypHistory.length > 0
   const aumSeries: LivelineSeries[] | undefined = hasBhypHistory ? [

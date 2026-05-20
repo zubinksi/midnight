@@ -445,6 +445,14 @@ export async function GET(req: NextRequest) {
   if (farsideRows.length > 0) {
     bhypInflowHistory = farsideRows.filter(r => r.bhyp !== null).map(r => ({ time: r.time, usd: r.bhyp! }))
     thypInflowHistory = farsideRows.filter(r => r.thyp !== null).map(r => ({ time: r.time, usd: r.thyp! }))
+    // Farside doesn't have today's data until after market close — fill from Yahoo bars
+    const todayTs = toMidnightUTC(now / 1000)
+    const bhypTodayInFlow = bhypBars.find(b => toMidnightUTC(b.time) === todayTs)
+    const thypTodayInFlow = thypBars.find(b => toMidnightUTC(b.time) === todayTs)
+    if (bhypTodayInFlow && !bhypInflowHistory.some(r => r.time === todayTs))
+      bhypInflowHistory.push({ time: todayTs, usd: bhypTodayInFlow.volumeUsd * FALLBACK_RATIO })
+    if (thypTodayInFlow && !thypInflowHistory.some(r => r.time === todayTs))
+      thypInflowHistory.push({ time: todayTs, usd: thypTodayInFlow.volumeUsd * FALLBACK_RATIO })
   } else {
     // THYP: confirmed delta-shares from 21Shares API history
     const thypHist = thyp?.history ?? []

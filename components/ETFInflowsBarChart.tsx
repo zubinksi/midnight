@@ -17,6 +17,22 @@ const BARS = [
   { key: 'total' as const, color: ETF_COLORS.total, label: 'TOTAL' },
 ]
 
+function fmtM(v: number): string {
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1)}M`
+  if (v >= 1_000)     return `$${(v / 1_000).toFixed(0)}K`
+  return `$${v.toFixed(0)}`
+}
+
+function niceTicks(max: number): number[] {
+  if (max <= 0) return []
+  const mag  = Math.pow(10, Math.floor(Math.log10(max)))
+  const norm = max / mag
+  const step = norm <= 2 ? 0.5 : norm <= 5 ? 1 : 2
+  const ticks: number[] = []
+  for (let v = step * mag; v < max * 0.98; v += step * mag) ticks.push(v)
+  return ticks
+}
+
 export default function ETFInflowsBarChart({
   data,
   height = 160,
@@ -41,7 +57,9 @@ export default function ETFInflowsBarChart({
 
   const PAD_TOP    = 4
   const PAD_BOTTOM = 24
+  const PAD_RIGHT  = 36
   const chartH = height - PAD_BOTTOM
+  const chartW = w - PAD_RIGHT
 
   const allVals = data.map(d => d.total).filter(v => v !== 0)
   const maxVal  = Math.max(...allVals, 0)
@@ -49,16 +67,22 @@ export default function ETFInflowsBarChart({
   const range   = Math.max(maxVal - minVal, 1)
   const zeroY   = PAD_TOP + (chartH - PAD_TOP) * (maxVal / range)
 
+  const ticks = niceTicks(maxVal)
+
   const n = data.length
   if (!w || n === 0) return <div ref={ref} style={{ height }} />
 
-  const groupW   = w / n
+  const groupW   = chartW / n
   const barW     = Math.max(Math.floor(groupW * 0.55), 3)
   const groupPad = (groupW - barW) / 2
 
+  function toY(value: number): number {
+    return PAD_TOP + (chartH - PAD_TOP) * (maxVal - value) / range
+  }
+
   function toRect(value: number): { y: number; h: number } {
-    const top = PAD_TOP + (chartH - PAD_TOP) * (maxVal - Math.max(value, 0)) / range
-    const bot = PAD_TOP + (chartH - PAD_TOP) * (maxVal - Math.min(value, 0)) / range
+    const top = toY(Math.max(value, 0))
+    const bot = toY(Math.min(value, 0))
     return { y: top, h: Math.max(bot - top, value !== 0 ? 1 : 0) }
   }
 
@@ -79,8 +103,27 @@ export default function ETFInflowsBarChart({
         style={{ display: 'block', overflow: 'visible', cursor: 'crosshair' }}
         onMouseLeave={handleLeave}
       >
+        {/* Grid lines + Y axis labels */}
+        {ticks.map(tick => {
+          const y = toY(tick)
+          return (
+            <g key={tick}>
+              <line x1={0} y1={y} x2={chartW} y2={y} stroke="#1C1C1A" strokeWidth={1} />
+              <text
+                x={chartW + 4}
+                y={y + 3.5}
+                fontSize={8}
+                fill="#2C2C2A"
+                fontFamily={MONO}
+              >
+                {fmtM(tick)}
+              </text>
+            </g>
+          )
+        })}
+
         {/* Zero line */}
-        <line x1={0} y1={zeroY} x2={w} y2={zeroY} stroke="#1C1C1A" strokeWidth={1} />
+        <line x1={0} y1={zeroY} x2={chartW} y2={zeroY} stroke="#1C1C1A" strokeWidth={1} />
 
         {data.map((d, i) => {
           const gx   = i * groupW + groupPad

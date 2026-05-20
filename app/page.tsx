@@ -465,8 +465,8 @@ export default function Home() {
                     onClick={() => { setCategoryFilter(f.key); try { localStorage.setItem('neue-filter', f.key) } catch {} }}
                     style={{
                       background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
-                      borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
-                      height: 28, fontSize: f.key === 'starred' ? 17 : 12.5,
+                      borderRadius: 20, padding: '5px 12px',
+                      height: 28, fontSize: 12.5,
                       fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em',
                       color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
                       cursor: 'pointer', transition: 'color 0.15s, background 0.15s',

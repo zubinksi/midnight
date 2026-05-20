@@ -1,0 +1,22 @@
+name: Sync Farside ETF Flows
+
+on:
+  schedule:
+    # Every hour — Farside updates once daily after market close, but hourly ensures
+    # we catch the update promptly. GitHub Actions runs on non-Vercel IPs.
+    - cron: '0 * * * *'
+  workflow_dispatch: # allow manual trigger from GitHub Actions UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Sync Farside to Upstash
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: node scripts/sync-farside.mjs

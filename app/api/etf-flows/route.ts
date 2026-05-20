@@ -185,6 +185,24 @@ async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
 
 interface FarsideRow { time: number; bhyp: number | null; thyp: number | null }
 
+// Read Farside rows cached in Upstash by the GitHub Actions cron job.
+// This is the primary path since Vercel IPs are blocked by Farside.
+async function fetchFarsideFromKV(): Promise<FarsideRow[]> {
+  const url   = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return []
+  try {
+    const res = await fetch(`${url}/get/farside-hyp-flows`, {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 0 },
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    if (!json.result) return []
+    return JSON.parse(json.result) as FarsideRow[]
+  } catch { return [] }
+}
+
 function parseFarsideHtml(html: string): FarsideRow[] {
   const dateRegex = /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/
   const rows: FarsideRow[] = []
@@ -320,12 +338,13 @@ function computeImpliedRatio(latestAumUsd: number, bars: YahooDailyBar[]): numbe
 
 export async function GET(req: NextRequest) {
   if (new URL(req.url).searchParams.has('debug')) {
-    const [bhypApi, thyp, bhypScrape, yahoo, farside, bhypBars, thypBars, hypePrice, circSupply] =
+    const [bhypApi, thyp, bhypScrape, yahoo, farsideKv, farside, bhypBars, thypBars, hypePrice, circSupply] =
       await Promise.allSettled([
         fetchValuationHistory(BHYP_API_URLS),
         fetchValuationHistory(THYP_API_URLS),
         scrapeBHYP(),
         fetchYahooQuotes(['BHYP', 'THYP']),
+        fetchFarsideFromKV(),
         fetchFarsideFlows(),
         fetchYahooDailyBars('BHYP'),
         fetchYahooDailyBars('THYP'),
@@ -333,42 +352,47 @@ export async function GET(req: NextRequest) {
         fetchHypeCirculatingSupply(),
       ])
     return NextResponse.json({
-      bhypApi:     bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
-      thypApi:     thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
-      bhypScrape:  bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
-      yahoo:       yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
-      farside:     farside.status    === 'fulfilled' ? farside.value    : { error: String((farside    as PromiseRejectedResult).reason) },
-      bhypBars:    bhypBars.status   === 'fulfilled' ? bhypBars.value.slice(-3)  : { error: String((bhypBars   as PromiseRejectedResult).reason) },
-      thypBars:    thypBars.status   === 'fulfilled' ? thypBars.value.slice(-3)  : { error: String((thypBars   as PromiseRejectedResult).reason) },
-      hypePrice:   hypePrice.status  === 'fulfilled' ? hypePrice.value  : { error: String((hypePrice  as PromiseRejectedResult).reason) },
-      circSupply:  circSupply.status === 'fulfilled' ? circSupply.value : { error: String((circSupply  as PromiseRejectedResult).reason) },
+      bhypApi:    bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
+      thypApi:    thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
+      bhypScrape: bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
+      yahoo:      yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
+      farsideKv:  farsideKv.status  === 'fulfilled' ? { rows: farsideKv.value.length, latest: farsideKv.value.slice(-2) } : { error: String((farsideKv as PromiseRejectedResult).reason) },
+      farside:    farside.status    === 'fulfilled' ? farside.value    : { error: String((farside    as PromiseRejectedResult).reason) },
+      bhypBars:   bhypBars.status   === 'fulfilled' ? bhypBars.value.slice(-3)  : { error: String((bhypBars   as PromiseRejectedResult).reason) },
+      thypBars:   thypBars.status   === 'fulfilled' ? thypBars.value.slice(-3)  : { error: String((thypBars   as PromiseRejectedResult).reason) },
+      hypePrice:  hypePrice.status  === 'fulfilled' ? hypePrice.value  : { error: String((hypePrice  as PromiseRejectedResult).reason) },
+      circSupply: circSupply.status === 'fulfilled' ? circSupply.value : { error: String((circSupply  as PromiseRejectedResult).reason) },
     }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
-  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes, farsideRes, bhypBarsRes, thypBarsRes, hypePriceRes, circSupplyRes] =
+  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes, farsideKvRes, farsideDirectRes, bhypBarsRes, thypBarsRes, hypePriceRes, circSupplyRes] =
     await Promise.allSettled([
       fetchValuationHistory(BHYP_API_URLS),
       fetchValuationHistory(THYP_API_URLS),
       scrapeBHYP(),
       fetchYahooQuotes(['BHYP', 'THYP']),
-      fetchFarsideFlows(),
+      fetchFarsideFromKV(),      // primary: Upstash KV (written by GitHub Actions cron)
+      fetchFarsideFlows(),       // secondary: direct fetch (works outside Vercel)
       fetchYahooDailyBars('BHYP'),
       fetchYahooDailyBars('THYP'),
       fetchHypePrice(),
       fetchHypeCirculatingSupply(),
     ])
 
-  const bhypApi            = bhypApiRes.status    === 'fulfilled' ? bhypApiRes.value    : null
-  const thyp               = thypRes.status       === 'fulfilled' ? thypRes.value       : null
-  const bhypScrape         = bhypScrapeRes.status === 'fulfilled' ? bhypScrapeRes.value : { hype: 0, asOf: '' }
-  const yahoo              = yahooRes.status      === 'fulfilled' ? yahooRes.value      : {}
-  const farsideRows        = farsideRes.status    === 'fulfilled' ? farsideRes.value    : []
-  const bhypBars           = bhypBarsRes.status   === 'fulfilled' ? bhypBarsRes.value   : []
-  const thypBars           = thypBarsRes.status   === 'fulfilled' ? thypBarsRes.value   : []
-  const hypePrice          = hypePriceRes.status  === 'fulfilled' ? hypePriceRes.value  : 0
-  const circulatingSupply  = circSupplyRes.status === 'fulfilled' ? circSupplyRes.value : 0
+  const bhypApi            = bhypApiRes.status        === 'fulfilled' ? bhypApiRes.value        : null
+  const thyp               = thypRes.status           === 'fulfilled' ? thypRes.value           : null
+  const bhypScrape         = bhypScrapeRes.status     === 'fulfilled' ? bhypScrapeRes.value     : { hype: 0, asOf: '' }
+  const yahoo              = yahooRes.status          === 'fulfilled' ? yahooRes.value          : {}
+  const farsideKv          = farsideKvRes.status      === 'fulfilled' ? farsideKvRes.value      : []
+  const farсideDirect      = farsideDirectRes.status  === 'fulfilled' ? farsideDirectRes.value  : []
+  // KV (GitHub Actions) preferred; direct fetch as secondary; empty = use volume estimate
+  const farsideRows        = farsideKv.length > 0 ? farsideKv : farсideDirect
+  const bhypBars           = bhypBarsRes.status       === 'fulfilled' ? bhypBarsRes.value       : []
+  const thypBars           = thypBarsRes.status       === 'fulfilled' ? thypBarsRes.value       : []
+  const hypePrice          = hypePriceRes.status      === 'fulfilled' ? hypePriceRes.value      : 0
+  const circulatingSupply  = circSupplyRes.status     === 'fulfilled' ? circSupplyRes.value     : 0
 
   const bhypCurrent = bhypApi?.current || bhypScrape.hype
 

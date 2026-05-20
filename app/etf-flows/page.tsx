@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import type { LivelineSeries } from 'liveline'
 import type { ETFFlowsData } from '@/app/api/etf-flows/route'
 import { useAssetPrice } from '@/lib/hyperliquid'
 import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
 
-const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
+const LivelineMulti = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
 const MONO = 'Menlo,Monaco,monospace'
 const ETF_COLORS = { total: '#F0EDE6', thyp: '#26ab83', bhyp: '#F0C84A' }
@@ -28,8 +29,9 @@ function fmtTime(t: number) {
 
 export default function ETFFlowsPage() {
   const router       = useRouter()
-  const [flows, setFlows]     = useState<ETFFlowsData | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [flows, setFlows]       = useState<ETFFlowsData | null>(null)
+  const [mounted, setMounted]   = useState(false)
+  const [scrubTime, setScrubTime] = useState<number | null>(null)
   const livePrice    = useAssetPrice('HYPE', 5000)
   const currentPrice = livePrice ?? 0
 
@@ -62,6 +64,22 @@ export default function ETFFlowsPage() {
   const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p]))
 
   const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
+  const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
+  const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
+
+  const aumSeries: LivelineSeries[] = [
+    { id: 'total', data: totalAum, value: totalAum.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
+    { id: 'thyp',  data: thypAum,  value: thypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
+    ...(bhypHistory.length > 0
+      ? [{ id: 'bhyp', data: bhypAum, value: bhypAum.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
+      : []),
+  ]
+
+  // Values to show in the chart header (scrub time or latest)
+  const refTime      = scrubTime ?? totalAum.at(-1)?.time ?? null
+  const headerTotal  = refTime !== null ? (totalAum.find(p => p.time === refTime)?.value ?? null) : null
+  const headerThyp   = refTime !== null ? (thypAum.find(p => p.time === refTime)?.value ?? null) : null
+  const headerBhyp   = refTime !== null ? (bhypAum.find(p => p.time === refTime)?.value ?? null) : null
 
   function toInflowSeries(history: typeof thypHistory) {
     return history.map((p, i) => ({
@@ -137,27 +155,41 @@ export default function ETFFlowsPage() {
           )}
         </div>
 
-        {/* AUM chart — single TOTAL line for clean scrub tooltip */}
+        {/* AUM chart — multi-series, scrub values shown in header */}
         <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 12 }}>
-          <div style={{ padding: '16px 24px 8px' }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL AUM</span>
+          <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>TOTAL AUM</span>
+            {headerTotal !== null && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: ETF_COLORS.total, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>{fmtUSD(headerTotal)}</span>
+                {headerThyp !== null && headerThyp > 0 && (
+                  <span style={{ fontSize: 10, color: ETF_COLORS.thyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>THYP {fmtUSD(headerThyp)}</span>
+                )}
+                {headerBhyp !== null && headerBhyp > 0 && (
+                  <span style={{ fontSize: 10, color: ETF_COLORS.bhyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>BHYP {fmtUSD(headerBhyp)}</span>
+                )}
+              </div>
+            )}
           </div>
           {hasAumChart && mounted ? (
-            <Liveline
-              data={totalAum}
-              value={totalAum.at(-1)?.value ?? 0}
-              color={ETF_COLORS.thyp}
-              theme="dark"
-              scrub
-              grid
-              fill
-              lineWidth={1.5}
-              window={chartWindow}
-              formatValue={v => fmtUSD(v)}
-              formatTime={fmtTime}
-              padding={{ left: 24 }}
-              style={{ width: '100%', height: 180 }}
-            />
+            <div className="ll-compare">
+              <LivelineMulti
+                data={totalAum}
+                value={totalAum.at(-1)?.value ?? 0}
+                color={ETF_COLORS.thyp}
+                series={aumSeries}
+                theme="dark"
+                scrub
+                grid
+                lineWidth={1.5}
+                window={chartWindow}
+                formatValue={v => fmtUSD(v)}
+                formatTime={fmtTime}
+                padding={{ left: 24 }}
+                style={{ width: '100%', height: 180 }}
+                onHover={point => setScrubTime(point?.time ?? null)}
+              />
+            </div>
           ) : (
             <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>{mounted ? 'NO HISTORY' : ''}</span>

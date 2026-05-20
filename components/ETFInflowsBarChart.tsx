@@ -14,9 +14,8 @@ export interface InflowBarPoint {
 }
 
 const BARS = [
-  { key: 'total' as const, color: ETF_COLORS.total, label: 'TOTAL' },
-  { key: 'bhyp'  as const, color: ETF_COLORS.bhyp,  label: 'BHYP'  },
-  { key: 'thyp'  as const, color: ETF_COLORS.thyp,  label: 'THYP'  },
+  { key: 'bhyp' as const, color: ETF_COLORS.bhyp, label: 'BHYP' },
+  { key: 'thyp' as const, color: ETF_COLORS.thyp, label: 'THYP' },
 ]
 
 function fmtUSD(usd: number) {

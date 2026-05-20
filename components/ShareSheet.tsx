@@ -97,8 +97,8 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={S.label}>{ticker}</div>
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em', marginTop: 2 }}>{assetName}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em', marginTop: 2 }}>{assetName}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', marginTop: 6 }}>
                 {priceStr}
               </div>
             </div>
@@ -126,7 +126,7 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
             padding: '16px 0',
             cursor: 'pointer',
             color: '#F0EDE6',
-            fontFamily: 'Menlo,Monaco,monospace',
+            fontFamily: 'Inter,sans-serif',
             fontSize: 13,
             textAlign: 'left',
           }}
@@ -149,7 +149,7 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
             padding: '16px 0',
             cursor: 'pointer',
             color: '#F0EDE6',
-            fontFamily: 'Menlo,Monaco,monospace',
+            fontFamily: 'Inter,sans-serif',
             fontSize: 13,
             textAlign: 'left',
           }}
@@ -171,7 +171,7 @@ export default function ShareSheet({ ticker, assetName, price, diff, pct, decima
             borderRadius: 10,
             padding: 14,
             color: '#46443D',
-            fontFamily: 'Menlo,Monaco,monospace',
+            fontFamily: 'Inter,sans-serif',
             fontSize: 12,
             cursor: 'pointer',
             letterSpacing: '0.06em',
@@ -188,7 +188,7 @@ const S = {
   label: {
     fontSize: 11,
     color: '#46443D',
-    fontFamily: 'Menlo,Monaco,monospace',
+    fontFamily: 'Inter,sans-serif',
     letterSpacing: '0.08em',
   } as React.CSSProperties,
 }

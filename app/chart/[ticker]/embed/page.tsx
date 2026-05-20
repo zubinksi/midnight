@@ -37,7 +37,7 @@ export default function EmbedPage({ params }: { params: Promise<{ ticker: string
   const { pctStr }   = formatChange(diff, pct, decimals)
 
   return (
-    <div style={{ background: '#080807', width: '100%', height: '100%', minHeight: 200, padding: '16px 20px 8px', fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: '#080807', width: '100%', height: '100%', minHeight: 200, padding: '16px 20px 8px', fontFamily: 'Inter,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em', marginBottom: 4 }}>{upperTicker}</div>

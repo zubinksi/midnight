@@ -174,17 +174,17 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button
             onClick={() => router.push('/vaults')}
-            style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 }}
           >←</button>
         </div>
 
         {/* Vault identity */}
         <div style={{ padding: '24px 24px 0' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 4 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 4 }}>
             {loading ? <span style={{ color: '#1C1C1A' }}>Loading…</span> : (vault?.name ?? 'Vault')}
           </div>
           {vault?.leader && (
-            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>
               {truncAddr(vault.leader)}
             </div>
           )}
@@ -192,11 +192,11 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
 
         {/* Equity / PNL display */}
         <div style={{ padding: '20px 24px 0' }}>
-          <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
+          <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayEquity !== 0 ? (chartMode === 'profit' ? fmtUsd(displayEquity) : fmtTvl(displayEquity)) : '—'}
           </div>
           {!loading && !error && chartData.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ color: chartColor }}>{fmtUsd(windowDiff)}</span>
               <span style={{ color: chartColor }}>{windowUp ? '+' : ''}{windowPct.toFixed(2)}%</span>
             </div>
@@ -214,7 +214,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
                   background: chartMode === mode ? 'rgba(255,255,255,0.06)' : 'transparent',
                   border: 'none', borderRadius: 4, padding: '3px 10px',
                   fontSize: 11, lineHeight: '16px',
-                  fontFamily: 'Menlo,Monaco,monospace',
+                  fontFamily: 'Inter,sans-serif',
                   color: chartMode === mode ? '#F0EDE6' : '#46443D',
                   fontWeight: chartMode === mode ? 600 : 400,
                   cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
@@ -228,7 +228,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         {/* Chart */}
         {error ? (
           <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULT</div>
+            <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULT</div>
           </div>
         ) : (
           <LivelineChart
@@ -265,7 +265,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
         {/* Open positions */}
         {!loading && !error && positions.length > 0 && (
           <div style={{ padding: '0 24px' }}>
-            <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 12 }}>OPEN POSITIONS</div>
+            <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 12 }}>OPEN POSITIONS</div>
             {positions.map((entry, i) => {
               const pos    = entry.position
               const size   = parseFloat(pos.szi)
@@ -281,39 +281,39 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{pos.coin}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{pos.coin}</span>
                         <span style={{
-                          fontSize: 10, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em',
+                          fontSize: 10, fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em',
                           padding: '2px 6px', borderRadius: 3,
                           color: isLong ? '#26ab83' : '#E84332',
                           background: isLong ? '#26ab8318' : '#E8433218',
                         }}>{isLong ? 'LONG' : 'SHORT'}</span>
                         {pos.leverage && (
-                          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{pos.leverage.value}×</span>
+                          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>{pos.leverage.value}×</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>
+                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>
                         Entry ${entryP.toLocaleString(undefined, { maximumFractionDigits: 4 })} · Size {Math.abs(size).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, color: pnlUp ? '#26ab83' : '#E84332', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontSize: 14, color: pnlUp ? '#26ab83' : '#E84332', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
                         {fmtUsd(uPnl)}
                       </div>
-                      <div style={{ fontSize: 11, color: pnlUp ? '#26ab83' : '#E84332', fontFamily: 'Menlo,Monaco,monospace', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: pnlUp ? '#26ab83' : '#E84332', fontFamily: 'Inter,sans-serif', marginTop: 2 }}>
                         {roe >= 0 ? '+' : ''}{roe.toFixed(2)}% ROE
                       </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
                     <div>
-                      <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginBottom: 2 }}>VALUE</div>
-                      <div style={{ fontSize: 11, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{fmtTvl(posVal)}</div>
+                      <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em', marginBottom: 2 }}>VALUE</div>
+                      <div style={{ fontSize: 11, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>{fmtTvl(posVal)}</div>
                     </div>
                     {pos.liquidationPx && parseFloat(pos.liquidationPx) > 0 && (
                       <div>
-                        <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginBottom: 2 }}>LIQ PRICE</div>
-                        <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em', marginBottom: 2 }}>LIQ PRICE</div>
+                        <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
                           ${parseFloat(pos.liquidationPx).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                         </div>
                       </div>
@@ -327,7 +327,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
 
         {!loading && !error && positions.length === 0 && (
           <div style={{ padding: '24px 24px', borderTop: '1px solid #1C1C1A' }}>
-            <div style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', textAlign: 'center' }}>NO OPEN POSITIONS</div>
+            <div style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em', textAlign: 'center' }}>NO OPEN POSITIONS</div>
           </div>
         )}
 
@@ -340,8 +340,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ address:
 function StatCell({ label, value, color = '#F0EDE6' }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 13, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 13, color, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   )
 }

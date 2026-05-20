@@ -100,7 +100,7 @@ export default function ComparePage() {
                 }}
               >
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
+                <span style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{t}</span>
                 <span style={{ fontSize: 10, color: '#46443D', marginLeft: 2 }}>✕</span>
               </button>
             ))}
@@ -110,7 +110,7 @@ export default function ComparePage() {
                 border: '1px dashed #1C1C1A', borderRadius: 8, padding: '6px 12px',
               }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1C1C1A', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>···</span>
+                <span style={{ fontSize: 12, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>···</span>
               </div>
             ))}
           </div>
@@ -127,7 +127,7 @@ export default function ComparePage() {
                   width: '100%', background: 'transparent', border: 'none',
                   borderBottom: '1px solid #1C1C1A',
                   padding: '10px 0', color: '#F0EDE6',
-                  fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                  fontFamily: 'Inter,sans-serif', fontSize: 12,
                   letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
                 } as React.CSSProperties}
               />
@@ -148,8 +148,8 @@ export default function ComparePage() {
                     cursor: 'pointer', textAlign: 'left',
                   } as React.CSSProperties}
                 >
-                  <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontWeight: 700, width: 80, flexShrink: 0 }}>{a.ticker}</span>
-                  <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{getAssetName(a.ticker)}</span>
+                  <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontWeight: 700, width: 80, flexShrink: 0 }}>{a.ticker}</span>
+                  <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>{getAssetName(a.ticker)}</span>
                 </button>
               ))}
             </div>
@@ -162,7 +162,7 @@ export default function ComparePage() {
               style={{
                 width: '100%', border: 'none', borderRadius: 10, padding: 14,
                 cursor: canCompare ? 'pointer' : 'default',
-                fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
+                fontFamily: 'Inter,sans-serif', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
                 background: canCompare ? '#26ab83' : '#1C1C1A',
                 color: canCompare ? '#080807' : '#2C2C2A',
                 transition: 'background 0.15s, color 0.15s',
@@ -175,7 +175,7 @@ export default function ComparePage() {
           {/* Saved section */}
           {saved.length > 0 && (
             <>
-              <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 12 }}>SAVED</div>
+              <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 12 }}>SAVED</div>
               {saved.map((s, idx) => (
                 <div
                   key={idx}
@@ -189,7 +189,7 @@ export default function ComparePage() {
                       {s.tickers.map((t, i) => (
                         <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], display: 'inline-block', flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{t}</span>
                         </span>
                       ))}
                     </div>
@@ -211,5 +211,5 @@ export default function ComparePage() {
 }
 
 const S = {
-  hero: { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
+  hero: { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' } as React.CSSProperties,
 }

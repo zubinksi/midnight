@@ -153,10 +153,10 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
             return (
               <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                <span style={{ fontSize: 16, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', width: 80, flexShrink: 0 }}>{ticker}</span>
-                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getAssetName(ticker)}</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', width: 80, flexShrink: 0 }}>{ticker}</span>
+                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getAssetName(ticker)}</span>
                 {pts.length > 0 && !loading && (
-                  <span style={{ fontSize: 16, fontWeight: 700, color: pctColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: pctColor, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                     {fmtPct(pct)}
                   </span>
                 )}
@@ -178,7 +178,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
                     background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
                     border: 'none', borderRadius: 4, padding: '3px 10px',
                     fontSize: 11, lineHeight: '16px',
-                    fontFamily: 'Menlo,Monaco,monospace',
+                    fontFamily: 'Inter,sans-serif',
                     color: active ? '#F0EDE6' : '#46443D',
                     fontWeight: active ? 600 : 400,
                     cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
@@ -219,7 +219,7 @@ export default function ComparePage({ params }: { params: Promise<{ tickers: str
         {/* Attribution */}
         <div style={{ padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>
             LIVE · POWERED BY HYPERLIQUID
           </span>
         </div>

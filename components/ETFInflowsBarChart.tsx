@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 
-const MONO = 'Menlo,Monaco,monospace'
+const MONO = 'Inter,sans-serif'
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const ETF_COLORS = { total: '#F0EDE6', bhyp: '#F0C84A', thyp: '#26ab83' }
 

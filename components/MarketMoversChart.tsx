@@ -138,10 +138,10 @@ export default function MarketMoversChart({ xyzAssets, prices, allAssets, onComp
     <>
       {/* Title row */}
       <div style={{ padding: '0 24px', marginBottom: 10 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2, marginBottom: 4 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.2, marginBottom: 4 }}>
           {title}
         </div>
-        <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
           POWERED BY HYPERLIQUID &amp; TRADE.XYZ
         </div>
       </div>
@@ -158,9 +158,9 @@ export default function MarketMoversChart({ xyzAssets, prices, allAssets, onComp
             return (
               <div key={m.ticker} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: COMPARE_COLORS[i], flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0 }}>{m.ticker}</span>
-                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getAssetName(m.ticker)}</span>
-                <span style={{ fontSize: 11, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmtPct(pct)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', flexShrink: 0 }}>{m.ticker}</span>
+                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getAssetName(m.ticker)}</span>
+                <span style={{ fontSize: 11, color, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmtPct(pct)}</span>
               </div>
             )
           })}
@@ -200,7 +200,7 @@ export default function MarketMoversChart({ xyzAssets, prices, allAssets, onComp
           onClick={() => setShowModal(true)}
           style={{
             width: '100%', background: 'none', border: '1px solid #2C2C2A',
-            borderRadius: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace',
+            borderRadius: 10, color: '#46443D', fontFamily: 'Inter,sans-serif',
             fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer',
             padding: '12px 0', lineHeight: '16px',
           }}

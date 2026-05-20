@@ -409,14 +409,14 @@ export default function Home() {
                     style={{
                       width: '100%', background: 'transparent', border: 'none',
                       borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-                      color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
+                      color: '#F0EDE6', fontFamily: 'Inter,sans-serif',
                       fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
                     } as React.CSSProperties}
                   />
                 </div>
                 <button
                   onClick={() => { setShowSearch(false); setSearch('') }}
-                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
                 >CANCEL</button>
               </div>
               <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -427,8 +427,8 @@ export default function Home() {
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
                   >
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 }}>{asset.ticker}</div>
-                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginTop: 2 }}>{getAssetName(asset.ticker)}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.2 }}>{asset.ticker}</div>
+                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', marginTop: 2 }}>{getAssetName(asset.ticker)}</div>
                     </div>
                   </div>
                 ))}
@@ -467,7 +467,7 @@ export default function Home() {
                       background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
                       borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
                       height: 28, fontSize: f.key === 'starred' ? 23 : 12.5,
-                      fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em',
+                      fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em',
                       color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
                       cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
                       flexShrink: 0, whiteSpace: 'nowrap',
@@ -488,7 +488,7 @@ export default function Home() {
               transition: 'max-width 0.22s ease, opacity 0.18s ease',
               marginRight: showSortSheet ? 8 : 0,
             }}>
-              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
+              <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.07em', whiteSpace: 'nowrap', flexShrink: 0 }}>Sort by</span>
               {([
                 { key: 'volume',     label: 'VOLUME' },
                 { key: 'price-desc', label: 'PERCENT ↓' },
@@ -504,7 +504,7 @@ export default function Home() {
                       background: active ? '#1C1C1A' : 'none',
                       border: '1px solid #1C1C1A', borderRadius: 20,
                       padding: '4px 10px', height: 26,
-                      fontSize: 11, fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.07em',
+                      fontSize: 11, fontFamily: 'Inter,sans-serif', letterSpacing: '0.07em',
                       color: active ? '#F0EDE6' : '#46443D',
                       cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                     }}
@@ -667,26 +667,26 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
           >
             <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 16px' }} />
             {open ? (
-              <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
+              <span style={{ fontSize: 20, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '-0.01em', lineHeight: 1 }}>
                 News
               </span>
             ) : (
               <>
                 {/* Large title */}
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 6 }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 6 }}>
                   News
                 </div>
                 {/* Source + headline */}
                 {tgPosts.length > 0 ? (
                   <div style={{
-                    fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace',
+                    fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Inter,sans-serif',
                     lineHeight: 1.45,
                     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                   } as React.CSSProperties}>
                     {tgPosts[0].text.split('\n')[0]}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#5A5A54', fontFamily: 'Menlo,Monaco,monospace' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#5A5A54', fontFamily: 'Inter,sans-serif' }}>
                     From Telegram
                   </div>
                 )}
@@ -699,22 +699,22 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
 
             {/* Summary section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>WATCHLIST SUMMARY</span>
+              <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em' }}>WATCHLIST SUMMARY</span>
               {time && !loading && (
                 <button
                   onClick={e => { e.stopPropagation(); onRefresh() }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 10, letterSpacing: '0.08em', padding: 0 }}
                 >↻ REFRESH</button>
               )}
             </div>
-            <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.65, minHeight: 48, paddingBottom: 4 }}>
+            <div style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.65, minHeight: 48, paddingBottom: 4 }}>
               {loading && !text
                 ? <span style={{ color: '#46443D' }}>Analysing your watchlist…</span>
                 : renderSummaryText(text, allTickers, onNavigate)}
               {loading && text && <span style={{ color: '#46443D' }}>▌</span>}
             </div>
             {time && !loading && (
-              <div style={{ marginTop: 6, fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>
+              <div style={{ marginTop: 6, fontSize: 10, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>
                 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
@@ -723,7 +723,7 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
             <div style={{ borderTop: '1px solid #1C1C1A', margin: '20px 0 16px' }} />
 
             {/* News section */}
-            <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>NEWS</div>
+            <div style={{ marginBottom: 8, fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em' }}>NEWS</div>
             <NewsFeed posts={tgPosts} loading={tgLoading} />
 
           </div>
@@ -737,10 +737,10 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
 
 function ActivityFeed({ items, loading, onNavigate }: { items: AssetActivityItem[]; loading: boolean; onNavigate: (t: string) => void }) {
   if (loading && items.length === 0) {
-    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading…</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>Loading…</div>
   }
   if (!loading && items.length === 0) {
-    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No notable activity right now.</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>No notable activity right now.</div>
   }
   return (
     <>
@@ -753,9 +753,9 @@ function ActivityFeed({ items, loading, onNavigate }: { items: AssetActivityItem
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
           >
             <span style={{ fontSize: 10, color, flexShrink: 0 }}>{item.direction === 'up' ? '▲' : '▼'}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, width: 50 }}>{item.ticker}</span>
-            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', flex: 1 }}>{item.headline}</span>
-            <span style={{ fontSize: 12, color, fontFamily: 'Menlo,Monaco,monospace', flexShrink: 0, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{item.value}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', flexShrink: 0, width: 50 }}>{item.ticker}</span>
+            <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', flex: 1 }}>{item.headline}</span>
+            <span style={{ fontSize: 12, color, fontFamily: 'Inter,sans-serif', flexShrink: 0, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{item.value}</span>
           </div>
         )
       })}
@@ -775,10 +775,10 @@ function timeAgo(ms: number): string {
 
 function NewsFeed({ posts, loading }: { posts: TelegramPost[]; loading: boolean }) {
   if (loading && posts.length === 0) {
-    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>Loading…</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>Loading…</div>
   }
   if (!loading && posts.length === 0) {
-    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>No posts available.</div>
+    return <div style={{ padding: '16px 0', fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>No posts available.</div>
   }
   return (
     <>
@@ -789,11 +789,11 @@ function NewsFeed({ posts, loading }: { posts: TelegramPost[]; loading: boolean 
           style={{ padding: '12px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-            <span style={{ fontSize: 10, color: '#26ab83', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{post.channel}</span>
-            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>·</span>
-            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>{timeAgo(post.time)}</span>
+            <span style={{ fontSize: 10, color: '#26ab83', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>{post.channel}</span>
+            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>·</span>
+            <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>{timeAgo(post.time)}</span>
           </div>
-          <div style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.55,
+          <div style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.55,
             display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           } as React.CSSProperties}>{post.text}</div>
         </div>
@@ -921,7 +921,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
           <div style={{ marginTop: 3 }}>
             <span style={{
               display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-              fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+              fontSize: 11, fontFamily: 'Inter,sans-serif',
               fontVariantNumeric: 'tabular-nums', color: badgeColor,
               background: badgeUp ? '#26ab8322' : '#E8433218',
             }}>{badgeStr}</span>
@@ -976,7 +976,7 @@ function LoadingRows() {
 function ErrorState({ message }: { message: string }) {
   return (
     <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+      <div style={{ fontSize: 11, color: '#E84332', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>
         {message.toUpperCase()}
       </div>
     </div>
@@ -984,9 +984,9 @@ function ErrorState({ message }: { message: string }) {
 }
 
 const S = {
-  label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
-  hero:   { fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
-  ticker: { fontSize: 17, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 } as React.CSSProperties,
-  name:   { fontSize: 12, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as React.CSSProperties,
-  price:  { fontSize: 17, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,
+  label:  { fontSize: 11, color: '#46443D', letterSpacing: '0.08em', fontFamily: 'Inter,sans-serif' } as React.CSSProperties,
+  hero:   { fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.15, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' } as React.CSSProperties,
+  ticker: { fontSize: 17, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.2 } as React.CSSProperties,
+  name:   { fontSize: 12, color: '#46443D', fontFamily: 'Inter,sans-serif', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as React.CSSProperties,
+  price:  { fontSize: 17, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 } as React.CSSProperties,
 }

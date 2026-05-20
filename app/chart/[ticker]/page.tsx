@@ -216,14 +216,14 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
                     style={{
                       width: '100%', background: 'transparent', border: 'none',
                       borderBottom: '1px solid #1C1C1A', padding: '10px 0',
-                      color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace',
+                      color: '#F0EDE6', fontFamily: 'Inter,sans-serif',
                       fontSize: 12, letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
                     } as React.CSSProperties}
                   />
                 </div>
                 <button
                   onClick={() => { setShowSearch(false); setSearchQuery('') }}
-                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 12, cursor: 'pointer', padding: '4px 0', flexShrink: 0 }}
                 >CANCEL</button>
               </div>
               <div>
@@ -234,8 +234,8 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
                   >
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2 }}>{a.ticker}</div>
-                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginTop: 2 }}>{getAssetName(a.ticker)}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.2 }}>{a.ticker}</div>
+                      <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', marginTop: 2 }}>{getAssetName(a.ticker)}</div>
                     </div>
                   </div>
                 ))}
@@ -248,13 +248,13 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
         <div style={{ padding: '32px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83', flexShrink: 0 }} />
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>{upperTicker}</span>
-            <span style={{ fontSize: 15, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>{upperTicker}</span>
+            <span style={{ fontSize: 15, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>{assetName}</span>
           </div>
-          <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
+          <div style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
             {displayPrice > 0 ? formatPrice(displayPrice, decimals) : '—'}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
             {showAtClose ? (
               <>
                 <span style={{ color: atCloseColor }}>{atCloseStr!.pctStr}</span>
@@ -267,7 +267,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
             )}
           </div>
           {timeframe === '1D' && sessionLabel !== null && afterHrsStr !== null && !isPreIpo && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
               <span style={{ fontSize: 12, color: afterHrsColor }}>{afterHrsStr.pctStr}</span>
               <span style={{ fontSize: 11 }}>{sessionLabel === 'PRE-MKT' ? '☀️' : '🌙'}</span>
               <span style={{ fontSize: 10, color: '#46443D', letterSpacing: '0.08em' }}>SINCE CLOSE</span>
@@ -292,7 +292,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
                     background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
                     border: 'none', borderRadius: 4, padding: '3px 10px',
                     fontSize: 11, lineHeight: '16px',
-                    fontFamily: 'Menlo,Monaco,monospace',
+                    fontFamily: 'Inter,sans-serif',
                     color: active ? '#F0EDE6' : '#46443D',
                     fontWeight: active ? 600 : 400,
                     cursor: 'pointer', transition: 'color 0.2s, background 0.15s',
@@ -388,8 +388,8 @@ function StatsGrid({ assetInfo, currentPrice }: {
     <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 12px' }}>
       {stats.map(({ label, value, color }) => (
         <div key={label}>
-          <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
-          <div style={{ fontSize: 13, color, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+          <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
+          <div style={{ fontSize: 13, color, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
         </div>
       ))}
     </div>
@@ -398,7 +398,7 @@ function StatsGrid({ assetInfo, currentPrice }: {
 
 function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; currentPrice: number }) {
   const router = useRouter()
-  const MONO   = 'Menlo,Monaco,monospace'
+  const MONO   = 'Inter,sans-serif'
 
   function fmtUSD(usd: number, sign = false) {
     const s = sign && usd >= 0 ? '+' : usd < 0 ? '-' : ''
@@ -484,5 +484,5 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
 
 const S = {
   backBtn:    { background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' } as React.CSSProperties,
-  actionBtn:  { width: '100%', background: 'none', border: '1px solid #3C3C3A', borderRadius: 10, color: '#8A8880', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
+  actionBtn:  { width: '100%', background: 'none', border: '1px solid #3C3C3A', borderRadius: 10, color: '#8A8880', fontFamily: 'Inter,sans-serif', fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '12px 0', lineHeight: '16px' } as React.CSSProperties,
 }

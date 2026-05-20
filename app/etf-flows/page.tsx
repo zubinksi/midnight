@@ -11,7 +11,7 @@ import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
 
 const LivelineMulti = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
-const MONO = 'Menlo,Monaco,monospace'
+const MONO = 'Inter,sans-serif'
 const ETF_COLORS = { total: '#F0EDE6', thyp: '#26ab83', bhyp: '#F0C84A' }
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 

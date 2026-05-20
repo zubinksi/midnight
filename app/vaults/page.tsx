@@ -150,12 +150,12 @@ export default function VaultsPage() {
 
         {/* Sort row */}
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 24px' }}>
-          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>
+          <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>
             {loading ? '…' : error ? 'ERROR' : `${vaults.length} VAULTS`}
           </span>
           <button
             onClick={() => setShowSort(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 10, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 8px', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 10, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             {sortLabels[sortBy]}
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -181,14 +181,14 @@ export default function VaultsPage() {
               style={{ width: '100%', maxWidth: 430, background: '#0F0F0E', borderTop: '1px solid #1C1C1A', borderRadius: '20px 20px 0 0', padding: '28px 24px', paddingBottom: 'max(32px, env(safe-area-inset-bottom))' }}
             >
               <div style={{ width: 36, height: 4, background: '#46443D', borderRadius: 2, margin: '0 auto 24px' }} />
-              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>
+              <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 16 }}>SORT BY</div>
               {(['tvl', 'apr', 'monthPnl'] as SortKey[]).map(key => (
                 <button
                   key={key}
                   onClick={() => { setSortBy(key); setShowSort(false) }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #1C1C1A', padding: '16px 0', cursor: 'pointer' }}
                 >
-                  <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{sortLabels[key]}</span>
+                  <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{sortLabels[key]}</span>
                   {sortBy === key && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#26ab83' }} />}
                 </button>
               ))}
@@ -203,15 +203,15 @@ export default function VaultsPage() {
               <VaultLoadingRows />
             ) : error ? (
               <div style={{ padding: '48px 0', textAlign: 'center' }}>
-                <span style={{ fontSize: 11, color: '#E84332', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULTS</span>
+                <span style={{ fontSize: 11, color: '#E84332', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>FAILED TO LOAD VAULTS</span>
               </div>
             ) : sorted.length === 0 ? (
               <div style={{ padding: '24px 0' }}>
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em' }}>NO VAULTS FOUND</span>
+                  <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em' }}>NO VAULTS FOUND</span>
                 </div>
                 {rawSample && (
-                  <div style={{ fontSize: 9, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 9, color: '#46443D', fontFamily: 'Inter,sans-serif', wordBreak: 'break-all', lineHeight: 1.5 }}>
                     {rawSample}
                   </div>
                 )}
@@ -260,22 +260,22 @@ function VaultRow({ vault, sortBy, onClick }: { vault: VaultSummary; sortBy: Sor
       style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer', gap: 10 }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {vault.name}
         </div>
-        <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', marginTop: 3 }}>
+        <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', marginTop: 3 }}>
           {truncAddr(vault.leader)}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 15, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 15, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
           {fmtTvl(vault.tvl)}
         </div>
         {badge ? (
           <div style={{ marginTop: 3 }}>
             <span style={{
               display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-              fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+              fontSize: 11, fontFamily: 'Inter,sans-serif',
               fontVariantNumeric: 'tabular-nums', color: badge.color, background: badge.bg,
             }}>{badge.label}</span>
           </div>
@@ -283,7 +283,7 @@ function VaultRow({ vault, sortBy, onClick }: { vault: VaultSummary; sortBy: Sor
           <div style={{ marginTop: 3 }}>
             <span style={{
               display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-              fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+              fontSize: 11, fontFamily: 'Inter,sans-serif',
               fontVariantNumeric: 'tabular-nums', color: aprUp ? '#26ab83' : '#E84332',
               background: aprUp ? '#26ab8322' : '#E8433218',
             }}>{aprUp ? '+' : ''}{aprPct.toFixed(1)}% APR</span>
@@ -317,5 +317,5 @@ function VaultLoadingRows() {
 }
 
 const S = {
-  hero: { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' } as React.CSSProperties,
+  hero: { fontSize: 38, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' } as React.CSSProperties,
 }

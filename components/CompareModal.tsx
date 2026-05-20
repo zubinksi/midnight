@@ -119,10 +119,10 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
         >
           <div style={{ width: 36, height: 4, background: '#3C3C3A', borderRadius: 2, margin: '0 auto 20px' }} />
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '-0.01em', lineHeight: 1 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '-0.01em', lineHeight: 1 }}>
               Compare
             </div>
-            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.08em', marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em', marginTop: 6 }}>
               SELECT UP TO {totalSlots} ASSETS
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
               borderRadius: 10, padding: '9px 14px',
             }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[0], flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{baseTicker}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{baseTicker}</span>
             </div>
           )}
 
@@ -159,7 +159,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
                 }}
               >
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace' }}>{t}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif' }}>{t}</span>
                 <span style={{ fontSize: 11, color: '#46443D', marginLeft: 2 }}>✕</span>
               </button>
             )
@@ -174,7 +174,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
                 border: '1px dashed #2A2A28', borderRadius: 10, padding: '9px 14px',
               }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COMPARE_COLORS[colorIdx] ?? '#2A2A28', opacity: 0.25, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: '#2C2C2A', fontFamily: 'Menlo,Monaco,monospace' }}>···</span>
+                <span style={{ fontSize: 13, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>···</span>
               </div>
             )
           })}
@@ -196,7 +196,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
                 borderRadius: 10,
                 padding: '12px 14px',
                 color: '#F0EDE6',
-                fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                fontFamily: 'Inter,sans-serif', fontSize: 12,
                 letterSpacing: '0.08em', outline: 'none', boxSizing: 'border-box',
               } as React.CSSProperties}
             />
@@ -217,8 +217,8 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
                   cursor: 'pointer', textAlign: 'left',
                 } as React.CSSProperties}
               >
-                <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontWeight: 700, width: 80, flexShrink: 0 }}>{a.ticker}</span>
-                <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace' }}>{getAssetName(a.ticker)}</span>
+                <span style={{ fontSize: 13, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontWeight: 700, width: 80, flexShrink: 0 }}>{a.ticker}</span>
+                <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif' }}>{getAssetName(a.ticker)}</span>
               </button>
             ))}
           </div>
@@ -231,7 +231,7 @@ export default function CompareModal({ baseTicker, allAssets, onClose, onCompare
           style={{
             width: '100%', border: 'none', borderRadius: 10, padding: 14,
             cursor: canCompare ? 'pointer' : 'default',
-            fontFamily: 'Menlo,Monaco,monospace', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
+            fontFamily: 'Inter,sans-serif', fontSize: 12, letterSpacing: '0.06em', fontWeight: 700,
             background: canCompare ? '#26ab83' : '#1C1C1A',
             color: canCompare ? '#080807' : '#2C2C2A',
             transition: 'background 0.15s, color 0.15s',

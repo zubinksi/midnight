@@ -428,9 +428,9 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={cameraActive ? stopCamera : onClose}
-            style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 28, cursor: 'pointer', padding: '4px 0', lineHeight: 1 }}
           >←</button>
-          <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>
+          <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em' }}>
             {cameraActive ? 'TAKE PHOTO' : 'SHARE CHART'}
           </span>
           <div style={{ width: 32 }} />
@@ -461,14 +461,14 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
               pointerEvents: 'none',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
-                <span style={{ fontSize: 12, color: 'rgba(240,237,230,0.45)', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '0.02em' }}>{ticker}</span>
+                <span style={{ fontSize: 12, color: 'rgba(240,237,230,0.45)', fontFamily: 'Inter,sans-serif' }}>{assetName}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
                   {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
                 </span>
-                <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
+                <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
               </div>
             </div>
 
@@ -527,19 +527,19 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                     {/* Header */}
                     <div style={{ padding: '0 20px 16px', position: 'relative', zIndex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.02em' }}>{ticker}</span>
-                        <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Menlo,Monaco,monospace' }}>{assetName}</span>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '0.02em' }}>{ticker}</span>
+                        <span style={{ fontSize: 12, color: '#5C5A53', fontFamily: 'Inter,sans-serif' }}>{assetName}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                        <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                        <span style={{ fontSize: 36, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1 }}>
                           {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
                         </span>
                         {!annotationLabel && (
-                          <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
+                          <span style={{ fontSize: 15, color: cardChangeColor, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>{cardPctStr}</span>
                         )}
                       </div>
                       {annotationLabel && (
-                        <div style={{ marginTop: 8, fontFamily: 'Menlo,Monaco,monospace', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ marginTop: 8, fontFamily: 'Inter,sans-serif', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                             <span style={{ fontSize: 14, fontWeight: 700, color: '#F0C84A', fontVariantNumeric: 'tabular-nums' }}>Since {annotationLabel}</span>
                             {annotationPctStr && (
@@ -574,8 +574,8 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
 
                     {/* Footer */}
                     <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-                      <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
-                      <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
+                      <span style={{ fontSize: 11, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+                      <span style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>{timeframe}</span>
                     </div>
 
                     {/* Annotation dot */}
@@ -602,15 +602,15 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
 
                     {/* Header — single line: ticker · price · pct */}
                     <div style={{ padding: '20px 20px 0', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.04em' }}>{ticker}</span>
-                      <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em' }}>{ticker}</span>
+                      <span style={{ fontSize: 14, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
                         {currentPrice > 0 ? formatPrice(currentPrice, decimals) : '—'}
                       </span>
-                      <span style={{ fontSize: 14, color: cardChangeColor, fontFamily: 'Menlo,Monaco,monospace', fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ fontSize: 14, color: cardChangeColor, fontFamily: 'Inter,sans-serif', fontVariantNumeric: 'tabular-nums' }}>
                         {annotationPctStr ?? cardPctStr}
                       </span>
                       {annotationLabel && (
-                        <span style={{ fontSize: 12, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace' }}>since {annotationLabel}</span>
+                        <span style={{ fontSize: 12, color: '#F0C84A', fontFamily: 'Inter,sans-serif' }}>since {annotationLabel}</span>
                       )}
                     </div>
 
@@ -632,8 +632,8 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
 
                     {/* Footer */}
                     <div style={{ padding: '8px 20px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-                      <span style={{ fontSize: 11, color: '#FFFFFF', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.06em' }}>{timeframe}</span>
+                      <span style={{ fontSize: 11, color: '#FFFFFF', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em', fontWeight: 600 }}>neue.markets</span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>{timeframe}</span>
                     </div>
 
                     {/* Annotation dot */}
@@ -658,7 +658,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
         {/* Time window — hidden during camera */}
         {!cameraActive && (
           <div>
-            <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 10 }}>TIME WINDOW</div>
+            <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em', marginBottom: 10 }}>TIME WINDOW</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {WINDOWS.map(w => {
                 const active = timeframe === w.tf
@@ -667,7 +667,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                     background: active ? '#1C1C1A' : 'transparent',
                     border: `1px solid ${active ? '#2C2C2A' : '#1C1C1A'}`,
                     borderRadius: 6, padding: '6px 14px',
-                    fontSize: 11, fontFamily: 'Menlo,Monaco,monospace',
+                    fontSize: 11, fontFamily: 'Inter,sans-serif',
                     color: active ? '#F0EDE6' : '#46443D',
                     cursor: 'pointer', transition: 'background 0.15s, color 0.15s',
                   }}>{w.label}</button>
@@ -695,7 +695,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{
                     background: 'none', border: '1px solid #2C2C2A', borderRadius: 10,
                     padding: '12px 16px', cursor: processing ? 'default' : 'pointer',
-                    fontFamily: 'Menlo,Monaco,monospace', fontSize: 11,
+                    fontFamily: 'Inter,sans-serif', fontSize: 11,
                     letterSpacing: '0.06em', color: processing ? '#2C2C2A' : '#46443D',
                   }}
                 >{processing ? 'PROCESSING…' : 'TAKE PHOTO'}</button>
@@ -705,26 +705,26 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{
                     background: 'none', border: '1px solid #2C2C2A', borderRadius: 10,
                     padding: '12px 16px', cursor: processing ? 'default' : 'pointer',
-                    fontFamily: 'Menlo,Monaco,monospace', fontSize: 11,
+                    fontFamily: 'Inter,sans-serif', fontSize: 11,
                     letterSpacing: '0.06em', color: processing ? '#2C2C2A' : '#46443D',
                   }}
                 >UPLOAD PHOTO</button>
               </div>
             ) : (
               <div style={{ border: '1px solid #2C2C2A', borderRadius: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>PHOTO ADDED</span>
+                <span style={{ fontSize: 10, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em' }}>PHOTO ADDED</span>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button
                     onClick={startCamera}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 11, padding: 0 }}
                   >RETAKE</button>
                   <button
                     onClick={() => photoInputRef.current?.click()}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 11, padding: 0 }}
                   >CHANGE</button>
                   <button
                     onClick={() => { setDuotoneUrl(null); setOriginalPhotoUrl(null) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 11, padding: 0 }}
                   >REMOVE</button>
                 </div>
               </div>
@@ -747,7 +747,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   border: '1px solid #2C2C2A', borderRadius: 10,
                   padding: '12px 16px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                  fontFamily: 'Inter,sans-serif', fontSize: 12,
                   letterSpacing: '0.06em', color: '#46443D',
                 }}
               >
@@ -757,14 +757,14 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
             ) : (
               <div style={{ border: '1px solid #2C2C2A', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 10, color: '#F0C84A', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em' }}>TIMESTAMP</span>
+                  <span style={{ fontSize: 10, color: '#F0C84A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.1em' }}>TIMESTAMP</span>
                   <button
                     onClick={() => { setPostDate(''); setPostText('') }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', fontSize: 11, padding: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#46443D', fontFamily: 'Inter,sans-serif', fontSize: 11, padding: 0 }}
                   >REMOVE</button>
                 </div>
                 <div style={{ position: 'relative', borderBottom: '1px solid #1C1C1A', paddingBottom: 6 }}>
-                  <div style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', padding: '6px 0 0', pointerEvents: 'none' }}>
+                  <div style={{ fontSize: 12, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', padding: '6px 0 0', pointerEvents: 'none' }}>
                     {postDate
                       ? new Date(postDate).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
                       : <span style={{ color: '#46443D' }}>Select date & time</span>}
@@ -785,7 +785,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
                   style={{
                     width: '100%', background: 'transparent', border: 'none',
                     borderBottom: '1px solid #1C1C1A', padding: '6px 0',
-                    color: '#F0EDE6', fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+                    color: '#F0EDE6', fontFamily: 'Inter,sans-serif', fontSize: 12,
                     letterSpacing: '0.04em', outline: 'none', resize: 'none',
                     boxSizing: 'border-box',
                   } as React.CSSProperties}
@@ -800,7 +800,7 @@ export default function ShareModal({ ticker, assetInfo, currentPrice, changeColo
           <button onClick={share} disabled={downloading} style={{
             width: '100%', border: 'none', borderRadius: 10, padding: 14,
             cursor: downloading ? 'default' : 'pointer',
-            fontFamily: 'Menlo,Monaco,monospace', fontSize: 12,
+            fontFamily: 'Inter,sans-serif', fontSize: 12,
             letterSpacing: '0.06em', fontWeight: 700,
             background: downloading ? '#1C1C1A' : '#26ab83',
             color: downloading ? '#2C2C2A' : '#080807',

@@ -51,11 +51,17 @@ export interface ETFFlowsData {
     inflowHistory: ETFDailyFlow[]
     today: ETFTodayEstimate | null
   } | null
+  circulatingSupply: number  // HYPE tokens in circulation
   ts: number
 }
 
 let cache: { data: ETFFlowsData; ts: number } | null = null
 const CACHE_TTL = 5 * 60 * 1000
+
+// Empirical inflow/volume ratio from hypeflows Farside calibration (combined 28.2%)
+// Used for BHYP when Farside is unavailable — do NOT compute from AUM/vol since
+// AUM is inflated by HYPE price appreciation and gives wildly high ratios
+const FALLBACK_RATIO = 0.28
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -224,6 +230,18 @@ async function fetchHypePrice(): Promise<number> {
   } catch { return 0 }
 }
 
+async function fetchHypeCirculatingSupply(): Promise<number> {
+  try {
+    const res = await fetch(
+      'https://api.coingecko.com/api/v3/coins/hyperliquid?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false',
+      { headers: { 'Accept': 'application/json' }, next: { revalidate: 0 } }
+    )
+    if (!res.ok) return 0
+    const json = await res.json()
+    return parseFloat(json?.market_data?.circulating_supply ?? 0)
+  } catch { return 0 }
+}
+
 // --- Daily volume bars: Yahoo (primary) → Stooq (fallback) -----------------
 
 interface YahooDailyBar { time: number; close: number; volumeUsd: number }
@@ -291,7 +309,7 @@ function computeImpliedRatio(latestAumUsd: number, bars: YahooDailyBar[]): numbe
 
 export async function GET(req: NextRequest) {
   if (new URL(req.url).searchParams.has('debug')) {
-    const [bhypApi, thyp, bhypScrape, yahoo, farside, bhypBars, thypBars, hypePrice] =
+    const [bhypApi, thyp, bhypScrape, yahoo, farside, bhypBars, thypBars, hypePrice, circSupply] =
       await Promise.allSettled([
         fetchValuationHistory(BHYP_API_URLS),
         fetchValuationHistory(THYP_API_URLS),
@@ -301,22 +319,24 @@ export async function GET(req: NextRequest) {
         fetchYahooDailyBars('BHYP'),
         fetchYahooDailyBars('THYP'),
         fetchHypePrice(),
+        fetchHypeCirculatingSupply(),
       ])
     return NextResponse.json({
-      bhypApi:    bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
-      thypApi:    thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
-      bhypScrape: bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
-      yahoo:      yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
-      farside:    farside.status    === 'fulfilled' ? farside.value    : { error: String((farside    as PromiseRejectedResult).reason) },
-      bhypBars:   bhypBars.status   === 'fulfilled' ? bhypBars.value.slice(-3)   : { error: String((bhypBars   as PromiseRejectedResult).reason) },
-      thypBars:   thypBars.status   === 'fulfilled' ? thypBars.value.slice(-3)   : { error: String((thypBars   as PromiseRejectedResult).reason) },
-      hypePrice:  hypePrice.status  === 'fulfilled' ? hypePrice.value  : { error: String((hypePrice  as PromiseRejectedResult).reason) },
+      bhypApi:     bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
+      thypApi:     thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
+      bhypScrape:  bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
+      yahoo:       yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
+      farside:     farside.status    === 'fulfilled' ? farside.value    : { error: String((farside    as PromiseRejectedResult).reason) },
+      bhypBars:    bhypBars.status   === 'fulfilled' ? bhypBars.value.slice(-3)  : { error: String((bhypBars   as PromiseRejectedResult).reason) },
+      thypBars:    thypBars.status   === 'fulfilled' ? thypBars.value.slice(-3)  : { error: String((thypBars   as PromiseRejectedResult).reason) },
+      hypePrice:   hypePrice.status  === 'fulfilled' ? hypePrice.value  : { error: String((hypePrice  as PromiseRejectedResult).reason) },
+      circSupply:  circSupply.status === 'fulfilled' ? circSupply.value : { error: String((circSupply  as PromiseRejectedResult).reason) },
     }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
-  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes, farsideRes, bhypBarsRes, thypBarsRes, hypePriceRes] =
+  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes, farsideRes, bhypBarsRes, thypBarsRes, hypePriceRes, circSupplyRes] =
     await Promise.allSettled([
       fetchValuationHistory(BHYP_API_URLS),
       fetchValuationHistory(THYP_API_URLS),
@@ -326,16 +346,18 @@ export async function GET(req: NextRequest) {
       fetchYahooDailyBars('BHYP'),
       fetchYahooDailyBars('THYP'),
       fetchHypePrice(),
+      fetchHypeCirculatingSupply(),
     ])
 
-  const bhypApi     = bhypApiRes.status    === 'fulfilled' ? bhypApiRes.value    : null
-  const thyp        = thypRes.status       === 'fulfilled' ? thypRes.value       : null
-  const bhypScrape  = bhypScrapeRes.status === 'fulfilled' ? bhypScrapeRes.value : { hype: 0, asOf: '' }
-  const yahoo       = yahooRes.status      === 'fulfilled' ? yahooRes.value      : {}
-  const farsideRows = farsideRes.status    === 'fulfilled' ? farsideRes.value    : []
-  const bhypBars    = bhypBarsRes.status   === 'fulfilled' ? bhypBarsRes.value   : []
-  const thypBars    = thypBarsRes.status   === 'fulfilled' ? thypBarsRes.value   : []
-  const hypePrice   = hypePriceRes.status  === 'fulfilled' ? hypePriceRes.value  : 0
+  const bhypApi            = bhypApiRes.status    === 'fulfilled' ? bhypApiRes.value    : null
+  const thyp               = thypRes.status       === 'fulfilled' ? thypRes.value       : null
+  const bhypScrape         = bhypScrapeRes.status === 'fulfilled' ? bhypScrapeRes.value : { hype: 0, asOf: '' }
+  const yahoo              = yahooRes.status      === 'fulfilled' ? yahooRes.value      : {}
+  const farsideRows        = farsideRes.status    === 'fulfilled' ? farsideRes.value    : []
+  const bhypBars           = bhypBarsRes.status   === 'fulfilled' ? bhypBarsRes.value   : []
+  const thypBars           = thypBarsRes.status   === 'fulfilled' ? thypBarsRes.value   : []
+  const hypePrice          = hypePriceRes.status  === 'fulfilled' ? hypePriceRes.value  : 0
+  const circulatingSupply  = circSupplyRes.status === 'fulfilled' ? circSupplyRes.value : 0
 
   const bhypCurrent = bhypApi?.current || bhypScrape.hype
 
@@ -397,32 +419,27 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a[0] - b[0])
       .map(([time, usd]) => ({ time, usd }))
 
-    // BHYP: Yahoo bars × implied ratio (all bars except today for ratio calibration)
-    bhypInflowHistory = []
-    if (bhypBars.length > 0) {
-      const ratio = computeImpliedRatio(bhypAum, bhypBars.slice(0, -1))
-      bhypInflowHistory = bhypBars.map(bar => ({
-        time: toMidnightUTC(bar.time),
-        usd:  bar.volumeUsd * ratio,
-      }))
-    }
+    // BHYP: Yahoo bars × FALLBACK_RATIO — do NOT compute from AUM/vol here since
+    // AUM is heavily inflated by HYPE price appreciation (~2×), giving ~94% ratio
+    bhypInflowHistory = bhypBars.map(bar => ({
+      time: toMidnightUTC(bar.time),
+      usd:  bar.volumeUsd * FALLBACK_RATIO,
+    }))
   }
 
   // Today's inflow estimates
-  // THYP: delta-shares preferred (accurate), fall back to volume×ratio
+  // THYP: delta-shares preferred (accurate), fall back to volume×FALLBACK_RATIO
   const thypYestShares   = thyp?.history.at(-2)?.units ?? 0
   const thypTodayBar     = thypBars.at(-1)
-  const thypRatio        = computeImpliedRatio(thypAum, thypBars.slice(0, -1))
   const thypInflowEstimate: number | null =
     thypYestShares > 0 && thypShares > 0
       ? (thypShares - thypYestShares) * thypNav
-      : thypTodayBar ? thypTodayBar.volumeUsd * thypRatio : null
+      : thypTodayBar ? thypTodayBar.volumeUsd * FALLBACK_RATIO : null
 
-  // BHYP: volume×ratio (no shares-outstanding history available)
+  // BHYP: volume × FALLBACK_RATIO (no shares-outstanding history available)
   const bhypTodayBar       = bhypBars.at(-1)
-  const bhypRatio          = computeImpliedRatio(bhypAum, bhypBars.slice(0, -1))
   const bhypInflowEstimate: number | null = bhypTodayBar
-    ? bhypTodayBar.volumeUsd * bhypRatio
+    ? bhypTodayBar.volumeUsd * FALLBACK_RATIO
     : null
 
   const bhypToday: ETFTodayEstimate | null = bhypAum > 0
@@ -449,6 +466,7 @@ export async function GET(req: NextRequest) {
       inflowHistory: thypInflowHistory,
       today:         thypToday,
     } : null,
+    circulatingSupply,
     ts: now,
   }
 

@@ -123,6 +123,12 @@ export default function ETFFlowsPage() {
   const totalLiveInflow = bhypToday?.inflowUsd != null || thypToday?.inflowUsd != null
     ? (bhypToday?.inflowUsd ?? 0) + (thypToday?.inflowUsd ?? 0) : null
 
+  const circulatingSupply = flows?.circulatingSupply ?? 0
+  const totalHypeAbsorbed = totalLiveInflow != null && currentPrice > 0
+    ? totalLiveInflow / currentPrice : null
+  const floatPct = circulatingSupply > 0 && totalHypeAbsorbed != null
+    ? (totalHypeAbsorbed / circulatingSupply) * 100 : null
+
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
@@ -154,12 +160,19 @@ export default function ETFFlowsPage() {
 
             {/* TOTAL row */}
             {(bhypHype + thypHype) > 0 && (
-              <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
-                usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
-                deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
-                currentPrice={currentPrice}
-                liveAum={totalLiveAum}
-                liveInflowUsd={totalLiveInflow} />
+              <>
+                <ETFTableRow label="TOTAL" issuer="" color={ETF_COLORS.total}
+                  usd={(bhypHype + thypHype) * currentPrice} hype={bhypHype + thypHype}
+                  deltaHype={bhypDeltaH !== null || thypDeltaH !== null ? (bhypDeltaH ?? 0) + (thypDeltaH ?? 0) : null}
+                  currentPrice={currentPrice}
+                  liveAum={totalLiveAum}
+                  liveInflowUsd={totalLiveInflow} />
+                {floatPct != null && (
+                  <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.04em', marginTop: -6, paddingBottom: 8 }}>
+                    ~{floatPct.toFixed(2)}% OF FLOAT
+                  </div>
+                )}
+              </>
             )}
 
             {/* ETF breakdown */}

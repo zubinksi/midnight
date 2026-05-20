@@ -444,13 +444,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Today's inflow estimates
-  // THYP: delta-shares preferred (accurate), fall back to volume×FALLBACK_RATIO
+  // THYP: today's Yahoo bar preferred (live volume-based), fall back to delta-shares
+  // Delta-shares reflects yesterday's confirmed units change — not today's data
   const thypYestShares   = thyp?.history.at(-2)?.units ?? 0
   const thypTodayBar     = thypBars.at(-1)
-  const thypInflowEstimate: number | null =
-    thypYestShares > 0 && thypShares > 0
-      ? (thypShares - thypYestShares) * thypNav
-      : thypTodayBar ? thypTodayBar.volumeUsd * FALLBACK_RATIO : null
+  const thypInflowEstimate: number | null = thypTodayBar
+    ? thypTodayBar.volumeUsd * FALLBACK_RATIO
+    : (thypYestShares > 0 && thypShares > 0 ? (thypShares - thypYestShares) * thypNav : null)
 
   // BHYP: volume × FALLBACK_RATIO (no shares-outstanding history available)
   const bhypTodayBar       = bhypBars.at(-1)

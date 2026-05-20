@@ -789,7 +789,7 @@ function NewsFeed({ posts, loading }: { posts: TelegramPost[]; loading: boolean 
           style={{ padding: '12px 0', borderBottom: '1px solid #1C1C1A', cursor: 'pointer' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-            <span style={{ fontSize: 10, color: '#26ab83', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>{post.channel}</span>
+            <span style={{ fontSize: 10, color: '#8A8880', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>{post.channel}</span>
             <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>·</span>
             <span style={{ fontSize: 10, color: '#2C2C2A', fontFamily: 'Inter,sans-serif' }}>{timeAgo(post.time)}</span>
           </div>
@@ -821,9 +821,9 @@ function renderSummaryText(
     const t = match[1]
     parts.push(
       <button key={`${t}-${match.index}`} onClick={() => onNavigate(t)} style={{
-        background: '#26ab8318', border: '1px solid #26ab8340',
+        background: '#1C1C1A', border: '1px solid #2C2C2A',
         borderRadius: 4, padding: '1px 6px', cursor: 'pointer',
-        color: '#26ab83', fontFamily: 'inherit', fontSize: 'inherit',
+        color: '#F0EDE6', fontFamily: 'inherit', fontSize: 'inherit',
         letterSpacing: 'inherit', lineHeight: 'inherit', fontWeight: 600,
         verticalAlign: 'baseline',
       }}>{t}</button>

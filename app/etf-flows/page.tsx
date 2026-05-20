@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import type { LivelineSeries } from 'liveline'
 import type { ETFFlowsData } from '@/app/api/etf-flows/route'
 import { useAssetPrice } from '@/lib/hyperliquid'
 import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
 
-const LivelineMulti = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
+const Liveline = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
 const MONO = 'Menlo,Monaco,monospace'
 const ETF_COLORS = { total: '#F0EDE6', thyp: '#26ab83', bhyp: '#F0C84A' }
@@ -28,10 +27,10 @@ function fmtTime(t: number) {
 }
 
 export default function ETFFlowsPage() {
-  const router  = useRouter()
-  const [flows, setFlows]   = useState<ETFFlowsData | null>(null)
+  const router       = useRouter()
+  const [flows, setFlows]     = useState<ETFFlowsData | null>(null)
   const [mounted, setMounted] = useState(false)
-  const livePrice  = useAssetPrice('HYPE', 5000)
+  const livePrice    = useAssetPrice('HYPE', 5000)
   const currentPrice = livePrice ?? 0
 
   useEffect(() => { setMounted(true) }, [])
@@ -49,8 +48,8 @@ export default function ETFFlowsPage() {
   const thypToday = thyp?.today ?? null
   const hasLive   = bhypToday !== null || thypToday !== null
 
-  const bhypHype  = bhyp?.current ?? 0
-  const thypHype  = thyp?.current ?? 0
+  const bhypHype   = bhyp?.current ?? 0
+  const thypHype   = thyp?.current ?? 0
   const bhypDeltaH = (bhyp?.prevClose ?? 0) > 0 ? bhypHype - (bhyp?.prevClose ?? 0) : null
   const thypDeltaH = (thyp?.prevClose ?? 0) > 0 ? thypHype - (thyp?.prevClose ?? 0) : null
 
@@ -63,8 +62,6 @@ export default function ETFFlowsPage() {
   const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p]))
 
   const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
-  const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
-  const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
 
   function toInflowSeries(history: typeof thypHistory) {
     return history.map((p, i) => ({
@@ -75,23 +72,15 @@ export default function ETFFlowsPage() {
   const thypInflows = toInflowSeries(thypHistory)
   const bhypInflows = toInflowSeries(bhypHistory)
 
-  // Skip day 0 (launch day AUM is not a real inflow event)
+  // Skip day 0 (launch AUM is not a real daily inflow)
   const inflowBarData = times.slice(1).map(t => {
     const ti = thypInflows.find(p => p.time === t)?.value ?? 0
     const bi = bhypInflows.find(p => p.time === t)?.value ?? 0
     return { time: t, total: ti + bi, thyp: ti, bhyp: bi }
   })
 
-  const aumSeries: LivelineSeries[] = [
-    { id: 'total', data: totalAum, value: totalAum.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
-    { id: 'thyp',  data: thypAum,  value: thypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
-    ...(bhypHistory.length > 0
-      ? [{ id: 'bhyp', data: bhypAum, value: bhypAum.at(-1)?.value ?? 0, color: ETF_COLORS.bhyp, label: 'BHYP' }]
-      : []),
-  ]
-
-  const hasAumChart = totalAum.length >= 2
-  const chartWindow = hasAumChart
+  const hasAumChart  = totalAum.length >= 2
+  const chartWindow  = hasAumChart
     ? Math.ceil((totalAum.at(-1)!.time - totalAum[0].time) * 1.05) + 86400
     : undefined
 
@@ -117,77 +106,8 @@ export default function ETFFlowsPage() {
           <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginLeft: 8 }}>HYPE ETF</span>
         </div>
 
-        {/* AUM chart */}
-        <div style={{ marginTop: 28 }}>
-          <div style={{ padding: '0 24px 10px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL AUM</span>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { color: ETF_COLORS.total, label: 'TOTAL' },
-                { color: ETF_COLORS.thyp,  label: 'THYP'  },
-                ...(bhypHistory.length > 0 ? [{ color: ETF_COLORS.bhyp, label: 'BHYP' }] : []),
-              ].map(({ color, label }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
-                  <span style={{ fontSize: 8, color: '#46443D', fontFamily: MONO }}>{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          {hasAumChart && mounted ? (
-            <div style={{ marginLeft: -0, marginRight: 0 }}>
-              <LivelineMulti
-                data={totalAum}
-                value={totalAum.at(-1)?.value ?? 0}
-                color={ETF_COLORS.thyp}
-                series={aumSeries}
-                theme="dark"
-                scrub
-                grid
-                lineWidth={1.5}
-                window={chartWindow}
-                formatValue={v => fmtUSD(v)}
-                formatTime={fmtTime}
-                padding={{ left: 24 }}
-                style={{ width: '100%', height: 180 }}
-              />
-            </div>
-          ) : (
-            <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>
-                {mounted ? 'NO HISTORY' : ''}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Daily inflows bar chart */}
-        <div style={{ marginTop: 20 }}>
-          <div style={{ padding: '0 24px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>DAILY INFLOWS</span>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { color: ETF_COLORS.total, label: 'TOTAL' },
-                { color: ETF_COLORS.bhyp,  label: 'BHYP'  },
-                { color: ETF_COLORS.thyp,  label: 'THYP'  },
-              ].map(({ color, label }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
-                  <span style={{ fontSize: 8, color: '#46443D', fontFamily: MONO }}>{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          {inflowBarData.length > 0
-            ? <div style={{ padding: '0 24px' }}><ETFInflowsBarChart data={inflowBarData} /></div>
-            : <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
-                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>NO HISTORY</span>
-              </div>
-          }
-        </div>
-
-        {/* Table */}
-        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 24, padding: '24px 24px 0' }}>
+        {/* Table — top of page */}
+        <div style={{ padding: '24px 24px 0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
             <div />
             <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
@@ -217,6 +137,47 @@ export default function ETFFlowsPage() {
           )}
         </div>
 
+        {/* AUM chart — single TOTAL line for clean scrub tooltip */}
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 12 }}>
+          <div style={{ padding: '16px 24px 8px' }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>TOTAL AUM</span>
+          </div>
+          {hasAumChart && mounted ? (
+            <Liveline
+              data={totalAum}
+              value={totalAum.at(-1)?.value ?? 0}
+              color={ETF_COLORS.thyp}
+              theme="dark"
+              scrub
+              grid
+              fill
+              lineWidth={1.5}
+              window={chartWindow}
+              formatValue={v => fmtUSD(v)}
+              formatTime={fmtTime}
+              padding={{ left: 24 }}
+              style={{ width: '100%', height: 180 }}
+            />
+          ) : (
+            <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>{mounted ? 'NO HISTORY' : ''}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Daily inflows bar chart */}
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 4 }}>
+          <div style={{ padding: '16px 24px 0' }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>DAILY INFLOWS</span>
+          </div>
+          {inflowBarData.length > 0
+            ? <div style={{ padding: '0 24px' }}><ETFInflowsBarChart data={inflowBarData} /></div>
+            : <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>NO HISTORY</span>
+              </div>
+          }
+        </div>
+
         <div style={{ height: 'max(env(safe-area-inset-bottom), 40px)' }} />
       </div>
     </div>
@@ -228,13 +189,13 @@ function ETFTableRow({ label, issuer, color, usd, hype, deltaHype, currentPrice,
   usd: number; hype: number; deltaHype: number | null; currentPrice: number
   liveAum?: number | null; liveInflowUsd?: number | null
 }) {
-  const displayUsd  = liveAum ?? usd
-  const displayHype = liveAum && currentPrice > 0 ? liveAum / currentPrice : hype
-  const isLiveDelta = liveInflowUsd != null
-  const deltaUsd    = isLiveDelta ? liveInflowUsd! : (deltaHype !== null ? deltaHype * currentPrice : null)
+  const displayUsd       = liveAum ?? usd
+  const displayHype      = liveAum && currentPrice > 0 ? liveAum / currentPrice : hype
+  const isLiveDelta      = liveInflowUsd != null
+  const deltaUsd         = isLiveDelta ? liveInflowUsd! : (deltaHype !== null ? deltaHype * currentPrice : null)
   const deltaHypeDisplay = isLiveDelta && currentPrice > 0 ? liveInflowUsd! / currentPrice : deltaHype
-  const up     = (deltaUsd ?? 0) >= 0
-  const dColor = up ? '#26ab83' : '#E84332'
+  const up               = (deltaUsd ?? 0) >= 0
+  const dColor           = up ? '#26ab83' : '#E84332'
 
   const grid: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8 }
 
@@ -276,4 +237,3 @@ function ETFTableRow({ label, issuer, color, usd, hype, deltaHype, currentPrice,
     </div>
   )
 }
-

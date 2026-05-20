@@ -112,7 +112,7 @@ export default function ETFFlowsPage() {
       <div style={{ maxWidth: 430, margin: '0 auto' }}>
 
         {/* Top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
+        <div style={{ padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button
             onClick={() => window.history.length > 1 ? router.back() : router.push('/chart/HYPE')}
             style={{ background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' }}
@@ -121,7 +121,7 @@ export default function ETFFlowsPage() {
               <polyline points="12,4 6,10 12,16" />
             </svg>
           </button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginLeft: 8 }}>HYPE ETF FLOWS</span>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO, letterSpacing: '0.08em', marginTop: 8 }}>HYPE ETF FLOWS</div>
         </div>
 
         {/* Table: TOTAL first, then ETF breakdown — inside a card */}
@@ -159,7 +159,7 @@ export default function ETFFlowsPage() {
         </div>
 
         {/* AUM chart */}
-        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
+        <div style={{ marginTop: 16 }}>
           <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>{aumLabel}</span>
             {!hasBhypHistory && (
@@ -196,18 +196,9 @@ export default function ETFFlowsPage() {
           <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY INFLOWS</span>
             {hoveredInflow && (
-              <div style={{ display: 'flex', gap: 10 }}>
-                {hoveredInflow.bhyp !== 0 && (
-                  <span style={{ fontSize: 10, color: ETF_COLORS.bhyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
-                    BHYP {fmtUSD(hoveredInflow.bhyp, true)}
-                  </span>
-                )}
-                {hoveredInflow.thyp !== 0 && (
-                  <span style={{ fontSize: 10, color: ETF_COLORS.thyp, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
-                    THYP {fmtUSD(hoveredInflow.thyp, true)}
-                  </span>
-                )}
-              </div>
+              <span style={{ fontSize: 10, color: (hoveredInflow.total ?? 0) >= 0 ? ETF_COLORS.total : '#E84332', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                {fmtUSD(hoveredInflow.total, true)}
+              </span>
             )}
           </div>
           {inflowBarData.length > 0
@@ -246,7 +237,7 @@ function ETFTableRow({ label, issuer, color, usd, hype, deltaHype, currentPrice,
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingTop: 2 }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>{label}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#F0EDE6', fontFamily: MONO }}>{label}</div>
           <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>{issuer}</div>
         </div>
       </div>

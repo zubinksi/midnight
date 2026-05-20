@@ -14,8 +14,7 @@ export interface InflowBarPoint {
 }
 
 const BARS = [
-  { key: 'bhyp' as const, color: ETF_COLORS.bhyp, label: 'BHYP' },
-  { key: 'thyp' as const, color: ETF_COLORS.thyp, label: 'THYP' },
+  { key: 'total' as const, color: ETF_COLORS.total, label: 'TOTAL' },
 ]
 
 export default function ETFInflowsBarChart({
@@ -44,7 +43,7 @@ export default function ETFInflowsBarChart({
   const PAD_BOTTOM = 24
   const chartH = height - PAD_BOTTOM
 
-  const allVals = data.flatMap(d => [d.bhyp, d.thyp]).filter(v => v !== 0)
+  const allVals = data.map(d => d.total).filter(v => v !== 0)
   const maxVal  = Math.max(...allVals, 0)
   const minVal  = Math.min(...allVals, 0)
   const range   = Math.max(maxVal - minVal, 1)
@@ -54,9 +53,8 @@ export default function ETFInflowsBarChart({
   if (!w || n === 0) return <div ref={ref} style={{ height }} />
 
   const groupW   = w / n
-  const barW     = Math.max(Math.floor((groupW * 0.9 - 1) / 2), 3)
-  const barGap   = 1
-  const groupPad = (groupW - (barW * 2 + barGap)) / 2
+  const barW     = Math.max(Math.floor(groupW * 0.55), 3)
+  const groupPad = (groupW - barW) / 2
 
   function toRect(value: number): { y: number; h: number } {
     const top = PAD_TOP + (chartH - PAD_TOP) * (maxVal - Math.max(value, 0)) / range
@@ -91,14 +89,14 @@ export default function ETFInflowsBarChart({
           return (
             <g key={d.time} onMouseEnter={() => handleEnter(i)}>
               <rect x={i * groupW} y={0} width={groupW} height={height - PAD_BOTTOM} fill="transparent" />
-              {BARS.map((bar, j) => {
+              {BARS.map((bar) => {
                 const v = d[bar.key]
                 if (v === 0) return null
                 const { y, h } = toRect(v)
                 return (
                   <rect
                     key={bar.key}
-                    x={gx + j * (barW + barGap)}
+                    x={gx}
                     y={y}
                     width={barW}
                     height={h}

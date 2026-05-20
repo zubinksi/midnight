@@ -28,10 +28,15 @@ function fmtTime(t: number) {
   return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate()
 }
 
+const HISTORY_PAGE_SIZE = 7
+
 function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circulatingSupply: number }) {
-  const COL = { fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }
+  const [expanded, setExpanded] = useState(false)
+  const COL  = { fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }
   const CELL = { fontSize: 11, color: '#8A8880', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' as const }
-  const sorted = [...rows].reverse()
+  const sorted  = [...rows].reverse()
+  const visible = expanded ? sorted : sorted.slice(0, HISTORY_PAGE_SIZE)
+  const hasMore = sorted.length > HISTORY_PAGE_SIZE
   return (
     <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '16px 24px 0' }}>
       <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 12 }}>DAILY HISTORY</div>
@@ -42,7 +47,7 @@ function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circ
         <div style={{ ...COL, textAlign: 'right' }}>VOLUME</div>
         <div style={{ ...COL, textAlign: 'right' }}>% FLOAT</div>
       </div>
-      {sorted.map(row => {
+      {visible.map(row => {
         const totalInflow = (row.bhypInflow ?? 0) + (row.thypInflow ?? 0)
         const totalVolume = (row.bhypVolume ?? 0) + (row.thypVolume ?? 0)
         const hasInflow   = row.bhypInflow != null || row.thypInflow != null
@@ -62,6 +67,14 @@ function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circ
           </div>
         )
       })}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', padding: '4px 0 12px' }}
+        >
+          {expanded ? 'SHOW LESS' : `SHOW ALL ${sorted.length} DAYS`}
+        </button>
+      )}
     </div>
   )
 }

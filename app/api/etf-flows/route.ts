@@ -384,9 +384,12 @@ export async function GET(req: NextRequest) {
   const bhypNav    = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
   const bhypShares = bhypYahoo?.shares ?? 0
 
-  // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point
+  // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point + today's estimated inflow
   const thypLatestPoint = thyp?.history.at(-1)
-  const thypAum    = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
+  const thypConfirmedAum = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
+  const thypTodayBarForAum = thypBars.at(-1)
+  const thypEstimatedInflow = thypTodayBarForAum ? thypTodayBarForAum.volumeUsd * FALLBACK_RATIO : 0
+  const thypAum    = thypConfirmedAum > 0 ? thypConfirmedAum + thypEstimatedInflow : 0
   const thypNav    = thypYahoo?.nav ?? thypLatestPoint?.navPerShare ?? 0
   const thypShares = thypYahoo?.shares ?? thypLatestPoint?.units ?? 0
 

@@ -226,7 +226,7 @@ async function fetchHypePrice(): Promise<number> {
 
 // --- Daily volume bars: Yahoo (primary) → Stooq (fallback) -----------------
 
-interface YahooDailyBar { time: number; volumeUsd: number }
+interface YahooDailyBar { time: number; close: number; volumeUsd: number }
 
 async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
   // Try Yahoo Finance (query1 + query2)
@@ -246,8 +246,11 @@ async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
       const closes: (number | null)[] = quotes.close ?? []
       const volumes: (number | null)[] = quotes.volume ?? []
       const bars = timestamps
-        .map((t, i) => ({ time: t, volumeUsd: (closes[i] ?? 0) * (volumes[i] ?? 0) }))
-        .filter(p => p.volumeUsd > 0)
+        .map((t, i) => {
+          const close = closes[i] ?? 0
+          return { time: t, close, volumeUsd: close * (volumes[i] ?? 0) }
+        })
+        .filter(p => p.close > 0)
       if (bars.length > 0) return bars
     } catch { continue }
   }
@@ -270,7 +273,7 @@ async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
         const close = parseFloat(p[4])
         const volume = parseFloat(p[5])
         if (isNaN(time) || close <= 0 || isNaN(volume)) return null
-        return { time, volumeUsd: close * volume }
+        return { time, close, volumeUsd: close * volume }
       }).filter((b): b is YahooDailyBar => b !== null)
       if (bars.length > 0) return bars
     }
@@ -335,36 +338,79 @@ export async function GET(req: NextRequest) {
   const hypePrice   = hypePriceRes.status  === 'fulfilled' ? hypePriceRes.value  : 0
 
   const bhypCurrent = bhypApi?.current || bhypScrape.hype
-  const bhypHistory = bhypApi?.history.length ? bhypApi.history : []
 
   const now = Date.now()
-
-  // Inflow histories from Farside actual disclosed daily flows
-  const bhypInflowHistory: ETFDailyFlow[] = farsideRows
-    .filter(r => r.bhyp !== null)
-    .map(r => ({ time: r.time, usd: r.bhyp! }))
-  const thypInflowHistory: ETFDailyFlow[] = farsideRows
-    .filter(r => r.thyp !== null)
-    .map(r => ({ time: r.time, usd: r.thyp! }))
+  const toMidnightUTC = (ts: number) => Math.floor(ts / 86400) * 86400
 
   // Yahoo Finance live AUM / NAV (may be null if Yahoo is blocked on Vercel)
   const bhypYahoo = yahoo['BHYP']
   const thypYahoo = yahoo['THYP']
 
   // BHYP AUM: Yahoo preferred, fall back to scrape × server-side HYPE price
-  const bhypAum = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
-  const bhypNav = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
+  const bhypAum    = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
+  const bhypNav    = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
   const bhypShares = bhypYahoo?.shares ?? 0
 
   // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point
   const thypLatestPoint = thyp?.history.at(-1)
-  const thypAum = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
-  const thypNav = thypYahoo?.nav ?? thypLatestPoint?.navPerShare ?? 0
+  const thypAum    = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
+  const thypNav    = thypYahoo?.nav ?? thypLatestPoint?.navPerShare ?? 0
   const thypShares = thypYahoo?.shares ?? thypLatestPoint?.units ?? 0
 
+  // BHYP history: from 21Shares API if available; otherwise reconstruct from Yahoo bar close
+  // prices — scale today's known AUM by the relative ETF price on each historical day
+  const bhypHistory: ETFHistoryPoint[] = bhypApi?.history.length
+    ? bhypApi.history
+    : (() => {
+        if (bhypBars.length === 0 || bhypAum <= 0) return []
+        const latestClose = bhypBars.at(-1)!.close
+        if (latestClose <= 0) return []
+        return bhypBars.map(bar => {
+          const scaledAum = bhypAum * (bar.close / latestClose)
+          const hype      = hypePrice > 0 ? scaledAum / hypePrice : 0
+          return {
+            time:       toMidnightUTC(bar.time),
+            usd:        scaledAum,
+            hype,
+            units:      0,
+            navPerShare: bar.close,
+          }
+        })
+      })()
+
+  // Inflow histories: Farside actual flows preferred, Yahoo bars × ratio as fallback
+  let bhypInflowHistory: ETFDailyFlow[]
+  let thypInflowHistory: ETFDailyFlow[]
+
+  if (farsideRows.length > 0) {
+    bhypInflowHistory = farsideRows.filter(r => r.bhyp !== null).map(r => ({ time: r.time, usd: r.bhyp! }))
+    thypInflowHistory = farsideRows.filter(r => r.thyp !== null).map(r => ({ time: r.time, usd: r.thyp! }))
+  } else {
+    // THYP: confirmed delta-shares from 21Shares API history
+    const thypHist = thyp?.history ?? []
+    const thypDeltaMap = new Map<number, number>()
+    for (let i = 1; i < thypHist.length; i++) {
+      const prev = thypHist[i - 1], curr = thypHist[i]
+      thypDeltaMap.set(curr.time, (curr.units - prev.units) * curr.navPerShare)
+    }
+    thypInflowHistory = [...thypDeltaMap.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([time, usd]) => ({ time, usd }))
+
+    // BHYP: Yahoo bars × implied ratio (all bars except today for ratio calibration)
+    bhypInflowHistory = []
+    if (bhypBars.length > 0) {
+      const ratio = computeImpliedRatio(bhypAum, bhypBars.slice(0, -1))
+      bhypInflowHistory = bhypBars.map(bar => ({
+        time: toMidnightUTC(bar.time),
+        usd:  bar.volumeUsd * ratio,
+      }))
+    }
+  }
+
   // Today's inflow estimates
-  // THYP: prefer delta-shares (accurate when 21Shares API has units), fall back to volume×ratio
-  const thypYestShares   = thyp?.history.at(-2)?.units ?? 0  // second-to-last = yesterday
+  // THYP: delta-shares preferred (accurate), fall back to volume×ratio
+  const thypYestShares   = thyp?.history.at(-2)?.units ?? 0
   const thypTodayBar     = thypBars.at(-1)
   const thypRatio        = computeImpliedRatio(thypAum, thypBars.slice(0, -1))
   const thypInflowEstimate: number | null =
@@ -372,18 +418,16 @@ export async function GET(req: NextRequest) {
       ? (thypShares - thypYestShares) * thypNav
       : thypTodayBar ? thypTodayBar.volumeUsd * thypRatio : null
 
-  // BHYP: volume×ratio (no history API available for delta-shares)
-  const bhypTodayBar    = bhypBars.at(-1)
-  const bhypRatio       = computeImpliedRatio(bhypAum, bhypBars.slice(0, -1))
+  // BHYP: volume×ratio (no shares-outstanding history available)
+  const bhypTodayBar       = bhypBars.at(-1)
+  const bhypRatio          = computeImpliedRatio(bhypAum, bhypBars.slice(0, -1))
   const bhypInflowEstimate: number | null = bhypTodayBar
     ? bhypTodayBar.volumeUsd * bhypRatio
     : null
 
-  // Always create today estimates when we have AUM data (from any source)
   const bhypToday: ETFTodayEstimate | null = bhypAum > 0
     ? { aum: bhypAum, nav: bhypNav, shares: bhypShares, inflowUsd: bhypInflowEstimate, ts: now }
     : null
-
   const thypToday: ETFTodayEstimate | null = thypAum > 0
     ? { aum: thypAum, nav: thypNav, shares: thypShares, inflowUsd: thypInflowEstimate, ts: now }
     : null

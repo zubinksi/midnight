@@ -75,14 +75,11 @@ export default function ETFFlowsPage() {
   const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
 
   const hasBhypHistory = bhypHistory.length > 0
-  // Only show multi-series (with TOTAL) when both ETFs have API history — otherwise
-  // TOTAL = THYP which is redundant and misleading vs the table which shows live totals
   const aumSeries: LivelineSeries[] | undefined = hasBhypHistory ? [
     { id: 'total', data: totalAum, value: totalAum.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
     { id: 'thyp',  data: thypAum,  value: thypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
     { id: 'bhyp',  data: bhypAum,  value: bhypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.bhyp,  label: 'BHYP'  },
   ] : undefined
-  // When only THYP has history, chart data is just THYP
   const aumData    = hasBhypHistory ? totalAum : thypAum
   const aumColor   = hasBhypHistory ? ETF_COLORS.total : ETF_COLORS.thyp
   const aumLabel   = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
@@ -172,9 +169,6 @@ export default function ETFFlowsPage() {
         <div style={{ marginTop: 16 }}>
           <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>{aumLabel}</span>
-            {!hasBhypHistory && (
-              <span style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.04em' }}>BHYP HISTORY UNAVAILABLE</span>
-            )}
           </div>
           {hasAumChart && mounted ? (
             <div className={aumSeries ? 'll-wrap' : undefined}>

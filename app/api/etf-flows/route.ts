@@ -537,6 +537,21 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // Append today's estimated AUM to THYP history if not already present.
+  // The 21Shares API only has confirmed data through yesterday; today's point
+  // uses thypAum (confirmed + estimated inflow) so the AUM chart shows today.
+  const thypHistoryWithToday: ETFHistoryPoint[] = (() => {
+    const base = thyp?.history ?? []
+    if (!thypToday || thypToday.aum <= 0 || base.at(-1)?.time === todayMidnight) return base
+    return [...base, {
+      time:        todayMidnight,
+      usd:         thypToday.aum,
+      hype:        hypePrice > 0 ? thypToday.aum / hypePrice : 0,
+      units:       thypToday.shares,
+      navPerShare: thypToday.nav,
+    }]
+  })()
+
   const data: ETFFlowsData = {
     bhyp: {
       current:       bhypCurrent,
@@ -550,7 +565,7 @@ export async function GET(req: NextRequest) {
       current:       thyp.current,
       prevClose:     thyp.prevClose,
       prevAsOf:      thyp.prevAsOf,
-      history:       thyp.history,
+      history:       thypHistoryWithToday,
       inflowHistory: thypInflowHistory,
       today:         thypToday,
     } : null,

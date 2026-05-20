@@ -75,14 +75,14 @@ async function main() {
 
   console.log(`Parsed ${rows.length} rows (${new Date(rows[0].time * 1000).toDateString()} – ${new Date(rows.at(-1).time * 1000).toDateString()})`)
 
-  // Write to Upstash via pipeline with 48h TTL
+  // Write to Upstash — single command format: ["SET", key, value, "EX", ttl]
   const upstashRes = await fetch(UPSTASH_REDIS_REST_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify([['SET', 'farside-hyp-flows', JSON.stringify(rows), 'EX', 172800]]),
+    body: JSON.stringify(['SET', 'farside-hyp-flows', JSON.stringify(rows), 'EX', '172800']),
   })
 
   if (!upstashRes.ok) {

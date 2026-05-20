@@ -458,9 +458,8 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5 }}>
             DAILY INFLOWS
-            {isLive && <span style={{ fontSize: 8, color: '#26ab83' }}>LIVE</span>}
           </div>
           {totalInflow !== null ? (
             <>

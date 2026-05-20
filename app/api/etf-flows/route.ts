@@ -398,6 +398,7 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now()
   const toMidnightUTC = (ts: number) => Math.floor(ts / 86400) * 86400
+  const todayMidnight = toMidnightUTC(now / 1000)
 
   // Yahoo Finance live AUM / NAV (may be null if Yahoo is blocked on Vercel)
   const bhypYahoo = yahoo['BHYP']
@@ -446,13 +447,12 @@ export async function GET(req: NextRequest) {
     bhypInflowHistory = farsideRows.filter(r => r.bhyp !== null).map(r => ({ time: r.time, usd: r.bhyp! }))
     thypInflowHistory = farsideRows.filter(r => r.thyp !== null).map(r => ({ time: r.time, usd: r.thyp! }))
     // Farside doesn't have today's data until after market close — fill from Yahoo bars
-    const todayTs = toMidnightUTC(now / 1000)
-    const bhypTodayInFlow = bhypBars.find(b => toMidnightUTC(b.time) === todayTs)
-    const thypTodayInFlow = thypBars.find(b => toMidnightUTC(b.time) === todayTs)
-    if (bhypTodayInFlow && !bhypInflowHistory.some(r => r.time === todayTs))
-      bhypInflowHistory.push({ time: todayTs, usd: bhypTodayInFlow.volumeUsd * FALLBACK_RATIO })
-    if (thypTodayInFlow && !thypInflowHistory.some(r => r.time === todayTs))
-      thypInflowHistory.push({ time: todayTs, usd: thypTodayInFlow.volumeUsd * FALLBACK_RATIO })
+    const bhypTodayInFlow = bhypBars.find(b => toMidnightUTC(b.time) === todayMidnight)
+    const thypTodayInFlow = thypBars.find(b => toMidnightUTC(b.time) === todayMidnight)
+    if (bhypTodayInFlow && !bhypInflowHistory.some(r => r.time === todayMidnight))
+      bhypInflowHistory.push({ time: todayMidnight, usd: bhypTodayInFlow.volumeUsd * FALLBACK_RATIO })
+    if (thypTodayInFlow && !thypInflowHistory.some(r => r.time === todayMidnight))
+      thypInflowHistory.push({ time: todayMidnight, usd: thypTodayInFlow.volumeUsd * FALLBACK_RATIO })
   } else {
     // THYP: confirmed delta-shares from 21Shares API history
     const thypHist = thyp?.history ?? []
@@ -478,20 +478,17 @@ export async function GET(req: NextRequest) {
     }))
   }
 
-  // Today's inflow estimates
-  // THYP: today's Yahoo bar preferred (live volume-based), fall back to delta-shares
-  // Delta-shares reflects yesterday's confirmed units change — not today's data
-  const thypYestShares   = thyp?.history.at(-2)?.units ?? 0
-  const thypTodayBar     = thypBars.at(-1)
-  const thypInflowEstimate: number | null = thypTodayBar
-    ? thypTodayBar.volumeUsd * FALLBACK_RATIO
-    : (thypYestShares > 0 && thypShares > 0 ? (thypShares - thypYestShares) * thypNav : null)
-
-  // BHYP: volume × FALLBACK_RATIO (no shares-outstanding history available)
-  const bhypTodayBar       = bhypBars.at(-1)
-  const bhypInflowEstimate: number | null = bhypTodayBar
-    ? bhypTodayBar.volumeUsd * FALLBACK_RATIO
-    : null
+  // Today's inflow estimates — sourced from inflow histories so the top table and
+  // history/chart always agree. Farside confirmed value is used when available;
+  // otherwise falls back to Yahoo bar × FALLBACK_RATIO (already in the histories).
+  const bhypTodayBar = bhypBars.at(-1)
+  const thypTodayBar = thypBars.at(-1)
+  const bhypInflowEstimate: number | null =
+    bhypInflowHistory.find(r => r.time === todayMidnight)?.usd
+    ?? (bhypTodayBar ? bhypTodayBar.volumeUsd * FALLBACK_RATIO : null)
+  const thypInflowEstimate: number | null =
+    thypInflowHistory.find(r => r.time === todayMidnight)?.usd
+    ?? (thypTodayBar ? thypTodayBar.volumeUsd * FALLBACK_RATIO : null)
 
   const bhypToday: ETFTodayEstimate | null = bhypAum > 0
     ? { aum: bhypAum, nav: bhypNav, shares: bhypShares, inflowUsd: bhypInflowEstimate, ts: now }
@@ -514,8 +511,6 @@ export async function GET(req: NextRequest) {
     ...bhypBars.map(b => toMidnightUTC(b.time)),
     ...thypBars.map(b => toMidnightUTC(b.time)),
   ])].sort((a, b) => a - b)
-
-  const todayMidnight = toMidnightUTC(now / 1000)
 
   const dailyHistory: DailyRow[] = allDays.map(t => {
     const bh = bhypHistByTime[t]

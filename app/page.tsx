@@ -906,8 +906,8 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
         style={{
           background: 'none', border: 'none', borderRadius: '50%',
           width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 0, cursor: 'pointer', fontSize: 20,
-          color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1, fontSize: 15,
+          padding: 0, cursor: 'pointer', fontSize: 15,
+          color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1,
         }}
       >★</button>
       <div style={{ width: 90, flexShrink: 0 }}>

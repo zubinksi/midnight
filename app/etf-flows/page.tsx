@@ -188,7 +188,7 @@ export default function ETFFlowsPage() {
         <div style={{ margin: '20px 16px 0' }}>
           <div style={{ background: '#0F0F0D', border: '1px solid #1C1C1A', borderRadius: 16, padding: '16px 16px 4px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
-              <div />
+              <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>ETFs</div>
               <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
               <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>
                 DAILY EST.

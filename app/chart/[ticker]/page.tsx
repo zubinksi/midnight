@@ -385,7 +385,7 @@ function StatsGrid({ assetInfo, currentPrice }: {
   ]
 
   return (
-    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
+    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 12px' }}>
       {stats.map(({ label, value, color }) => (
         <div key={label}>
           <div style={{ fontSize: 10, color: '#46443D', fontFamily: 'Menlo,Monaco,monospace', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</div>
@@ -430,12 +430,12 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
   const inflowColor = inflowUp ? '#26ab83' : '#E84332'
 
   return (
-    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 0, padding: '24px 24px 0' }}>
+    <div style={{ margin: '0 16px 24px', background: '#0F0F0D', border: '1px solid #1C1C1A', borderRadius: 16, padding: '16px 16px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>HYPE ETF FLOWS</span>
+        <span style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em' }}>HYPE ETF FLOWS</span>
         <button
           onClick={() => router.push('/etf-flows')}
-          style={{ background: 'none', border: 'none', color: '#46443D', fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ background: 'none', border: 'none', color: '#8A8880', fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
         >
           VIEW FULL
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -446,7 +446,7 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px' }}>
         <div>
-          <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5 }}>TOTAL AUM</div>
+          <div style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5 }}>TOTAL AUM</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: totalHype > 0 ? '#F0EDE6' : '#2C2C2A', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
             {totalHype > 0 ? fmtUSD(totalAumUsd) : '—'}
           </div>
@@ -458,7 +458,7 @@ function ETFFlowsSummary({ flows, currentPrice }: { flows: ETFFlowsData | null; 
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 10, color: '#8A8880', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
             DAILY INFLOWS
             {isLive && <span style={{ fontSize: 8, color: '#26ab83' }}>LIVE</span>}
           </div>

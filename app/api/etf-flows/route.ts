@@ -34,6 +34,16 @@ export interface ETFTodayEstimate {
   ts: number
 }
 
+export interface DailyRow {
+  time: number
+  totalAum: number
+  bhypInflow: number | null
+  thypInflow: number | null
+  bhypVolume: number | null
+  thypVolume: number | null
+  hypePrice: number | null
+}
+
 export interface ETFFlowsData {
   bhyp: {
     current: number
@@ -51,7 +61,8 @@ export interface ETFFlowsData {
     inflowHistory: ETFDailyFlow[]
     today: ETFTodayEstimate | null
   } | null
-  circulatingSupply: number  // HYPE tokens in circulation
+  dailyHistory: DailyRow[]
+  circulatingSupply: number
   ts: number
 }
 
@@ -415,6 +426,11 @@ export async function GET(req: NextRequest) {
       const prev = thypHist[i - 1], curr = thypHist[i]
       thypDeltaMap.set(curr.time, (curr.units - prev.units) * curr.navPerShare)
     }
+    // For days not covered by delta-shares (e.g. today), fill from Yahoo bars
+    for (const bar of thypBars) {
+      const day = toMidnightUTC(bar.time)
+      if (!thypDeltaMap.has(day)) thypDeltaMap.set(day, bar.volumeUsd * FALLBACK_RATIO)
+    }
     thypInflowHistory = [...thypDeltaMap.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([time, usd]) => ({ time, usd }))
@@ -449,6 +465,38 @@ export async function GET(req: NextRequest) {
     ? { aum: thypAum, nav: thypNav, shares: thypShares, inflowUsd: thypInflowEstimate, ts: now }
     : null
 
+  // Build per-day history table: union of all known dates across all sources
+  const bhypHistByTime  = Object.fromEntries(bhypHistory.map(p  => [p.time,  p]))
+  const thypHistByTime  = Object.fromEntries((thyp?.history ?? []).map(p => [p.time, p]))
+  const bhypInflowByDay = Object.fromEntries(bhypInflowHistory.map(p => [p.time, p.usd]))
+  const thypInflowByDay = Object.fromEntries(thypInflowHistory.map(p => [p.time, p.usd]))
+  const bhypVolByDay    = Object.fromEntries(bhypBars.map(b => [toMidnightUTC(b.time), b.volumeUsd]))
+  const thypVolByDay    = Object.fromEntries(thypBars.map(b => [toMidnightUTC(b.time), b.volumeUsd]))
+
+  const allDays = [...new Set([
+    ...bhypHistory.map(p => p.time),
+    ...(thyp?.history ?? []).map(p => p.time),
+    ...bhypBars.map(b => toMidnightUTC(b.time)),
+    ...thypBars.map(b => toMidnightUTC(b.time)),
+  ])].sort((a, b) => a - b)
+
+  const dailyHistory: DailyRow[] = allDays.map(t => {
+    const bh = bhypHistByTime[t]
+    const th = thypHistByTime[t]
+    const totalAum = (bh?.usd ?? 0) + (th?.usd ?? 0)
+    // Derive HYPE price from THYP history (usd/hype is most accurate); fall back to current
+    const dayHypePrice = th && th.hype > 0 ? th.usd / th.hype : (hypePrice || null)
+    return {
+      time:        t,
+      totalAum,
+      bhypInflow:  bhypInflowByDay[t] ?? null,
+      thypInflow:  thypInflowByDay[t] ?? null,
+      bhypVolume:  bhypVolByDay[t]    ?? null,
+      thypVolume:  thypVolByDay[t]    ?? null,
+      hypePrice:   dayHypePrice,
+    }
+  })
+
   const data: ETFFlowsData = {
     bhyp: {
       current:       bhypCurrent,
@@ -466,6 +514,7 @@ export async function GET(req: NextRequest) {
       inflowHistory: thypInflowHistory,
       today:         thypToday,
     } : null,
+    dailyHistory,
     circulatingSupply,
     ts: now,
   }

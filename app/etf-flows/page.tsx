@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { LivelineSeries } from 'liveline'
-import type { ETFFlowsData } from '@/app/api/etf-flows/route'
+import type { ETFFlowsData, DailyRow } from '@/app/api/etf-flows/route'
 import type { InflowBarPoint } from '@/components/ETFInflowsBarChart'
 import { useAssetPrice } from '@/lib/hyperliquid'
 import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
@@ -26,6 +26,44 @@ function fmtUSD(usd: number, sign = false) {
 function fmtTime(t: number) {
   const d = new Date(t * 1000)
   return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate()
+}
+
+function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circulatingSupply: number }) {
+  const COL = { fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }
+  const CELL = { fontSize: 11, color: '#8A8880', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' as const }
+  const sorted = [...rows].reverse()
+  return (
+    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '16px 24px 0' }}>
+      <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 12 }}>DAILY HISTORY</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '54px 1fr 1fr 1fr 52px', columnGap: 8, marginBottom: 6 }}>
+        <div style={COL}>DATE</div>
+        <div style={{ ...COL, textAlign: 'right' }}>AUM</div>
+        <div style={{ ...COL, textAlign: 'right' }}>INFLOWS</div>
+        <div style={{ ...COL, textAlign: 'right' }}>VOLUME</div>
+        <div style={{ ...COL, textAlign: 'right' }}>% FLOAT</div>
+      </div>
+      {sorted.map(row => {
+        const totalInflow = (row.bhypInflow ?? 0) + (row.thypInflow ?? 0)
+        const totalVolume = (row.bhypVolume ?? 0) + (row.thypVolume ?? 0)
+        const hasInflow   = row.bhypInflow != null || row.thypInflow != null
+        const hasVolume   = row.bhypVolume != null || row.thypVolume != null
+        const floatPct    = hasInflow && circulatingSupply > 0 && row.hypePrice && row.hypePrice > 0
+          ? (totalInflow / row.hypePrice / circulatingSupply * 100).toFixed(2) + '%'
+          : '—'
+        return (
+          <div key={row.time} style={{ display: 'grid', gridTemplateColumns: '54px 1fr 1fr 1fr 52px', columnGap: 8, paddingBottom: 10 }}>
+            <div style={{ ...CELL, color: '#F0EDE6' }}>{fmtTime(row.time)}</div>
+            <div style={{ ...CELL, textAlign: 'right' }}>{row.totalAum > 0 ? fmtUSD(row.totalAum) : '—'}</div>
+            <div style={{ ...CELL, textAlign: 'right', color: hasInflow ? '#F0EDE6' : '#46443D' }}>
+              {hasInflow ? fmtUSD(totalInflow, true) : '—'}
+            </div>
+            <div style={{ ...CELL, textAlign: 'right' }}>{hasVolume ? fmtUSD(totalVolume) : '—'}</div>
+            <div style={{ ...CELL, textAlign: 'right' }}>{floatPct}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function ETFFlowsPage() {
@@ -151,8 +189,8 @@ export default function ETFFlowsPage() {
           <div style={{ background: '#0F0F0D', border: '1px solid #1C1C1A', borderRadius: 16, padding: '16px 16px 4px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 8, marginBottom: 10 }}>
               <div />
-              <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
-              <div style={{ textAlign: 'right', fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }}>AUM</div>
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                 {hasLive && <span style={{ color: '#26ab83', letterSpacing: '0.04em' }}>LIVE</span>}
                 <span>DAILY EST.</span>
               </div>
@@ -236,6 +274,11 @@ export default function ETFFlowsPage() {
               </div>
           }
         </div>
+
+        {/* Historical data table */}
+        {flows?.dailyHistory && flows.dailyHistory.length > 0 && (
+          <DailyHistoryTable rows={flows.dailyHistory} circulatingSupply={circulatingSupply} />
+        )}
 
         <div style={{ height: 'max(env(safe-area-inset-bottom), 40px)' }} />
       </div>

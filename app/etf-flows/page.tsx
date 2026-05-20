@@ -162,10 +162,6 @@ export default function ETFFlowsPage() {
     ? (bhypToday?.inflowUsd ?? 0) + (thypToday?.inflowUsd ?? 0) : null
 
   const circulatingSupply = flows?.circulatingSupply ?? 0
-  const totalHypeAbsorbed = totalLiveInflow != null && currentPrice > 0
-    ? totalLiveInflow / currentPrice : null
-  const floatPct = circulatingSupply > 0 && totalHypeAbsorbed != null
-    ? (totalHypeAbsorbed / circulatingSupply) * 100 : null
 
   return (
     <div style={{ background: '#080807', minHeight: '100dvh' }}>
@@ -204,11 +200,6 @@ export default function ETFFlowsPage() {
                   currentPrice={currentPrice}
                   liveAum={totalLiveAum}
                   liveInflowUsd={totalLiveInflow} />
-                {floatPct != null && (
-                  <div style={{ textAlign: 'right', fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.04em', marginTop: -6, paddingBottom: 8 }}>
-                    ~{floatPct.toFixed(2)}% OF FLOAT
-                  </div>
-                )}
               </>
             )}
 

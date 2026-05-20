@@ -17,16 +17,21 @@ export interface ETFHistoryPoint {
   time: number        // unix seconds (midnight UTC of valuation date)
   usd: number         // total AUM (total_nav)
   hype: number        // HYPE quantity
-  units: number       // shares outstanding (for true inflow calc)
-  navPerShare: number // NAV per share (for true inflow calc)
+  units: number       // shares outstanding
+  navPerShare: number // NAV per share
+}
+
+export interface ETFDailyFlow {
+  time: number  // unix seconds, midnight UTC of the trading day
+  usd: number   // net flow USD (negative = outflows)
 }
 
 export interface ETFTodayEstimate {
-  aum: number       // Yahoo Finance totalAssets (live AUM)
-  nav: number       // Yahoo Finance navPrice (live NAV/share)
-  shares: number    // current shares outstanding
-  inflowUsd: number | null // null when no historical baseline available
-  ts: number        // timestamp ms
+  aum: number           // Yahoo Finance totalAssets (live AUM)
+  nav: number           // Yahoo Finance navPrice (live NAV/share)
+  shares: number        // current shares outstanding
+  inflowUsd: number | null
+  ts: number
 }
 
 export interface ETFFlowsData {
@@ -35,6 +40,7 @@ export interface ETFFlowsData {
     prevClose: number
     prevAsOf: string
     history: ETFHistoryPoint[]
+    inflowHistory: ETFDailyFlow[]
     today: ETFTodayEstimate | null
   }
   thyp: {
@@ -42,6 +48,7 @@ export interface ETFFlowsData {
     prevClose: number
     prevAsOf: string
     history: ETFHistoryPoint[]
+    inflowHistory: ETFDailyFlow[]
     today: ETFTodayEstimate | null
   } | null
   ts: number
@@ -82,19 +89,17 @@ async function fetchValuationHistory(urls: string[]): Promise<{
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let entries: Record<string, any>[] = []
-      if (Array.isArray(json))              entries = json
-      else if (Array.isArray(json?.data))   entries = json.data
-      else if (Array.isArray(json?.history))entries = json.history
-      else if (Array.isArray(json?.results))entries = json.results
+      if (Array.isArray(json))               entries = json
+      else if (Array.isArray(json?.data))    entries = json.data
+      else if (Array.isArray(json?.history)) entries = json.history
+      else if (Array.isArray(json?.results)) entries = json.results
       if (entries.length === 0) continue
 
-      // Sort descending to get latest first
       entries.sort((a, b) =>
         String(b.valuation_date ?? b.date ?? '').localeCompare(String(a.valuation_date ?? a.date ?? ''))
       )
 
       const points = entries.map(entryToPoint).filter((p): p is ETFHistoryPoint => p !== null)
-      // history in ascending order for charting
       const history = [...points].reverse()
 
       return {
@@ -112,10 +117,7 @@ async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&fields=navPrice,totalAssets,sharesOutstanding`
   try {
     const res = await fetch(url, {
-      headers: {
-        ...BROWSER_HEADERS,
-        'Accept': 'application/json',
-      },
+      headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
       next: { revalidate: 0 },
     })
     if (!res.ok) return {}
@@ -124,7 +126,6 @@ async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum
     const results: Record<string, any>[] = json?.quoteResponse?.result ?? []
     const out: Record<string, { aum: number; nav: number; shares: number }> = {}
     for (const q of results) {
-      // ETFs may use navPrice or regularMarketPrice; impliedSharesOutstanding is ETF-specific
       const nav = parseFloat(q.navPrice ?? q.regularMarketPrice ?? 0)
       const aum = parseFloat(q.totalAssets ?? 0)
       const sharesRaw = parseFloat(q.impliedSharesOutstanding ?? q.sharesOutstanding ?? 0)
@@ -150,82 +151,184 @@ async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
   } catch { return { hype: 0, asOf: '' } }
 }
 
+// --- Farside daily flows ---------------------------------------------------
+
+interface FarsideRow { time: number; bhyp: number | null; thyp: number | null }
+
+function parseFarsideHtml(html: string): FarsideRow[] {
+  const dateRegex = /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/
+  const rows: FarsideRow[] = []
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+  let trMatch: RegExpExecArray | null
+  while ((trMatch = trRegex.exec(html)) !== null) {
+    const cells: string[] = []
+    const tdRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi
+    let tdMatch: RegExpExecArray | null
+    while ((tdMatch = tdRegex.exec(trMatch[1])) !== null) {
+      cells.push(tdMatch[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim())
+    }
+    if (cells.length < 3 || !dateRegex.test(cells[0])) continue
+    const dm = cells[0].match(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})/)
+    if (!dm) continue
+    const time = Math.floor(new Date(`${dm[2]} ${dm[1]}, ${dm[3]} UTC`).getTime() / 1000)
+    if (isNaN(time)) continue
+    const parseM = (s: string): number | null => {
+      const clean = s.replace(/,/g, '').trim()
+      if (!clean || clean === '-') return null
+      const n = parseFloat(clean)
+      return isNaN(n) ? null : Math.round(n * 1_000_000)
+    }
+    rows.push({ time, bhyp: parseM(cells[1]), thyp: parseM(cells[2]) })
+  }
+  return rows.sort((a, b) => a.time - b.time)
+}
+
+async function fetchFarsideFlows(): Promise<FarsideRow[]> {
+  try {
+    const res = await fetch('https://farside.co.uk/hyp/', {
+      headers: { ...BROWSER_HEADERS, 'Accept': 'text/html,*/*' },
+      next: { revalidate: 0 },
+    })
+    if (!res.ok) return []
+    const html = await res.text()
+    if (html.length < 1000) return []
+    return parseFarsideHtml(html)
+  } catch { return [] }
+}
+
+// --- Yahoo daily volume bars (for ratio-based today estimate) --------------
+
+interface YahooDailyBar { time: number; volumeUsd: number }
+
+async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`
+  try {
+    const res = await fetch(url, {
+      headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
+      next: { revalidate: 0 },
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    const result = json?.chart?.result?.[0]
+    if (!result) return []
+    const timestamps: number[] = result.timestamp ?? []
+    const quotes = result.indicators?.quote?.[0] ?? {}
+    const closes: (number | null)[] = quotes.close ?? []
+    const volumes: (number | null)[] = quotes.volume ?? []
+    return timestamps
+      .map((t, i) => ({ time: t, volumeUsd: (closes[i] ?? 0) * (volumes[i] ?? 0) }))
+      .filter(p => p.volumeUsd > 0)
+  } catch { return [] }
+}
+
+// Ratio = latest known AUM / cumulative volume since launch, clamped to [5%, 70%]
+function computeImpliedRatio(latestAumUsd: number, bars: YahooDailyBar[]): number {
+  const totalVol = bars.reduce((s, b) => s + b.volumeUsd, 0)
+  if (totalVol <= 0 || latestAumUsd <= 0) return 0.28
+  return Math.min(Math.max(latestAumUsd / totalVol, 0.05), 0.70)
+}
+
 export async function GET(req: NextRequest) {
   if (new URL(req.url).searchParams.has('debug')) {
-    const [bhypApi, thyp, bhypScrape, yahoo] = await Promise.allSettled([
+    const [bhypApi, thyp, bhypScrape, yahoo, farside, bhypBars, thypBars] = await Promise.allSettled([
       fetchValuationHistory(BHYP_API_URLS),
       fetchValuationHistory(THYP_API_URLS),
       scrapeBHYP(),
       fetchYahooQuotes(['BHYP', 'THYP']),
+      fetchFarsideFlows(),
+      fetchYahooDailyBars('BHYP'),
+      fetchYahooDailyBars('THYP'),
     ])
     return NextResponse.json({
       bhypApi:    bhypApi.status    === 'fulfilled' ? bhypApi.value    : { error: String((bhypApi    as PromiseRejectedResult).reason) },
       thypApi:    thyp.status       === 'fulfilled' ? thyp.value       : { error: String((thyp       as PromiseRejectedResult).reason) },
       bhypScrape: bhypScrape.status === 'fulfilled' ? bhypScrape.value : { error: String((bhypScrape as PromiseRejectedResult).reason) },
       yahoo:      yahoo.status      === 'fulfilled' ? yahoo.value      : { error: String((yahoo      as PromiseRejectedResult).reason) },
+      farside:    farside.status    === 'fulfilled' ? farside.value    : { error: String((farside    as PromiseRejectedResult).reason) },
+      bhypBars:   bhypBars.status   === 'fulfilled' ? bhypBars.value   : { error: String((bhypBars   as PromiseRejectedResult).reason) },
+      thypBars:   thypBars.status   === 'fulfilled' ? thypBars.value   : { error: String((thypBars   as PromiseRejectedResult).reason) },
     }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
-  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes] = await Promise.allSettled([
-    fetchValuationHistory(BHYP_API_URLS),
-    fetchValuationHistory(THYP_API_URLS),
-    scrapeBHYP(),
-    fetchYahooQuotes(['BHYP', 'THYP']),
-  ])
+  const [bhypApiRes, thypRes, bhypScrapeRes, yahooRes, farsideRes, bhypBarsRes, thypBarsRes] =
+    await Promise.allSettled([
+      fetchValuationHistory(BHYP_API_URLS),
+      fetchValuationHistory(THYP_API_URLS),
+      scrapeBHYP(),
+      fetchYahooQuotes(['BHYP', 'THYP']),
+      fetchFarsideFlows(),
+      fetchYahooDailyBars('BHYP'),
+      fetchYahooDailyBars('THYP'),
+    ])
 
-  const bhypApi   = bhypApiRes.status   === 'fulfilled' ? bhypApiRes.value   : null
-  const thyp      = thypRes.status      === 'fulfilled' ? thypRes.value      : null
-  const bhypScrape= bhypScrapeRes.status=== 'fulfilled' ? bhypScrapeRes.value: { hype: 0, asOf: '' }
-  const yahoo     = yahooRes.status     === 'fulfilled' ? yahooRes.value     : {}
+  const bhypApi     = bhypApiRes.status    === 'fulfilled' ? bhypApiRes.value    : null
+  const thyp        = thypRes.status       === 'fulfilled' ? thypRes.value       : null
+  const bhypScrape  = bhypScrapeRes.status === 'fulfilled' ? bhypScrapeRes.value : { hype: 0, asOf: '' }
+  const yahoo       = yahooRes.status      === 'fulfilled' ? yahooRes.value      : {}
+  const farsideRows = farsideRes.status    === 'fulfilled' ? farsideRes.value    : []
+  const bhypBars    = bhypBarsRes.status   === 'fulfilled' ? bhypBarsRes.value   : []
+  const thypBars    = thypBarsRes.status   === 'fulfilled' ? thypBarsRes.value   : []
 
-  // Prefer API history; fall back to scrape as single current point
-  const bhypCurrent  = bhypApi?.current  || bhypScrape.hype
-  const bhypHistory  = bhypApi?.history.length ? bhypApi.history : []
+  const bhypCurrent = bhypApi?.current || bhypScrape.hype
+  const bhypHistory = bhypApi?.history.length ? bhypApi.history : []
 
   const now = Date.now()
 
-  // Yahoo Finance live estimates for today
-  // Create today estimate whenever Yahoo has data; inflowUsd requires a historical baseline
+  // Inflow histories from Farside actual disclosed daily flows
+  const bhypInflowHistory: ETFDailyFlow[] = farsideRows
+    .filter(r => r.bhyp !== null)
+    .map(r => ({ time: r.time, usd: r.bhyp! }))
+  const thypInflowHistory: ETFDailyFlow[] = farsideRows
+    .filter(r => r.thyp !== null)
+    .map(r => ({ time: r.time, usd: r.thyp! }))
+
+  // Yahoo Finance live AUM / NAV
   const bhypYahoo = yahoo['BHYP']
-  const bhypYestShares = bhypHistory.at(-1)?.units ?? 0
-  const bhypToday: ETFTodayEstimate | null = bhypYahoo
-    ? {
-        aum:       bhypYahoo.aum,
-        nav:       bhypYahoo.nav,
-        shares:    bhypYahoo.shares,
-        inflowUsd: bhypYestShares > 0 ? (bhypYahoo.shares - bhypYestShares) * bhypYahoo.nav : null,
-        ts:        now,
-      }
+  const thypYahoo = yahoo['THYP']
+
+  // Today's inflow estimates
+  // THYP: prefer delta-shares (accurate when 21Shares API has units), fall back to volume×ratio
+  const thypYestShares   = thyp?.history.at(-1)?.units ?? 0
+  const thypTodayBar     = thypBars.at(-1)
+  const thypRatio        = computeImpliedRatio(thypYahoo?.aum ?? 0, thypBars.slice(0, -1))
+  const thypInflowEstimate: number | null =
+    thypYestShares > 0 && thypYahoo
+      ? (thypYahoo.shares - thypYestShares) * thypYahoo.nav
+      : thypTodayBar ? thypTodayBar.volumeUsd * thypRatio : null
+
+  // BHYP: volume×ratio (no history API available for delta-shares)
+  const bhypTodayBar       = bhypBars.at(-1)
+  const bhypRatio          = computeImpliedRatio(bhypYahoo?.aum ?? 0, bhypBars.slice(0, -1))
+  const bhypInflowEstimate: number | null = bhypTodayBar
+    ? bhypTodayBar.volumeUsd * bhypRatio
     : null
 
-  const thypYahoo = yahoo['THYP']
-  const thypYestShares = thyp?.history.at(-1)?.units ?? 0
+  const bhypToday: ETFTodayEstimate | null = bhypYahoo
+    ? { aum: bhypYahoo.aum, nav: bhypYahoo.nav, shares: bhypYahoo.shares, inflowUsd: bhypInflowEstimate, ts: now }
+    : null
+
   const thypToday: ETFTodayEstimate | null = thypYahoo
-    ? {
-        aum:       thypYahoo.aum,
-        nav:       thypYahoo.nav,
-        shares:    thypYahoo.shares,
-        inflowUsd: thypYestShares > 0 ? (thypYahoo.shares - thypYestShares) * thypYahoo.nav : null,
-        ts:        now,
-      }
+    ? { aum: thypYahoo.aum, nav: thypYahoo.nav, shares: thypYahoo.shares, inflowUsd: thypInflowEstimate, ts: now }
     : null
 
   const data: ETFFlowsData = {
     bhyp: {
-      current:   bhypCurrent,
-      prevClose: bhypApi?.prevClose ?? 0,
-      prevAsOf:  bhypApi?.prevAsOf  ?? bhypScrape.asOf,
-      history:   bhypHistory,
-      today:     bhypToday,
+      current:       bhypCurrent,
+      prevClose:     bhypApi?.prevClose ?? 0,
+      prevAsOf:      bhypApi?.prevAsOf  ?? bhypScrape.asOf,
+      history:       bhypHistory,
+      inflowHistory: bhypInflowHistory,
+      today:         bhypToday,
     },
     thyp: thyp && (thyp.current > 0 || thyp.history.length > 0) ? {
-      current:   thyp.current,
-      prevClose: thyp.prevClose,
-      prevAsOf:  thyp.prevAsOf,
-      history:   thyp.history,
-      today:     thypToday,
+      current:       thyp.current,
+      prevClose:     thyp.prevClose,
+      prevAsOf:      thyp.prevAsOf,
+      history:       thyp.history,
+      inflowHistory: thypInflowHistory,
+      today:         thypToday,
     } : null,
     ts: now,
   }

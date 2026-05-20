@@ -64,6 +64,12 @@ export default function ETFFlowsPage() {
   const thypByTime = Object.fromEntries(thypHistory.map(p => [p.time, p]))
   const bhypByTime = Object.fromEntries(bhypHistory.map(p => [p.time, p]))
 
+  // Farside actual daily inflow histories
+  const bhypInflowHistory = bhyp?.inflowHistory ?? []
+  const thypInflowHistory = thyp?.inflowHistory ?? []
+  const bhypInflowByTime  = Object.fromEntries(bhypInflowHistory.map(p => [p.time, p.usd]))
+  const thypInflowByTime  = Object.fromEntries(thypInflowHistory.map(p => [p.time, p.usd]))
+
   const thypAum  = times.map(t => ({ time: t, value: thypByTime[t]?.usd ?? 0 }))
   const bhypAum  = times.map(t => ({ time: t, value: bhypByTime[t]?.usd ?? 0 }))
   const totalAum = times.map(t => ({ time: t, value: (thypByTime[t]?.usd ?? 0) + (bhypByTime[t]?.usd ?? 0) }))
@@ -81,20 +87,15 @@ export default function ETFFlowsPage() {
   const aumColor   = hasBhypHistory ? ETF_COLORS.total : ETF_COLORS.thyp
   const aumLabel   = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
 
-  function toInflowSeries(history: typeof thypHistory) {
-    return history.map((p, i) => ({
-      time:  p.time,
-      value: i === 0 ? p.usd : (p.units - history[i - 1].units) * p.navPerShare,
-    }))
-  }
-  const thypInflows = toInflowSeries(thypHistory)
-  const bhypInflows = toInflowSeries(bhypHistory)
-
-  // Skip day 0 (launch AUM is not a real daily inflow)
-  const inflowBarData = times.slice(1).map(t => {
-    const ti = thypInflows.find(p => p.time === t)?.value ?? 0
-    const bi = bhypInflows.find(p => p.time === t)?.value ?? 0
-    return { time: t, total: ti + bi, thyp: ti, bhyp: bi }
+  // Bar chart data from Farside actual disclosed flows
+  const inflowFlowTimes = [...new Set([
+    ...bhypInflowHistory.map(p => p.time),
+    ...thypInflowHistory.map(p => p.time),
+  ])].sort((a, b) => a - b)
+  const inflowBarData = inflowFlowTimes.map(t => {
+    const bi = bhypInflowByTime[t] ?? 0
+    const ti = thypInflowByTime[t] ?? 0
+    return { time: t, total: bi + ti, bhyp: bi, thyp: ti }
   })
 
   const hasAumChart = aumData.length >= 2

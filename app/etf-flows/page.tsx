@@ -87,16 +87,25 @@ export default function ETFFlowsPage() {
   const aumColor   = hasBhypHistory ? ETF_COLORS.total : ETF_COLORS.thyp
   const aumLabel   = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
 
-  // Bar chart data from Farside actual disclosed flows
-  const inflowFlowTimes = [...new Set([
-    ...bhypInflowHistory.map(p => p.time),
-    ...thypInflowHistory.map(p => p.time),
-  ])].sort((a, b) => a - b)
-  const inflowBarData = inflowFlowTimes.map(t => {
-    const bi = bhypInflowByTime[t] ?? 0
-    const ti = thypInflowByTime[t] ?? 0
-    return { time: t, total: bi + ti, bhyp: bi, thyp: ti }
-  })
+  // Bar chart: Farside actual flows when available, otherwise delta-shares from THYP API history
+  const hasFarsideData = bhypInflowHistory.length > 0 || thypInflowHistory.length > 0
+  const inflowBarData: { time: number; total: number; bhyp: number; thyp: number }[] = hasFarsideData
+    ? (() => {
+        const ts = [...new Set([
+          ...bhypInflowHistory.map(p => p.time),
+          ...thypInflowHistory.map(p => p.time),
+        ])].sort((a, b) => a - b)
+        return ts.map(t => {
+          const bi = bhypInflowByTime[t] ?? 0
+          const ti = thypInflowByTime[t] ?? 0
+          return { time: t, total: bi + ti, bhyp: bi, thyp: ti }
+        })
+      })()
+    : thypHistory.slice(1).map((p, i) => {
+        const prev = thypHistory[i] // slice(1) means index i in slice = index i+1 in original
+        const ti = (p.units - prev.units) * p.navPerShare
+        return { time: p.time, total: ti, bhyp: 0, thyp: ti }
+      })
 
   const hasAumChart = aumData.length >= 2
   const chartWindow = hasAumChart

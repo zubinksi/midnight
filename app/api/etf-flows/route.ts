@@ -113,27 +113,37 @@ async function fetchValuationHistory(urls: string[]): Promise<{
   return { current: 0, prevClose: 0, prevAsOf: '', history: [] }
 }
 
-async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum: number; nav: number; shares: number }>> {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&fields=navPrice,totalAssets,sharesOutstanding`
-  try {
-    const res = await fetch(url, {
-      headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
-      next: { revalidate: 0 },
-    })
-    if (!res.ok) return {}
-    const json = await res.json()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results: Record<string, any>[] = json?.quoteResponse?.result ?? []
-    const out: Record<string, { aum: number; nav: number; shares: number }> = {}
-    for (const q of results) {
-      const nav = parseFloat(q.navPrice ?? q.regularMarketPrice ?? 0)
-      const aum = parseFloat(q.totalAssets ?? 0)
-      const sharesRaw = parseFloat(q.impliedSharesOutstanding ?? q.sharesOutstanding ?? 0)
+async function fetchYahooQuote(symbol: string): Promise<{ aum: number; nav: number; shares: number } | null> {
+  // Use v8 chart endpoint — try both query1 and query2 subdomains
+  for (const host of ['query1', 'query2']) {
+    const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`
+    try {
+      const res = await fetch(url, {
+        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
+        next: { revalidate: 0 },
+      })
+      if (!res.ok) continue
+      const json = await res.json()
+      const meta = json?.chart?.result?.[0]?.meta
+      if (!meta) continue
+      const nav = parseFloat(meta.navPrice ?? meta.regularMarketPrice ?? 0)
+      const aum = parseFloat(meta.totalAssets ?? 0)
+      const sharesRaw = parseFloat(meta.impliedSharesOutstanding ?? meta.sharesOutstanding ?? 0)
       const shares = sharesRaw > 0 ? sharesRaw : (nav > 0 ? aum / nav : 0)
-      if (aum > 0 && shares > 0) out[String(q.symbol)] = { aum, nav: nav > 0 ? nav : aum / shares, shares }
-    }
-    return out
-  } catch { return {} }
+      if (aum <= 0 || shares <= 0) continue
+      return { aum, nav: nav > 0 ? nav : aum / shares, shares }
+    } catch { continue }
+  }
+  return null
+}
+
+async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, { aum: number; nav: number; shares: number }>> {
+  const results = await Promise.allSettled(symbols.map(s => fetchYahooQuote(s)))
+  const out: Record<string, { aum: number; nav: number; shares: number }> = {}
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) out[symbols[i]] = r.value
+  })
+  return out
 }
 
 async function scrapeBHYP(): Promise<{ hype: number; asOf: string }> {
@@ -201,24 +211,28 @@ async function fetchFarsideFlows(): Promise<FarsideRow[]> {
 interface YahooDailyBar { time: number; volumeUsd: number }
 
 async function fetchYahooDailyBars(symbol: string): Promise<YahooDailyBar[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`
-  try {
-    const res = await fetch(url, {
-      headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
-      next: { revalidate: 0 },
-    })
-    if (!res.ok) return []
-    const json = await res.json()
-    const result = json?.chart?.result?.[0]
-    if (!result) return []
-    const timestamps: number[] = result.timestamp ?? []
-    const quotes = result.indicators?.quote?.[0] ?? {}
-    const closes: (number | null)[] = quotes.close ?? []
-    const volumes: (number | null)[] = quotes.volume ?? []
-    return timestamps
-      .map((t, i) => ({ time: t, volumeUsd: (closes[i] ?? 0) * (volumes[i] ?? 0) }))
-      .filter(p => p.volumeUsd > 0)
-  } catch { return [] }
+  for (const host of ['query1', 'query2']) {
+    const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`
+    try {
+      const res = await fetch(url, {
+        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json' },
+        next: { revalidate: 0 },
+      })
+      if (!res.ok) continue
+      const json = await res.json()
+      const result = json?.chart?.result?.[0]
+      if (!result) continue
+      const timestamps: number[] = result.timestamp ?? []
+      const quotes = result.indicators?.quote?.[0] ?? {}
+      const closes: (number | null)[] = quotes.close ?? []
+      const volumes: (number | null)[] = quotes.volume ?? []
+      const bars = timestamps
+        .map((t, i) => ({ time: t, volumeUsd: (closes[i] ?? 0) * (volumes[i] ?? 0) }))
+        .filter(p => p.volumeUsd > 0)
+      if (bars.length > 0) return bars
+    } catch { continue }
+  }
+  return []
 }
 
 // Ratio = latest known AUM / cumulative volume since launch, clamped to [5%, 70%]

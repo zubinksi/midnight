@@ -283,6 +283,38 @@ export default function ETFFlowsPage() {
           }
         </div>
 
+        {/* Data sources */}
+        <div style={{ borderTop: '1px solid #1C1C1A', margin: '24px 24px 0', paddingTop: 16 }}>
+          <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, letterSpacing: '0.08em', marginBottom: 10 }}>DATA SOURCES</div>
+          {[
+            {
+              label: 'AUM',
+              detail: 'BHYP: live holdings from bhypetf.com × HYPE spot price. THYP: confirmed NAV from 21Shares + today\'s estimated inflow.',
+            },
+            {
+              label: 'Daily Inflows (Est.)',
+              detail: 'Farside Investors when available; otherwise daily volume × 0.28 (empirical inflow/volume ratio calibrated against Farside data).',
+            },
+            {
+              label: 'HYPE Price',
+              detail: 'Hyperliquid spot feed via allMids API, polled live.',
+            },
+            {
+              label: '% Float',
+              detail: 'Daily inflows ÷ HYPE price ÷ circulating supply (CoinGecko). Estimates what share of circulating HYPE flowed into ETFs that day.',
+            },
+            {
+              label: 'Price & Volume',
+              detail: 'Yahoo Finance daily OHLCV bars (1-month range).',
+            },
+          ].map(({ label, detail }) => (
+            <div key={label} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 9, color: '#2C2C2A', fontFamily: MONO, lineHeight: 1.5 }}>{detail}</div>
+            </div>
+          ))}
+        </div>
+
         <div style={{ height: 'max(env(safe-area-inset-bottom), 40px)' }} />
       </div>
     </div>

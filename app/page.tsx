@@ -466,7 +466,7 @@ export default function Home() {
                     style={{
                       background: active ? '#1C1C1A' : 'none', border: '1px solid #1C1C1A',
                       borderRadius: 20, padding: f.key === 'starred' ? '0 10px 4px' : '5px 12px',
-                      height: 28, fontSize: f.key === 'starred' ? 23 : 12.5,
+                      height: 28, fontSize: f.key === 'starred' ? 17 : 12.5,
                       fontFamily: 'Inter,sans-serif', letterSpacing: '0.08em',
                       color: f.key === 'starred' ? (active ? '#F0C84A' : '#46443D') : (active ? '#F0EDE6' : '#46443D'),
                       cursor: 'pointer', transition: 'color 0.15s, background 0.15s',
@@ -907,7 +907,7 @@ function AssetRow({ asset, price, starred, onToggleFavorite, onNavigate, closePr
           background: 'none', border: 'none', borderRadius: '50%',
           width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: 0, cursor: 'pointer', fontSize: 20,
-          color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1,
+          color: starred ? '#F0C84A' : '#2C2C2A', flexShrink: 0, lineHeight: 1, fontSize: 15,
         }}
       >★</button>
       <div style={{ width: 90, flexShrink: 0 }}>

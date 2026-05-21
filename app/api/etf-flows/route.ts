@@ -446,13 +446,19 @@ export async function GET(req: NextRequest) {
   if (farsideRows.length > 0) {
     bhypInflowHistory = farsideRows.filter(r => r.bhyp !== null).map(r => ({ time: r.time, usd: r.bhyp! }))
     thypInflowHistory = farsideRows.filter(r => r.thyp !== null).map(r => ({ time: r.time, usd: r.thyp! }))
-    // Farside doesn't have today's data until after market close — fill from Yahoo bars
-    const bhypTodayInFlow = bhypBars.find(b => toMidnightUTC(b.time) === todayMidnight)
-    const thypTodayInFlow = thypBars.find(b => toMidnightUTC(b.time) === todayMidnight)
-    if (bhypTodayInFlow && !bhypInflowHistory.some(r => r.time === todayMidnight))
-      bhypInflowHistory.push({ time: todayMidnight, usd: bhypTodayInFlow.volumeUsd * FALLBACK_RATIO })
-    if (thypTodayInFlow && !thypInflowHistory.some(r => r.time === todayMidnight))
-      thypInflowHistory.push({ time: todayMidnight, usd: thypTodayInFlow.volumeUsd * FALLBACK_RATIO })
+    // Fill any day missing from Farside (null or not yet published) using Yahoo bars.
+    // This handles both today (not published yet) and recent days where one ticker
+    // was missing (e.g. Farside has BHYP but dash for THYP on the same day).
+    for (const bar of bhypBars) {
+      const day = toMidnightUTC(bar.time)
+      if (!bhypInflowHistory.some(r => r.time === day))
+        bhypInflowHistory.push({ time: day, usd: bar.volumeUsd * FALLBACK_RATIO })
+    }
+    for (const bar of thypBars) {
+      const day = toMidnightUTC(bar.time)
+      if (!thypInflowHistory.some(r => r.time === day))
+        thypInflowHistory.push({ time: day, usd: bar.volumeUsd * FALLBACK_RATIO })
+    }
   } else {
     // THYP: confirmed delta-shares from 21Shares API history
     const thypHist = thyp?.history ?? []

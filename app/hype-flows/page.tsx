@@ -505,30 +505,46 @@ function HypeStratTab({ txns, totalHype, hypePrice, mounted }: {
 
 // ─── Assist Fund tab ──────────────────────────────────────────────────────────
 
-function AssistFundBarChart({ data }: { data: AssistFundDailyBuy[] }) {
+function AssistFundBarChart({ data, onHover }: {
+  data: AssistFundDailyBuy[]
+  onHover?: (point: AssistFundDailyBuy | null) => void
+}) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const recent = data.slice(-30)
   if (recent.length === 0) return null
   const maxHype = Math.max(...recent.map(d => d.hype), 1)
   const PAD_B = 24, PAD_R = 48, H = 160
   const chartH = H - PAD_B
+  const groupW = (400 - PAD_R) / recent.length
+  const barW   = Math.max(groupW * 0.6, 2)
+
+  function handleEnter(i: number) {
+    setHovered(i)
+    onHover?.(recent[i])
+  }
+  function handleLeave() {
+    setHovered(null)
+    onHover?.(null)
+  }
+
   return (
-    <svg width="100%" viewBox={`0 0 ${400} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${400} ${H}`} preserveAspectRatio="none"
+      style={{ display: 'block', cursor: 'crosshair' }} onMouseLeave={handleLeave}>
       {recent.map((d, i) => {
-        const x   = (i / recent.length) * (400 - PAD_R)
-        const barW = Math.max(((400 - PAD_R) / recent.length) * 0.6, 2)
-        const bH   = (d.hype / maxHype) * (chartH - 4)
-        const y    = chartH - bH
+        const x  = i * groupW
+        const bH = (d.hype / maxHype) * (chartH - 4)
+        const y  = chartH - bH
         return (
-          <g key={d.time}>
-            <rect x={x} y={y} width={barW} height={bH} fill={COLORS.assist} opacity={0.8} rx={1} />
+          <g key={d.time} onMouseEnter={() => handleEnter(i)}>
+            <rect x={x} y={0} width={groupW} height={chartH} fill="transparent" />
+            <rect x={x + (groupW - barW) / 2} y={y} width={barW} height={bH}
+              fill={COLORS.assist} opacity={hovered === i ? 1 : 0.8} rx={1} />
           </g>
         )
       })}
-      {/* Y-axis label at top */}
       <text x={400 - PAD_R + 4} y={12} fontSize={8} fill={COLORS.dimmer} fontFamily={MONO}>
         {fmtHYPE(maxHype)}
       </text>
-      {/* X-axis: first and last date */}
       <text x={0} y={H - 4} fontSize={8} fill={COLORS.dimmer} fontFamily={MONO}>{fmtTime(recent[0].time)}</text>
       <text x={400 - PAD_R} y={H - 4} fontSize={8} fill={COLORS.dimmer} fontFamily={MONO} textAnchor="end">{fmtTime(recent.at(-1)!.time)}</text>
     </svg>
@@ -538,6 +554,7 @@ function AssistFundBarChart({ data }: { data: AssistFundDailyBuy[] }) {
 function AssistFundTab({ totalHype, dailyBuys, hypePrice }: {
   totalHype: number; dailyBuys: AssistFundDailyBuy[]; hypePrice: number
 }) {
+  const [hoveredBuy, setHoveredBuy] = useState<AssistFundDailyBuy | null>(null)
   const total30d = dailyBuys
     .filter(d => d.time >= Math.floor(Date.now() / 1000) - 30 * 86400)
     .reduce((s, d) => s + d.hype, 0)
@@ -571,11 +588,16 @@ function AssistFundTab({ totalHype, dailyBuys, hypePrice }: {
       {/* Daily buys chart */}
       {dailyBuys.length > 0 ? (
         <div style={{ borderTop: `1px solid ${COLORS.border}`, marginTop: 16 }}>
-          <div style={{ padding: '16px 24px 8px' }}>
-            <span style={{ fontSize: 10, color: COLORS.dim, fontFamily: MONO, letterSpacing: '0.1em' }}>DAILY HYPE BUYS</span>
+          <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <span style={{ fontSize: 10, color: COLORS.dim, fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY HYPE BUYS</span>
+            {hoveredBuy && (
+              <span style={{ fontSize: 10, color: COLORS.assist, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                +{fmtHYPE(hoveredBuy.hype)} HYPE
+              </span>
+            )}
           </div>
           <div style={{ padding: '0 24px' }}>
-            <AssistFundBarChart data={dailyBuys} />
+            <AssistFundBarChart data={dailyBuys} onHover={setHoveredBuy} />
           </div>
         </div>
       ) : (

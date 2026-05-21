@@ -543,16 +543,16 @@ export async function GET(req: NextRequest) {
   // Build per-day history table: union of all known dates across all sources
   const bhypHistByTime  = Object.fromEntries(bhypHistory.map(p  => [p.time,  p]))
   const thypHistByTime: Record<number, ETFHistoryPoint> = Object.fromEntries((thyp?.history ?? []).map(p => [p.time, p]))
-  // 21Shares API often lags by ~1 day — if yesterday's entry is missing but Yahoo has
-  // a confirmed AUM (which reflects end-of-yesterday), fill it in so the daily history
-  // table shows the correct total AUM for yesterday instead of just BHYP.
-  if (!thypHistByTime[yesterdayMidnight] && thypYahoo) {
+  // 21Shares API often lags by ~1 day — if yesterday's entry is missing, fill it using
+  // thypConfirmedAum (Yahoo totalAssets → 21Shares API latest point). At e.g. 4am ET,
+  // Yahoo's confirmed AUM IS yesterday's closing value and is the best available proxy.
+  if (!thypHistByTime[yesterdayMidnight] && thypConfirmedAum > 0) {
     thypHistByTime[yesterdayMidnight] = {
       time:        yesterdayMidnight,
-      usd:         thypYahoo.aum,
-      hype:        hypePrice > 0 ? thypYahoo.aum / hypePrice : 0,
-      units:       thypYahoo.shares,
-      navPerShare: thypYahoo.nav,
+      usd:         thypConfirmedAum,
+      hype:        hypePrice > 0 ? thypConfirmedAum / hypePrice : 0,
+      units:       thypShares,
+      navPerShare: thypNav,
     }
   }
   const bhypInflowByDay = Object.fromEntries(bhypInflowHistory.map(p => [p.time, p.usd]))

@@ -537,21 +537,7 @@ export default function Home() {
           <div style={{ height: 'calc(max(env(safe-area-inset-bottom), 16px) + 135px)' }} />
         </div>
 
-        {/* Persistent summary panel */}
-        <SummaryPanel
-          open={showSummary}
-          onOpen={() => { setShowSummary(true); openSummary() }}
-          onClose={() => setShowSummary(false)}
-          loading={summaryLoading}
-          text={summaryText}
-          time={summaryTime}
-          onRefresh={fetchSummary}
-          allTickers={allAssets.map(a => a.ticker)}
-          onNavigate={t => { setShowSummary(false); router.push(`/chart/${t}`) }}
-          watchlistTickers={[...favorites]}
-        />
-
-        <BloomOverlay />
+<BloomOverlay />
 
       </div>
     </div>

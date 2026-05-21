@@ -401,16 +401,18 @@ export async function GET(req: NextRequest) {
   // Use Eastern time for the market date — UTC midnight rolls over at 8pm ET (EDT, UTC-4),
   // but the trading day doesn't change until midnight ET.
   const ET_OFFSET = -4 * 3600 // EDT (UTC-4), valid March–November
-  const todayMidnight = Math.floor((now / 1000 + ET_OFFSET) / 86400) * 86400
+  const todayMidnight     = Math.floor((now / 1000 + ET_OFFSET) / 86400) * 86400
+  const yesterdayMidnight = todayMidnight - 86400
 
   // Yahoo Finance live AUM / NAV (may be null if Yahoo is blocked on Vercel)
   const bhypYahoo = yahoo['BHYP']
   const thypYahoo = yahoo['THYP']
 
-  // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point + today's estimated inflow
+  // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point + today's estimated inflow.
+  // Only add today's bar if there's actually a bar for today — don't carry yesterday's bar forward.
   const thypLatestPoint = thyp?.history.at(-1)
   const thypConfirmedAum = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
-  const thypTodayBarForAum = thypBars.at(-1)
+  const thypTodayBarForAum = thypBars.find(b => toMidnightUTC(b.time) === todayMidnight) ?? null
   const thypEstimatedInflow = thypTodayBarForAum ? thypTodayBarForAum.volumeUsd * FALLBACK_RATIO : 0
   const thypAum    = thypConfirmedAum > 0 ? thypConfirmedAum + thypEstimatedInflow : 0
   const thypNav    = thypYahoo?.nav ?? thypLatestPoint?.navPerShare ?? 0
@@ -518,12 +520,18 @@ export async function GET(req: NextRequest) {
   // Only use a Yahoo bar if it's actually from today — don't carry yesterday's bar forward.
   const bhypTodayBar = bhypBars.find(b => toMidnightUTC(b.time) === todayMidnight) ?? null
   const thypTodayBar = thypBars.find(b => toMidnightUTC(b.time) === todayMidnight) ?? null
+  // Before market open there's no today bar and Farside hasn't posted yet — fall back
+  // to yesterday's confirmed inflow so the top table doesn't show dashes all morning.
   const bhypInflowEstimate: number | null =
     bhypInflowHistory.find(r => r.time === todayMidnight)?.usd
     ?? (bhypTodayBar ? bhypTodayBar.volumeUsd * FALLBACK_RATIO : null)
+    ?? bhypInflowHistory.find(r => r.time === yesterdayMidnight)?.usd
+    ?? null
   const thypInflowEstimate: number | null =
     thypInflowHistory.find(r => r.time === todayMidnight)?.usd
     ?? (thypTodayBar ? thypTodayBar.volumeUsd * FALLBACK_RATIO : null)
+    ?? thypInflowHistory.find(r => r.time === yesterdayMidnight)?.usd
+    ?? null
 
   const bhypToday: ETFTodayEstimate | null = bhypAum > 0
     ? { aum: bhypAum, nav: bhypNav, shares: bhypShares, inflowUsd: bhypInflowEstimate, ts: now }
@@ -534,7 +542,19 @@ export async function GET(req: NextRequest) {
 
   // Build per-day history table: union of all known dates across all sources
   const bhypHistByTime  = Object.fromEntries(bhypHistory.map(p  => [p.time,  p]))
-  const thypHistByTime  = Object.fromEntries((thyp?.history ?? []).map(p => [p.time, p]))
+  const thypHistByTime: Record<number, ETFHistoryPoint> = Object.fromEntries((thyp?.history ?? []).map(p => [p.time, p]))
+  // 21Shares API often lags by ~1 day — if yesterday's entry is missing but Yahoo has
+  // a confirmed AUM (which reflects end-of-yesterday), fill it in so the daily history
+  // table shows the correct total AUM for yesterday instead of just BHYP.
+  if (!thypHistByTime[yesterdayMidnight] && thypYahoo) {
+    thypHistByTime[yesterdayMidnight] = {
+      time:        yesterdayMidnight,
+      usd:         thypYahoo.aum,
+      hype:        hypePrice > 0 ? thypYahoo.aum / hypePrice : 0,
+      units:       thypYahoo.shares,
+      navPerShare: thypYahoo.nav,
+    }
+  }
   const bhypInflowByDay = Object.fromEntries(bhypInflowHistory.map(p => [p.time, p.usd]))
   const thypInflowByDay = Object.fromEntries(thypInflowHistory.map(p => [p.time, p.usd]))
   const bhypVolByDay    = Object.fromEntries(bhypBars.map(b => [toMidnightUTC(b.time), b.volumeUsd]))

@@ -1,0 +1,11 @@
+{
+  "sandbox": {
+    "network": {
+      "allowedDomains": [
+        "api.hyperliquid.xyz",
+        "api.coingecko.com",
+        "www.coingecko.com"
+      ]
+    }
+  }
+}

@@ -580,8 +580,11 @@ function AssistFundTab({ totalHype, dailyBuys, hypePrice }: {
         </div>
       ) : (
         <div style={{ marginTop: 24, padding: '0 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, color: COLORS.dimmer, fontFamily: MONO, lineHeight: 1.6 }}>
-            {'NO FILL HISTORY AVAILABLE\nBALANCE FROM ON-CHAIN STATE'}
+          <div style={{ fontSize: 9, color: COLORS.dimmer, fontFamily: MONO, lineHeight: 1.8, letterSpacing: '0.06em' }}>
+            TRANSACTION HISTORY UNAVAILABLE
+          </div>
+          <div style={{ fontSize: 9, color: '#1E1E1C', fontFamily: MONO, lineHeight: 1.8, marginTop: 4 }}>
+            Balance sourced from on-chain state
           </div>
         </div>
       )}

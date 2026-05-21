@@ -97,24 +97,59 @@ async function fetchAssistFundBalance(): Promise<number> {
   } catch { return 0 }
 }
 
+async function hlPost(body: unknown): Promise<unknown> {
+  const res = await fetch('https://api.hyperliquid.xyz/info', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    next: { revalidate: 0 },
+  })
+  return res.json()
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dailyBuysFromFills(fills: any[]): Record<number, { hype: number; usd: number }> {
+  const byDay: Record<number, { hype: number; usd: number }> = {}
+  for (const f of fills) {
+    if (f.coin !== 'HYPE' || f.side !== 'B') continue
+    const day = Math.floor(f.time / 1000 / 86400) * 86400
+    if (!byDay[day]) byDay[day] = { hype: 0, usd: 0 }
+    byDay[day].hype += parseFloat(f.sz)
+    byDay[day].usd  += parseFloat(f.sz) * parseFloat(f.px)
+  }
+  return byDay
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dailyBuysFromLedger(updates: any[]): Record<number, { hype: number; usd: number }> {
+  // userNonFundingLedgerUpdates entries have: { time (ms), delta: { coin, amount, ... } }
+  // We want entries where HYPE balance increased (positive amount = received HYPE)
+  const byDay: Record<number, { hype: number; usd: number }> = {}
+  for (const u of updates) {
+    const coin   = u?.delta?.coin ?? u?.coin ?? ''
+    const amount = parseFloat(u?.delta?.amount ?? u?.delta?.sz ?? u?.amount ?? 0)
+    if (coin !== 'HYPE' || amount <= 0) continue
+    const day = Math.floor((u.time ?? 0) / 1000 / 86400) * 86400
+    if (!day) continue
+    if (!byDay[day]) byDay[day] = { hype: 0, usd: 0 }
+    byDay[day].hype += amount
+    // usd approximation not available from ledger — leave as 0
+  }
+  return byDay
+}
+
 async function fetchAssistFundDailyBuys(): Promise<AssistFundDailyBuy[]> {
   try {
-    const res = await fetch('https://api.hyperliquid.xyz/info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START }),
-      next: { revalidate: 0 },
-    })
-    const fills = await res.json()
-    if (!Array.isArray(fills)) return []
-    const byDay: Record<number, { hype: number; usd: number }> = {}
-    for (const f of fills) {
-      if (f.coin !== 'HYPE' || f.side !== 'B') continue
-      const day = Math.floor(f.time / 1000 / 86400) * 86400
-      if (!byDay[day]) byDay[day] = { hype: 0, usd: 0 }
-      byDay[day].hype += parseFloat(f.sz)
-      byDay[day].usd  += parseFloat(f.sz) * parseFloat(f.px)
+    // Try spot fills first (market buys)
+    const fills = await hlPost({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START })
+    let byDay = Array.isArray(fills) ? dailyBuysFromFills(fills) : {}
+
+    // If fills returned nothing, try non-funding ledger updates (system allocations / transfers)
+    if (Object.keys(byDay).length === 0) {
+      const ledger = await hlPost({ type: 'userNonFundingLedgerUpdates', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START })
+      if (Array.isArray(ledger)) byDay = dailyBuysFromLedger(ledger)
     }
+
     return Object.entries(byDay)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([t, v]) => ({ time: Number(t), ...v }))

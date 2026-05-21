@@ -398,7 +398,10 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now()
   const toMidnightUTC = (ts: number) => Math.floor(ts / 86400) * 86400
-  const todayMidnight = toMidnightUTC(now / 1000)
+  // Use Eastern time for the market date — UTC midnight rolls over at 8pm ET (EDT, UTC-4),
+  // but the trading day doesn't change until midnight ET.
+  const ET_OFFSET = -4 * 3600 // EDT (UTC-4), valid March–November
+  const todayMidnight = Math.floor((now / 1000 + ET_OFFSET) / 86400) * 86400
 
   // Yahoo Finance live AUM / NAV (may be null if Yahoo is blocked on Vercel)
   const bhypYahoo = yahoo['BHYP']

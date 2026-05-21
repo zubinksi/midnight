@@ -110,10 +110,9 @@ async function hlPost(body: unknown): Promise<unknown> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isHypeSpot(coin: unknown): boolean {
   const c = String(coin ?? '').toUpperCase()
-  // Hyperliquid spot fills use the ticker ("HYPE") or index notation ("@N").
-  // HYPE is spot token index 1, so "@1" is the most likely alternative.
-  // Accept both plus any "@N" prefixed coin since this address primarily holds HYPE.
-  return c === 'HYPE' || c === '@1' || c === '@HYPE'
+  // Hyperliquid spot fills use "@N" index notation. HYPE is spot index 107 ("@107").
+  // Also accept the ticker form in case future API versions normalise it.
+  return c === '@107' || c === 'HYPE' || c === '@HYPE'
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,17 +145,26 @@ function dailyBuysFromLedger(updates: any[]): Record<number, { hype: number; usd
 
 async function fetchAssistFundDailyBuys(): Promise<AssistFundDailyBuy[]> {
   try {
-    // Try spot fills first (market buys)
-    const fills = await hlPost({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START })
-    let byDay = Array.isArray(fills) ? dailyBuysFromFills(fills) : {}
+    // The API returns at most 2000 fills per call. Fetch two windows in parallel:
+    // one from launch (Jan 2025) and one from 90 days ago, then merge to maximise coverage.
+    const now90dAgo = Date.now() - 90 * 24 * 60 * 60 * 1000
+    const [oldFills, recentFills] = await Promise.all([
+      hlPost({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START }),
+      hlPost({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: now90dAgo }),
+    ])
 
-    // If fills returned nothing, try non-funding ledger updates (system allocations / transfers)
-    if (Object.keys(byDay).length === 0) {
-      const ledger = await hlPost({ type: 'userNonFundingLedgerUpdates', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START })
-      if (Array.isArray(ledger)) byDay = dailyBuysFromLedger(ledger)
+    const merged: Record<number, { hype: number; usd: number }> = {}
+    for (const fills of [oldFills, recentFills]) {
+      if (!Array.isArray(fills)) continue
+      for (const [day, v] of Object.entries(dailyBuysFromFills(fills))) {
+        if (!merged[Number(day)]) merged[Number(day)] = { hype: 0, usd: 0 }
+        // take max per day across both windows (avoids double-counting overlap)
+        merged[Number(day)].hype = Math.max(merged[Number(day)].hype, v.hype)
+        merged[Number(day)].usd  = Math.max(merged[Number(day)].usd,  v.usd)
+      }
     }
 
-    return Object.entries(byDay)
+    return Object.entries(merged)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([t, v]) => ({ time: Number(t), ...v }))
   } catch { return [] }

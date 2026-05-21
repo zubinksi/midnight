@@ -183,7 +183,13 @@ export default function ETFFlowsPage() {
         {/* Top bar */}
         <div style={{ padding: 'calc(env(safe-area-inset-top) + 60px) 24px 0' }}>
           <button
-            onClick={() => window.history.length > 1 ? router.back() : router.push('/chart/HYPE')}
+            onClick={() => {
+              if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
+                router.back()
+              } else {
+                router.push('/')
+              }
+            }}
             style={{ background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

@@ -32,6 +32,8 @@ const HISTORY_PAGE_SIZE = 7
 
 function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circulatingSupply: number }) {
   const [expanded, setExpanded] = useState(false)
+  const ET_OFFSET    = -4 * 3600
+  const todayMidnight = Math.floor((Date.now() / 1000 + ET_OFFSET) / 86400) * 86400
   const COL  = { fontSize: 9, color: '#46443D', fontFamily: MONO, letterSpacing: '0.06em' }
   const CELL = { fontSize: 11, color: '#8A8880', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' as const }
   const sorted  = [...rows].reverse()
@@ -52,18 +54,20 @@ function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circ
         const totalVolume = (row.bhypVolume ?? 0) + (row.thypVolume ?? 0)
         const hasInflow   = row.bhypInflow != null || row.thypInflow != null
         const hasVolume   = row.bhypVolume != null || row.thypVolume != null
+        const isToday     = row.time === todayMidnight && hasInflow
         const floatPct    = hasInflow && circulatingSupply > 0 && row.hypePrice && row.hypePrice > 0
           ? (totalInflow / row.hypePrice / circulatingSupply * 100).toFixed(2) + '%'
           : '—'
+        const EST = { fontStyle: 'italic' as const, color: '#6A6860' }
         return (
           <div key={row.time} style={{ display: 'grid', gridTemplateColumns: '54px 1fr 1fr 1fr 52px', columnGap: 8, paddingBottom: 10 }}>
-            <div style={{ ...CELL, color: '#F0EDE6' }}>{fmtTime(row.time)}</div>
-            <div style={{ ...CELL, textAlign: 'right' }}>{row.totalAum > 0 ? fmtUSD(row.totalAum) : '—'}</div>
-            <div style={{ ...CELL, textAlign: 'right', color: hasInflow ? '#F0EDE6' : '#46443D' }}>
-              {hasInflow ? fmtUSD(totalInflow, true) : '—'}
+            <div style={{ ...CELL, color: '#F0EDE6', ...(isToday ? EST : {}) }}>{fmtTime(row.time)}</div>
+            <div style={{ ...CELL, textAlign: 'right', ...(isToday ? EST : {}) }}>{row.totalAum > 0 ? fmtUSD(row.totalAum) : '—'}</div>
+            <div style={{ ...CELL, textAlign: 'right', color: hasInflow ? (isToday ? EST.color : '#F0EDE6') : '#46443D', ...(isToday ? { fontStyle: 'italic' } : {}) }}>
+              {hasInflow ? `${isToday ? '~' : ''}${fmtUSD(totalInflow, true)}` : '—'}
             </div>
-            <div style={{ ...CELL, textAlign: 'right' }}>{hasVolume ? fmtUSD(totalVolume) : '—'}</div>
-            <div style={{ ...CELL, textAlign: 'right' }}>{floatPct}</div>
+            <div style={{ ...CELL, textAlign: 'right', ...(isToday ? EST : {}) }}>{hasVolume ? fmtUSD(totalVolume) : '—'}</div>
+            <div style={{ ...CELL, textAlign: 'right', ...(isToday ? EST : {}) }}>{floatPct}</div>
           </div>
         )
       })}

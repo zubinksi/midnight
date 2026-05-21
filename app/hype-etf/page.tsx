@@ -38,7 +38,7 @@ function DailyHistoryTable({ rows, circulatingSupply }: { rows: DailyRow[]; circ
   const visible = expanded ? sorted : sorted.slice(0, HISTORY_PAGE_SIZE)
   const hasMore = sorted.length > HISTORY_PAGE_SIZE
   return (
-    <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16, padding: '16px 24px 0' }}>
+    <div style={{ marginTop: 16, padding: '16px 24px 0' }}>
       <div style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', marginBottom: 12 }}>DAILY HISTORY</div>
       <div style={{ display: 'grid', gridTemplateColumns: '54px 1fr 1fr 1fr 52px', columnGap: 8, marginBottom: 6 }}>
         <div style={COL}>DATE</div>
@@ -234,7 +234,7 @@ export default function ETFFlowsPage() {
         )}
 
         {/* AUM chart */}
-        <div style={{ marginTop: 16 }}>
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
           <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>{aumLabel}</span>
           </div>

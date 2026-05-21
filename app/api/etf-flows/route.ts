@@ -407,19 +407,6 @@ export async function GET(req: NextRequest) {
   const bhypYahoo = yahoo['BHYP']
   const thypYahoo = yahoo['THYP']
 
-  // BHYP AUM: Yahoo preferred, fall back to scrape × HYPE price.
-  // The scrape reflects yesterday's close, so add today's confirmed Farside inflow
-  // (or Yahoo volume estimate) to match what we do for THYP.
-  const bhypConfirmedAum  = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
-  const bhypTodayFarside  = farsideRows.find(r => r.time === todayMidnight)?.bhyp ?? null
-  const bhypTodayBarForAum = bhypBars.at(-1)
-  const bhypTodayInflow   = bhypTodayFarside
-    ?? (bhypTodayBarForAum && toMidnightUTC(bhypTodayBarForAum.time) === todayMidnight
-        ? bhypTodayBarForAum.volumeUsd * FALLBACK_RATIO : 0)
-  const bhypAum    = bhypConfirmedAum > 0 ? bhypConfirmedAum + bhypTodayInflow : 0
-  const bhypNav    = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
-  const bhypShares = bhypYahoo?.shares ?? 0
-
   // THYP AUM: Yahoo preferred, fall back to latest 21Shares API point + today's estimated inflow
   const thypLatestPoint = thyp?.history.at(-1)
   const thypConfirmedAum = thypYahoo?.aum ?? thypLatestPoint?.usd ?? 0
@@ -429,26 +416,56 @@ export async function GET(req: NextRequest) {
   const thypNav    = thypYahoo?.nav ?? thypLatestPoint?.navPerShare ?? 0
   const thypShares = thypYahoo?.shares ?? thypLatestPoint?.units ?? 0
 
-  // BHYP history: from 21Shares API if available; otherwise reconstruct from Yahoo bar close
-  // prices — scale today's known AUM by the relative ETF price on each historical day
+  // BHYP history: prefer official API; otherwise forward-accumulate from Farside inflows
+  // + HYPE price history (from THYP). This correctly captures step-ups on inflow days,
+  // unlike price-ratio scaling which only captures HYPE price appreciation.
   const bhypHistory: ETFHistoryPoint[] = bhypApi?.history.length
     ? bhypApi.history
     : (() => {
-        if (bhypBars.length === 0 || bhypAum <= 0) return []
+        const farsideBhypByDay: Record<number, number> = {}
+        for (const r of farsideRows) {
+          if (r.bhyp !== null && r.bhyp > 0) farsideBhypByDay[r.time] = r.bhyp
+        }
+        if (Object.keys(farsideBhypByDay).length > 0 && (thyp?.history.length ?? 0) > 0) {
+          // HYPE price per day from THYP history (usd / hype tokens held)
+          const priceByDay: Record<number, number> = {}
+          for (const p of thyp!.history) {
+            if (p.hype > 0) priceByDay[p.time] = p.usd / p.hype
+          }
+          if (hypePrice > 0) priceByDay[todayMidnight] = hypePrice
+          const firstDay = Math.min(...Object.keys(farsideBhypByDay).map(Number))
+          const allDays  = [...new Set([
+            ...Object.keys(farsideBhypByDay).map(Number),
+            ...Object.keys(priceByDay).map(Number),
+          ])].filter(d => d >= firstDay).sort((a, b) => a - b)
+          let aum = 0, lastPrice = priceByDay[firstDay] ?? hypePrice
+          const result: ETFHistoryPoint[] = []
+          for (const day of allDays) {
+            const price = priceByDay[day] ?? lastPrice
+            if (lastPrice > 0) aum = aum * (price / lastPrice)
+            aum += farsideBhypByDay[day] ?? 0
+            lastPrice = price
+            if (aum > 0) result.push({ time: day, usd: aum, hype: price > 0 ? aum / price : 0, units: 0, navPerShare: price })
+          }
+          return result
+        }
+        // Final fallback: scale scrape AUM by ETF price ratio (price-only, no inflow events)
+        const scrapeAum = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
+        if (bhypBars.length === 0 || scrapeAum <= 0) return []
         const latestClose = bhypBars.at(-1)!.close
         if (latestClose <= 0) return []
         return bhypBars.map(bar => {
-          const scaledAum = bhypAum * (bar.close / latestClose)
-          const hype      = hypePrice > 0 ? scaledAum / hypePrice : 0
-          return {
-            time:       toMidnightUTC(bar.time),
-            usd:        scaledAum,
-            hype,
-            units:      0,
-            navPerShare: bar.close,
-          }
+          const scaledAum = scrapeAum * (bar.close / latestClose)
+          return { time: toMidnightUTC(bar.time), usd: scaledAum, hype: hypePrice > 0 ? scaledAum / hypePrice : 0, units: 0, navPerShare: bar.close }
         })
       })()
+
+  // BHYP current AUM: last point of history (forward-accumulated) or scrape fallback
+  const bhypNav    = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
+  const bhypShares = bhypYahoo?.shares ?? 0
+  const bhypAum    = bhypHistory.at(-1)?.usd
+    ?? bhypYahoo?.aum
+    ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
 
   // Inflow histories: Farside actual flows preferred, Yahoo bars × ratio as fallback
   let bhypInflowHistory: ETFDailyFlow[]

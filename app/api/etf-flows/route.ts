@@ -487,8 +487,9 @@ export async function GET(req: NextRequest) {
   // Today's inflow estimates — sourced from inflow histories so the top table and
   // history/chart always agree. Farside confirmed value is used when available;
   // otherwise falls back to Yahoo bar × FALLBACK_RATIO (already in the histories).
-  const bhypTodayBar = bhypBars.at(-1)
-  const thypTodayBar = thypBars.at(-1)
+  // Only use a Yahoo bar if it's actually from today — don't carry yesterday's bar forward.
+  const bhypTodayBar = bhypBars.find(b => toMidnightUTC(b.time) === todayMidnight) ?? null
+  const thypTodayBar = thypBars.find(b => toMidnightUTC(b.time) === todayMidnight) ?? null
   const bhypInflowEstimate: number | null =
     bhypInflowHistory.find(r => r.time === todayMidnight)?.usd
     ?? (bhypTodayBar ? bhypTodayBar.volumeUsd * FALLBACK_RATIO : null)

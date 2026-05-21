@@ -191,7 +191,7 @@ export default function ETFFlowsPage() {
               if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
                 router.back()
               } else {
-                router.push('/')
+                router.push('/chart/HYPE')
               }
             }}
             style={{ background: 'none', border: 'none', color: '#46443D', cursor: 'pointer', padding: '4px 0', lineHeight: 1, display: 'flex', alignItems: 'center' }}

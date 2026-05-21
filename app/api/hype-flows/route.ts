@@ -108,10 +108,19 @@ async function hlPost(body: unknown): Promise<unknown> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isHypeSpot(coin: unknown): boolean {
+  const c = String(coin ?? '').toUpperCase()
+  // Hyperliquid spot fills use the ticker ("HYPE") or index notation ("@N").
+  // HYPE is spot token index 1, so "@1" is the most likely alternative.
+  // Accept both plus any "@N" prefixed coin since this address primarily holds HYPE.
+  return c === 'HYPE' || c === '@1' || c === '@HYPE'
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function dailyBuysFromFills(fills: any[]): Record<number, { hype: number; usd: number }> {
   const byDay: Record<number, { hype: number; usd: number }> = {}
   for (const f of fills) {
-    if (f.coin !== 'HYPE' || f.side !== 'B') continue
+    if (!isHypeSpot(f.coin) || f.side !== 'B') continue
     const day = Math.floor(f.time / 1000 / 86400) * 86400
     if (!byDay[day]) byDay[day] = { hype: 0, usd: 0 }
     byDay[day].hype += parseFloat(f.sz)
@@ -122,18 +131,15 @@ function dailyBuysFromFills(fills: any[]): Record<number, { hype: number; usd: n
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function dailyBuysFromLedger(updates: any[]): Record<number, { hype: number; usd: number }> {
-  // userNonFundingLedgerUpdates entries have: { time (ms), delta: { coin, amount, ... } }
-  // We want entries where HYPE balance increased (positive amount = received HYPE)
   const byDay: Record<number, { hype: number; usd: number }> = {}
   for (const u of updates) {
     const coin   = u?.delta?.coin ?? u?.coin ?? ''
     const amount = parseFloat(u?.delta?.amount ?? u?.delta?.sz ?? u?.amount ?? 0)
-    if (coin !== 'HYPE' || amount <= 0) continue
+    if (!isHypeSpot(coin) || amount <= 0) continue
     const day = Math.floor((u.time ?? 0) / 1000 / 86400) * 86400
     if (!day) continue
     if (!byDay[day]) byDay[day] = { hype: 0, usd: 0 }
     byDay[day].hype += amount
-    // usd approximation not available from ledger — leave as 0
   }
   return byDay
 }
@@ -179,6 +185,25 @@ function mergeHypeStrat(kv: HypeStratTransaction[]): HypeStratTransaction[] {
 }
 
 export async function GET(req: NextRequest) {
+  if (new URL(req.url).searchParams.has('debug')) {
+    const [fills, ledger, balance] = await Promise.allSettled([
+      hlPost({ type: 'userFillsByTime', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START }),
+      hlPost({ type: 'userNonFundingLedgerUpdates', user: ASSIST_FUND_ADDR, startTime: ASSIST_FUND_START }),
+      hlPost({ type: 'spotClearinghouseState', user: ASSIST_FUND_ADDR }),
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fillSample = fills.status === 'fulfilled' && Array.isArray(fills.value) ? (fills.value as any[]).slice(0, 3) : fills
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ledgerSample = ledger.status === 'fulfilled' && Array.isArray(ledger.value) ? (ledger.value as any[]).slice(0, 3) : ledger
+    return NextResponse.json({
+      fillCount:    fills.status   === 'fulfilled' && Array.isArray(fills.value)   ? (fills.value as unknown[]).length   : 'error',
+      ledgerCount:  ledger.status  === 'fulfilled' && Array.isArray(ledger.value)  ? (ledger.value as unknown[]).length  : 'error',
+      fillSample,
+      ledgerSample,
+      balance: balance.status === 'fulfilled' ? balance.value : 'error',
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  }
+
   if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
 
   const [etfRes, hypePriceRes, supplyRes, assistBalRes, assistBuysRes, hypeStratKvRes] =

@@ -200,7 +200,7 @@ export function useCryptoAssets(): { assets: AssetInfo[]; loading: boolean } {
 export function useLivePrices(
   tickers: string[],
   seedPrices: Record<string, number>,
-  pollMs = 800,
+  pollMs = 2_000,
 ): Record<string, number> {
   const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -242,7 +242,7 @@ export function useLivePrices(
 export function useCryptoLivePrices(
   tickers: string[],
   seedPrices: Record<string, number>,
-  pollMs = 800,
+  pollMs = 2_000,
 ): Record<string, number> {
   const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)

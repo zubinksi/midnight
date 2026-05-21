@@ -3,6 +3,9 @@ import type { AssetInfo } from '@/lib/assets'
 
 const HL_API = 'https://api.hyperliquid.xyz/info'
 
+let cache: { data: unknown; ts: number } | null = null
+const CACHE_TTL = 60_000
+
 interface HLMeta {
   name: string
   szDecimals: number
@@ -19,6 +22,7 @@ interface HLAssetCtx {
 }
 
 export async function GET() {
+  if (cache && Date.now() - cache.ts < CACHE_TTL) return NextResponse.json(cache.data)
   try {
     const res = await fetch(HL_API, {
       method: 'POST',
@@ -63,7 +67,9 @@ export async function GET() {
 
     assets.sort((a, b) => b.volume24h - a.volume24h)
 
-    return NextResponse.json(assets.slice(0, 50), { headers: { 'Cache-Control': 'no-store' } })
+    const result = assets.slice(0, 50)
+    cache = { data: result, ts: Date.now() }
+    return NextResponse.json(result)
   } catch (err) {
     console.error('[/api/crypto]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

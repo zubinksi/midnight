@@ -77,26 +77,17 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/assets')
-      .then(r => r.json() as Promise<AssetInfo[]>)
-      .then(list => {
-        if (cancelled) return
-        const found = list.find(a => a.ticker === upperTicker)
-        if (found) return setAssetInfo(found)
-        return fetch('/api/crypto')
-          .then(r => r.json() as Promise<AssetInfo[]>)
-          .then(cryptoList => { if (!cancelled) setAssetInfo(cryptoList.find(a => a.ticker === upperTicker) ?? null) })
-      })
-      .catch(() => null)
-    return () => { cancelled = true }
-  }, [upperTicker])
-
-  useEffect(() => {
     Promise.all([
       fetch('/api/assets').then(r => r.json() as Promise<AssetInfo[]>),
       fetch('/api/crypto').then(r => r.json() as Promise<AssetInfo[]>),
-    ]).then(([xyz, crypto]) => setAllAssets([...xyz, ...crypto])).catch(() => {})
-  }, [])
+    ]).then(([xyz, crypto]) => {
+      if (cancelled) return
+      setAllAssets([...xyz, ...crypto])
+      const found = xyz.find(a => a.ticker === upperTicker) ?? crypto.find(a => a.ticker === upperTicker)
+      if (found) setAssetInfo(found)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [upperTicker])
 
 
   useEffect(() => {
@@ -109,7 +100,7 @@ export default function ChartPage({ params }: { params: Promise<{ ticker: string
 
   const coin = assetInfo?.coin ?? upperTicker
 
-  const livePrice = useAssetPrice(coin, 800)
+  const livePrice = useAssetPrice(coin, 2_000)
   const { data, loading, openPrice } = usePriceHistory(coin, timeframe)
 
   const currentPrice  = livePrice ?? assetInfo?.price ?? 0

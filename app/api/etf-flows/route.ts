@@ -407,8 +407,16 @@ export async function GET(req: NextRequest) {
   const bhypYahoo = yahoo['BHYP']
   const thypYahoo = yahoo['THYP']
 
-  // BHYP AUM: Yahoo preferred, fall back to scrape × server-side HYPE price
-  const bhypAum    = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
+  // BHYP AUM: Yahoo preferred, fall back to scrape × HYPE price.
+  // The scrape reflects yesterday's close, so add today's confirmed Farside inflow
+  // (or Yahoo volume estimate) to match what we do for THYP.
+  const bhypConfirmedAum  = bhypYahoo?.aum ?? (bhypCurrent > 0 && hypePrice > 0 ? bhypCurrent * hypePrice : 0)
+  const bhypTodayFarside  = farsideRows.find(r => r.time === todayMidnight)?.bhyp ?? null
+  const bhypTodayBarForAum = bhypBars.at(-1)
+  const bhypTodayInflow   = bhypTodayFarside
+    ?? (bhypTodayBarForAum && toMidnightUTC(bhypTodayBarForAum.time) === todayMidnight
+        ? bhypTodayBarForAum.volumeUsd * FALLBACK_RATIO : 0)
+  const bhypAum    = bhypConfirmedAum > 0 ? bhypConfirmedAum + bhypTodayInflow : 0
   const bhypNav    = bhypYahoo?.nav ?? (bhypCurrent > 0 && hypePrice > 0 ? hypePrice : 0)
   const bhypShares = bhypYahoo?.shares ?? 0
 

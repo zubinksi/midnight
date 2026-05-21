@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import type { LivelineSeries } from 'liveline'
 import type { ETFFlowsData, DailyRow } from '@/app/api/etf-flows/route'
 import type { InflowBarPoint } from '@/components/ETFInflowsBarChart'
 import { useAssetPrice } from '@/lib/hyperliquid'
 import ETFInflowsBarChart from '@/components/ETFInflowsBarChart'
-import ETFAumLineChart from '@/components/ETFAumLineChart'
-import type { AumSeries } from '@/components/ETFAumLineChart'
+
+const LivelineMulti = dynamic(() => import('liveline').then(m => m.Liveline), { ssr: false })
 
 const MONO = 'Inter,sans-serif'
 const ETF_COLORS = { total: '#F0EDE6', thyp: '#26ab83', bhyp: '#F0C84A' }
@@ -133,14 +135,19 @@ export default function ETFFlowsPage() {
   }
 
   const hasBhypHistory = bhypHistory.length > 0
-  const aumSeries: AumSeries[] = hasBhypHistory ? [
-    { id: 'total', data: totalAum, color: ETF_COLORS.total, label: 'TOTAL' },
-    { id: 'thyp',  data: thypAum,  color: ETF_COLORS.thyp,  label: 'THYP'  },
-    { id: 'bhyp',  data: bhypAum,  color: ETF_COLORS.bhyp,  label: 'BHYP'  },
-  ] : [
-    { id: 'thyp', data: thypAum, color: ETF_COLORS.thyp, label: 'THYP' },
-  ]
-  const aumLabel = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
+  const aumSeries: LivelineSeries[] | undefined = hasBhypHistory ? [
+    { id: 'total', data: totalAum, value: totalAum.at(-1)?.value ?? 0, color: ETF_COLORS.total, label: 'TOTAL' },
+    { id: 'thyp',  data: thypAum,  value: thypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.thyp,  label: 'THYP'  },
+    { id: 'bhyp',  data: bhypAum,  value: bhypAum.at(-1)?.value  ?? 0, color: ETF_COLORS.bhyp,  label: 'BHYP'  },
+  ] : undefined
+  const aumData    = hasBhypHistory ? totalAum : thypAum
+  const aumColor   = hasBhypHistory ? ETF_COLORS.total : ETF_COLORS.thyp
+  const aumLabel   = hasBhypHistory ? 'TOTAL AUM' : 'THYP AUM'
+
+  const hasAumChart = aumData.length >= 2
+  const chartWindow = hasAumChart
+    ? Math.ceil((aumData.at(-1)!.time - aumData[0].time) * 1.05) + 86400
+    : undefined
 
   // Bar chart: Farside actual flows when available, otherwise delta-shares from THYP API history
   const hasFarsideData = bhypInflowHistory.length > 0 || thypInflowHistory.length > 0
@@ -228,12 +235,26 @@ export default function ETFFlowsPage() {
 
         {/* AUM chart */}
         <div style={{ marginTop: 16 }}>
-          <div style={{ padding: '16px 24px 4px' }}>
+          <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em' }}>{aumLabel}</span>
           </div>
-          {aumSeries[0].data.length >= 2 && mounted ? (
-            <div style={{ padding: '0 24px' }}>
-              <ETFAumLineChart series={aumSeries} height={180} />
+          {hasAumChart && mounted ? (
+            <div className={aumSeries ? 'll-wrap' : undefined}>
+              <LivelineMulti
+                data={aumData}
+                value={aumData.at(-1)?.value ?? 0}
+                color={aumColor}
+                series={aumSeries}
+                theme="dark"
+                scrub
+                grid
+                lineWidth={1.5}
+                window={chartWindow}
+                formatValue={v => fmtUSD(v)}
+                formatTime={fmtTime}
+                padding={{ left: 24 }}
+                style={{ width: '100%', height: 180 }}
+              />
             </div>
           ) : (
             <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

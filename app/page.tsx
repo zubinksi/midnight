@@ -676,20 +676,10 @@ function SummaryPanel({ open, onOpen, onClose, loading, text, time, onRefresh, a
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#F0EDE6', fontFamily: 'Inter,sans-serif', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 6 }}>
                   News
                 </div>
-                {/* Source + headline */}
-                {tgPosts.length > 0 ? (
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, color: '#8A8880', fontFamily: 'Inter,sans-serif',
-                    lineHeight: 1.45,
-                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                  } as React.CSSProperties}>
-                    {tgPosts[0].text.split('\n')[0]}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#5A5A54', fontFamily: 'Inter,sans-serif' }}>
-                    From Telegram
-                  </div>
-                )}
+                {/* Subheader */}
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#5A5A54', fontFamily: 'Inter,sans-serif' }}>
+                  Watchlist and ecosystem updates
+                </div>
               </>
             )}
           </div>

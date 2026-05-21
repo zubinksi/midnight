@@ -243,6 +243,26 @@ export default function ETFFlowsPage() {
           <DailyHistoryTable rows={flows.dailyHistory} circulatingSupply={circulatingSupply} />
         )}
 
+        {/* Daily inflows bar chart — tooltip in header row */}
+        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
+          <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY INFLOWS</span>
+            {hoveredInflow && (
+              <span style={{ fontSize: 10, color: (hoveredInflow.total ?? 0) >= 0 ? ETF_COLORS.total : '#E84332', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
+                {fmtUSD(hoveredInflow.total, true)}
+              </span>
+            )}
+          </div>
+          {inflowBarData.length > 0
+            ? <div style={{ padding: '0 24px' }}>
+                <ETFInflowsBarChart data={inflowBarData} onHover={setHoveredInflow} />
+              </div>
+            : <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>NO HISTORY</span>
+              </div>
+          }
+        </div>
+
         {/* AUM chart */}
         <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
           <div style={{ padding: '16px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -271,26 +291,6 @@ export default function ETFFlowsPage() {
               <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>{mounted ? 'NO HISTORY' : ''}</span>
             </div>
           )}
-        </div>
-
-        {/* Daily inflows bar chart — tooltip in header row */}
-        <div style={{ borderTop: '1px solid #1C1C1A', marginTop: 16 }}>
-          <div style={{ padding: '16px 24px 0', display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <span style={{ fontSize: 10, color: '#46443D', fontFamily: MONO, letterSpacing: '0.1em', flexShrink: 0 }}>DAILY INFLOWS</span>
-            {hoveredInflow && (
-              <span style={{ fontSize: 10, color: (hoveredInflow.total ?? 0) >= 0 ? ETF_COLORS.total : '#E84332', fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtUSD(hoveredInflow.total, true)}
-              </span>
-            )}
-          </div>
-          {inflowBarData.length > 0
-            ? <div style={{ padding: '0 24px' }}>
-                <ETFInflowsBarChart data={inflowBarData} onHover={setHoveredInflow} />
-              </div>
-            : <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 11, color: '#2C2C2A', fontFamily: MONO }}>NO HISTORY</span>
-              </div>
-          }
         </div>
 
         {/* Data sources */}

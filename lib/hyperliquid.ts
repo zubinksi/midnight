@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AssetInfo } from './assets'
 
 const HL_PROXY = '/api/hl'
@@ -32,20 +32,38 @@ async function hlPost<T>(body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// allMids with dex:"xyz" — returns bare xyz DEX tickers ("NVDA", "AAPL", …)
-async function fetchXyzMids(): Promise<Record<string, string>> {
-  const raw = await hlPost<{ mids?: Record<string, string> } | Record<string, string>>(
-    { type: 'allMids', dex: 'xyz' }
-  )
-  return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
+function parseMids(raw: unknown): Record<string, string> {
+  const r = raw as { mids?: Record<string, string> } | Record<string, string>
+  return (r as { mids?: Record<string, string> }).mids ?? (r as Record<string, string>)
 }
 
-// allMids without dex — returns Hyperliquid perp tickers ("BTC", "ETH", …)
-async function fetchAllMids(): Promise<Record<string, string>> {
-  const raw = await hlPost<{ mids?: Record<string, string> } | Record<string, string>>(
-    { type: 'allMids' }
-  )
-  return (raw as { mids?: Record<string, string> }).mids ?? (raw as Record<string, string>)
+// Shared SSE connections — at most one EventSource per stream type across the whole page.
+type StreamType = 'xyz' | 'perp'
+type MidsHandler = (mids: Record<string, string>) => void
+const sseState: Partial<Record<StreamType, { es: EventSource; subs: Set<MidsHandler> }>> = {}
+
+function subscribeMids(type: StreamType, handler: MidsHandler): () => void {
+  if (!sseState[type]) {
+    const es   = new EventSource(`/api/prices/stream?type=${type}`)
+    const subs = new Set<MidsHandler>()
+    es.onmessage = (e) => {
+      try {
+        const mids = parseMids(JSON.parse(e.data as string))
+        subs.forEach(fn => fn(mids))
+      } catch { /* ignore malformed frame */ }
+    }
+    sseState[type] = { es, subs }
+  }
+  sseState[type]!.subs.add(handler)
+  return () => {
+    const state = sseState[type]
+    if (!state) return
+    state.subs.delete(handler)
+    if (state.subs.size === 0) {
+      state.es.close()
+      delete sseState[type]
+    }
+  }
 }
 
 // Returns the current UTC offset for America/New_York in whole hours (e.g. 4 for EDT, 5 for EST).
@@ -200,22 +218,21 @@ export function useCryptoAssets(): { assets: AssetInfo[]; loading: boolean } {
 export function useLivePrices(
   tickers: string[],
   seedPrices: Record<string, number>,
-  pollMs = 2_000,
+  // pollMs kept for API compatibility — interval is now controlled server-side
+  _pollMs = 2_000,
 ): Record<string, number> {
   const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const tickerSet   = useRef(new Set(tickers))
+  const tickerSet = useRef(new Set(tickers))
 
   useEffect(() => { tickerSet.current = new Set(tickers) }, [tickers])
-
   useEffect(() => {
     setPrices(prev => ({ ...seedPrices, ...prev }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(seedPrices)])
 
-  const poll = useCallback(async () => {
-    try {
-      const mids = await fetchXyzMids()
+  useEffect(() => {
+    if (tickers.length === 0) return
+    return subscribeMids('xyz', (mids) => {
       setPrices(prev => {
         const next = { ...prev }
         for (const [ticker, v] of Object.entries(mids)) {
@@ -225,39 +242,29 @@ export function useLivePrices(
         }
         return next
       })
-    } catch { /* keep previous */ }
-    timerRef.current = setTimeout(poll, pollMs)
-  }, [pollMs])
-
-  useEffect(() => {
-    if (tickers.length === 0) return
-    poll()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [poll, tickers.length])
+    })
+  }, [tickers.length])
 
   return prices
 }
 
-// Same as useLivePrices but polls the main Hyperliquid perp allMids (for crypto).
 export function useCryptoLivePrices(
   tickers: string[],
   seedPrices: Record<string, number>,
-  pollMs = 2_000,
+  _pollMs = 2_000,
 ): Record<string, number> {
   const [prices, setPrices] = useState<Record<string, number>>(seedPrices)
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tickerSet = useRef(new Set(tickers))
 
   useEffect(() => { tickerSet.current = new Set(tickers) }, [tickers])
-
   useEffect(() => {
     setPrices(prev => ({ ...seedPrices, ...prev }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(seedPrices)])
 
-  const poll = useCallback(async () => {
-    try {
-      const mids = await fetchAllMids()
+  useEffect(() => {
+    if (tickers.length === 0) return
+    return subscribeMids('perp', (mids) => {
       setPrices(prev => {
         const next = { ...prev }
         for (const [ticker, v] of Object.entries(mids)) {
@@ -267,15 +274,8 @@ export function useCryptoLivePrices(
         }
         return next
       })
-    } catch { /* keep previous */ }
-    timerRef.current = setTimeout(poll, pollMs)
-  }, [pollMs])
-
-  useEffect(() => {
-    if (tickers.length === 0) return
-    poll()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [poll, tickers.length])
+    })
+  }, [tickers.length])
 
   return prices
 }
@@ -433,30 +433,21 @@ export function useTelegramFeed(pollMs = 5 * 60_000): { posts: TelegramPost[]; l
   return { posts, loading }
 }
 
-// Single-asset price poll for the chart detail page.
-// Detects xyz assets (coin starts with "xyz:") vs crypto perps (bare ticker).
-export function useAssetPrice(coin: string, pollMs = 800): number | null {
+export function useAssetPrice(coin: string, _pollMs = 2_000): number | null {
   const [price, setPrice] = useState<number | null>(null)
-  const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isCrypto          = !coin.startsWith('xyz:')
-  const ticker            = isCrypto ? coin : coin.slice(4)
+  const isCrypto = !coin.startsWith('xyz:')
+  const ticker   = isCrypto ? coin : coin.slice(4)
 
-  const poll = useCallback(async () => {
-    try {
-      const mids = isCrypto ? await fetchAllMids() : await fetchXyzMids()
+  useEffect(() => {
+    const type = isCrypto ? 'perp' : 'xyz'
+    return subscribeMids(type, (mids) => {
       const v = mids[ticker]
-      if (v !== undefined) {
+      if (v != null) {
         const n = parseFloat(v)
         if (!isNaN(n)) setPrice(n)
       }
-    } catch { /* keep previous */ }
-    timerRef.current = setTimeout(poll, pollMs)
-  }, [ticker, pollMs, isCrypto])
-
-  useEffect(() => {
-    poll()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [poll])
+    })
+  }, [ticker, isCrypto])
 
   return price
 }

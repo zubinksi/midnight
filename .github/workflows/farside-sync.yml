@@ -2,9 +2,10 @@ name: Sync Farside ETF Flows
 
 on:
   schedule:
-    # Every hour — Farside updates once daily after market close, but hourly ensures
-    # we catch the update promptly. GitHub Actions runs on non-Vercel IPs.
-    - cron: '0 * * * *'
+    # Twice daily on weekdays — Farside updates once/day after close.
+    # 2 runs/day × ~22 weekdays = ~44 req/month (well within 1,000/month free tier).
+    - cron: '0 13 * * 1-5'   # 9 AM ET (before open)
+    - cron: '0 22 * * 1-5'   # 6 PM ET (after close)
   workflow_dispatch: # allow manual trigger from GitHub Actions UI
 
 jobs:

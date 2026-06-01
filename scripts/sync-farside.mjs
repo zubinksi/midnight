@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 // Scrapes Farside Investors HYPE ETF flow data and stores it in Upstash Redis.
-// Runs as a GitHub Actions cron job hourly.
+// Runs as a GitHub Actions cron job twice daily on weekdays (~44 req/month).
 //
-// Farside blocks datacenter IPs (GitHub Actions = Azure, Vercel = AWS).
-// Set SCRAPER_API_KEY to route through ScraperAPI residential IPs.
-// Free tier: 1,000 req/month — hourly cron uses ~720/month.
-// Sign up at: https://www.scraperapi.com (no card required for free tier)
+// Farside blocks datacenter IPs. This script tries a direct fetch first and
+// only falls back to ScraperAPI if blocked, preserving free-tier credits.
+// ScraperAPI free tier: 1,000 req/month. Sign up at scraperapi.com.
 
 const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, SCRAPER_API_KEY } = process.env
 
@@ -15,9 +14,11 @@ if (!UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN) {
 }
 
 if (!SCRAPER_API_KEY) {
-  console.error('Missing SCRAPER_API_KEY — set this secret to route through residential IPs')
+  console.error('Missing SCRAPER_API_KEY')
   process.exit(1)
 }
+
+const TARGET_URL = 'https://farside.co.uk/hyp/'
 
 function parseFarsideHtml(html) {
   const dateRegex = /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/
@@ -47,24 +48,43 @@ function parseFarsideHtml(html) {
   return rows.sort((a, b) => a.time - b.time)
 }
 
-async function main() {
-  const targetUrl = 'https://farside.co.uk/hyp/'
-  const fetchUrl  = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}`
-
-  console.log('Fetching Farside HYPE ETF flows via ScraperAPI...')
-  const res = await fetch(fetchUrl, {
-    headers: { 'Accept': 'text/html,*/*' },
+async function fetchDirect() {
+  const res = await fetch(TARGET_URL, {
+    headers: {
+      'Accept': 'text/html,*/*',
+      'User-Agent': 'Mozilla/5.0 (compatible; midnight-sync/1.0)',
+    },
   })
-
-  if (!res.ok) {
-    console.error(`Fetch failed: HTTP ${res.status}`)
-    process.exit(1)
-  }
-
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const html = await res.text()
-  if (html.length < 1000) {
-    console.error(`Response too short (${html.length} bytes) — likely blocked or wrong page`)
-    process.exit(1)
+  if (html.length < 1000) throw new Error(`Response too short (${html.length} bytes)`)
+  return html
+}
+
+async function fetchViaScraperApi() {
+  const fetchUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(TARGET_URL)}`
+  const res = await fetch(fetchUrl, { headers: { 'Accept': 'text/html,*/*' } })
+  if (!res.ok) throw new Error(`ScraperAPI HTTP ${res.status}`)
+  const html = await res.text()
+  if (html.length < 1000) throw new Error(`Response too short (${html.length} bytes)`)
+  return html
+}
+
+async function main() {
+  let html
+  try {
+    console.log('Attempting direct fetch...')
+    html = await fetchDirect()
+    console.log('Direct fetch succeeded.')
+  } catch (e) {
+    console.log(`Direct fetch failed (${e.message}), falling back to ScraperAPI...`)
+    try {
+      html = await fetchViaScraperApi()
+      console.log('ScraperAPI fetch succeeded.')
+    } catch (e2) {
+      console.error('ScraperAPI fetch failed:', e2.message)
+      process.exit(1)
+    }
   }
 
   const rows = parseFarsideHtml(html)
@@ -75,7 +95,6 @@ async function main() {
 
   console.log(`Parsed ${rows.length} rows (${new Date(rows[0].time * 1000).toDateString()} – ${new Date(rows.at(-1).time * 1000).toDateString()})`)
 
-  // Write to Upstash — single command format: ["SET", key, value, "EX", ttl]
   const upstashRes = await fetch(UPSTASH_REDIS_REST_URL, {
     method: 'POST',
     headers: {
@@ -90,8 +109,7 @@ async function main() {
     process.exit(1)
   }
 
-  const result = await upstashRes.json()
-  console.log('Upstash write result:', result)
+  console.log('Upstash write result:', await upstashRes.json())
   console.log('Done.')
 }
 
